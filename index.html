@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CEM Porter</title>
+<meta name="description" content="Port Windows CE 1.0, 2.0 and 2.11 programs and installers between MIPS and SH3 handhelds, in the browser.">
+<style>
+:root {
+    --desktop: rgb(0, 146, 170);
+    --face: rgb(182, 182, 170);
+    --light: rgb(219, 219, 170);
+    --highlight: rgb(255, 255, 255);
+    --shadow: rgb(146, 146, 170);
+    --dark-shadow: rgb(0, 0, 0);
+    --title: rgb(0, 0, 170);
+    --title-text: rgb(255, 255, 255);
+    --window: rgb(255, 255, 255);
+    --text: rgb(0, 0, 0);
+    --disabled: rgb(146, 146, 170);
+    --selection: rgb(0, 0, 170);
+    --selection-text: rgb(255, 255, 255);
+    --problem: rgb(182, 0, 0);
+    --note: rgb(0, 109, 0);
+    --tooltip: rgb(255, 255, 170);
+    --font: Tahoma, "MS Sans Serif", Verdana, Geneva, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html { background: var(--desktop); }
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--desktop);
+    color: var(--text);
+    font: 11px/1.35 var(--font);
+    padding: 16px 16px 44px;
+}
+
+.raised {
+    background: var(--face);
+    box-shadow: inset -1px -1px var(--dark-shadow), inset 1px 1px var(--light), inset -2px -2px var(--shadow), inset 2px 2px var(--highlight);
+}
+
+.sunken {
+    background: var(--window);
+    box-shadow: inset -1px -1px var(--highlight), inset 1px 1px var(--shadow), inset -2px -2px var(--light), inset 2px 2px var(--dark-shadow);
+}
+
+.window {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 3px;
+}
+
+.title-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--title);
+    color: var(--title-text);
+    font-weight: bold;
+    font-size: 12px;
+    padding: 2px 2px 2px 6px;
+    height: 22px;
+}
+
+.title-bar .title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.title-bar button {
+    width: 18px;
+    height: 16px;
+    padding: 0;
+    font: bold 11px/14px var(--font);
+    min-width: 0;
+}
+
+.body { padding: 8px; display: grid; gap: 10px; }
+
+fieldset {
+    border: 0;
+    margin: 0;
+    padding: 14px 10px 10px;
+    position: relative;
+    box-shadow: inset -1px -1px var(--highlight), inset 1px 1px var(--shadow), inset -2px -2px var(--shadow), inset 2px 2px var(--highlight);
+}
+
+legend {
+    position: absolute;
+    top: -7px;
+    left: 8px;
+    padding: 0 3px;
+    background: var(--face);
+}
+
+button, select {
+    font: 11px var(--font);
+    color: var(--text);
+}
+
+button {
+    min-width: 75px;
+    height: 23px;
+    padding: 0 10px;
+    border: 0;
+    background: var(--face);
+    box-shadow: inset -1px -1px var(--dark-shadow), inset 1px 1px var(--highlight), inset -2px -2px var(--shadow), inset 2px 2px var(--light);
+    cursor: pointer;
+}
+
+button:active:not(:disabled) {
+    box-shadow: inset 1px 1px var(--dark-shadow), inset -1px -1px var(--highlight), inset 2px 2px var(--shadow), inset -2px -2px var(--light);
+    padding-top: 1px;
+}
+
+button:disabled { color: var(--disabled); text-shadow: 1px 1px var(--highlight); cursor: default; }
+
+button:focus-visible, select:focus-visible, .drop:focus-visible { outline: 1px dotted var(--text); outline-offset: -4px; }
+
+select {
+    height: 21px;
+    border: 0;
+    padding: 0 4px;
+    width: 100%;
+    background: var(--window);
+    box-shadow: inset -1px -1px var(--highlight), inset 1px 1px var(--shadow), inset -2px -2px var(--light), inset 2px 2px var(--dark-shadow);
+    border-radius: 0;
+}
+
+label { display: inline-flex; align-items: center; gap: 5px; }
+
+input[type="radio"], input[type="checkbox"] { margin: 0; accent-color: var(--title); }
+
+.drop {
+    display: grid;
+    place-items: center;
+    gap: 6px;
+    min-height: 96px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.drop.over { background: var(--tooltip); }
+
+.selects { display: grid; grid-template-columns: 90px minmax(0, 1fr) 170px; gap: 8px; }
+
+label:has(input:disabled) { color: var(--disabled); }
+
+.drop strong { font-size: 12px; }
+
+.file-name { font-weight: bold; word-break: break-all; }
+
+.row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+
+.list {
+    max-height: 200px;
+    overflow: auto;
+    padding: 2px;
+}
+
+table { width: 100%; border-collapse: collapse; }
+
+th {
+    position: sticky;
+    top: 0;
+    text-align: left;
+    font-weight: normal;
+    padding: 2px 6px;
+    background: var(--face);
+    box-shadow: inset -1px -1px var(--dark-shadow), inset 1px 1px var(--highlight), inset -2px -2px var(--shadow);
+    white-space: nowrap;
+}
+
+td { padding: 2px 6px; vertical-align: top; }
+
+tr.selectable { cursor: pointer; }
+
+td.check { width: 20px; }
+
+td.size { white-space: nowrap; text-align: right; }
+
+.path { word-break: break-all; }
+
+tr.selected td { background: var(--selection); color: var(--selection-text); }
+
+tr.selected .problem, tr.selected .note { color: var(--selection-text); }
+
+.problem { color: var(--problem); }
+
+.note { color: var(--note); }
+
+.empty { color: var(--disabled); padding: 8px 6px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+
+.status-bar { display: flex; gap: 2px; margin-top: 2px; }
+
+.status-bar span {
+    flex: 1;
+    padding: 2px 6px;
+    height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: inset -1px -1px var(--highlight), inset 1px 1px var(--shadow);
+}
+
+.status-bar span:last-child { flex: 0 0 auto; }
+
+.taskbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px;
+    background: var(--face);
+    box-shadow: inset 0 1px var(--highlight), inset 0 2px var(--light);
+}
+
+.taskbar .start { font-weight: bold; min-width: 0; padding: 0 6px; }
+
+.taskbar .start[aria-expanded="true"] {
+    box-shadow: inset 1px 1px var(--dark-shadow), inset -1px -1px var(--highlight), inset 2px 2px var(--shadow), inset -2px -2px var(--light);
+}
+
+.start-menu {
+    position: fixed;
+    left: 2px;
+    bottom: 28px;
+    display: flex;
+    padding: 3px;
+    z-index: 20;
+    min-width: 190px;
+}
+
+.start-menu[hidden] { display: none; }
+
+.start-banner {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    background: var(--shadow);
+    color: var(--highlight);
+    font: bold 16px var(--font);
+    padding: 6px 3px;
+    letter-spacing: 1px;
+}
+
+.start-menu ul { list-style: none; margin: 0; padding: 2px 0; flex: 1; }
+
+.start-menu li > a, .start-menu li > button {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    padding: 5px 20px 5px 10px;
+    text-align: left;
+    color: var(--text);
+    text-decoration: none;
+    background: none;
+    box-shadow: none;
+    font: 11px var(--font);
+}
+
+.start-menu li > a:hover, .start-menu li > button:hover,
+.start-menu li > a:focus-visible, .start-menu li > button:focus-visible {
+    background: var(--selection);
+    color: var(--selection-text);
+    outline: none;
+}
+
+.start-menu .separator { height: 0; margin: 3px 4px; box-shadow: 0 -1px var(--shadow), 0 1px var(--highlight); }
+
+.taskbar .task { flex: 0 1 200px; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; box-shadow: inset 1px 1px var(--dark-shadow), inset -1px -1px var(--highlight), inset 2px 2px var(--shadow); background: var(--light); }
+
+.taskbar .tray { margin-left: auto; padding: 0 8px; height: 22px; line-height: 22px; box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--highlight); }
+
+.notes {
+    position: fixed;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(560px, calc(100% - 32px));
+    max-height: calc(100vh - 90px);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    padding: 3px;
+}
+
+.notes[hidden] { display: none; }
+
+.menu-bar { display: flex; gap: 14px; padding: 3px 6px; }
+
+.menu-bar span::first-letter { text-decoration: underline; }
+
+.document {
+    flex: 1;
+    overflow: auto;
+    padding: 10px 14px;
+    font: 12px/1.45 var(--font);
+}
+
+.document h1 { font-size: 15px; margin: 0 0 2px; }
+.document .tagline { font-style: italic; margin: 0 0 8px; }
+
+.document h2 { font-size: 12px; margin: 12px 0 4px; }
+
+.document p, .document ul { margin: 0 0 6px; }
+
+.document ul { padding-left: 18px; }
+
+a { color: var(--title); }
+
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+@media (max-width: 560px) {
+    body { padding: 8px 0 40px; }
+    .window { max-width: none; }
+    .hide-narrow { display: none; }
+    .selects { grid-template-columns: 1fr; }
+    .actions { justify-content: stretch; }
+    .actions button { flex: 1; }
+}
+</style>
+</head>
+<body>
+<main class="window raised">
+    <div class="title-bar">
+        <span class="title">CEM Porter</span>
+        <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </div>
+    <div class="body">
+        <fieldset>
+            <legend>1. Package</legend>
+            <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+                <strong id="drop-title">Drop an installer, CAB or program here</strong>
+                <span id="drop-hint">.exe, .cab, .zip, .lzh or .dll. Or tap to open one.</span>
+            </div>
+            <input class="visually-hidden" type="file" id="file-input" aria-label="Open a package">
+        </fieldset>
+
+        <fieldset>
+            <legend>2. Build</legend>
+            <div class="list sunken">
+                <table>
+                    <thead><tr><th>Name</th><th>Kind</th><th>CPU</th><th>Built for</th><th class="hide-narrow">From</th></tr></thead>
+                    <tbody id="builds"><tr><td class="empty" colspan="5">Open a package to see what's in it.</td></tr></tbody>
+                </table>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>3. Contents</legend>
+            <div class="list sunken">
+                <table>
+                    <thead><tr><th><span class="visually-hidden">Include</span></th><th>Installs to</th><th>Size</th></tr></thead>
+                    <tbody id="contents"><tr><td class="empty" colspan="3">Pick a build to see its files.</td></tr></tbody>
+                </table>
+            </div>
+            <div class="actions" style="margin-top: 8px;">
+                <button type="button" id="select-all" disabled>All</button>
+                <button type="button" id="select-none" disabled>None</button>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>4. Target</legend>
+            <div style="display: grid; gap: 8px;">
+                <div class="selects">
+                    <select id="ce-version" aria-label="Target Windows CE version">
+                        <option value="1">CE 1.0</option>
+                        <option value="2">CE 2.0</option>
+                    </select>
+                    <select id="device" aria-label="Target device"></select>
+                    <select id="output" aria-label="Output">
+                        <option value="cab">CAB</option>
+                        <option value="setup">Self-installing .exe</option>
+                        <option value="zip">Files (.zip)</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <label><input type="checkbox" id="on-card"> Install to Storage Card/PC Card</label>
+                    <label><input type="checkbox" id="four-kb"> Move sections to 4 KB pages (R3910)</label>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="actions">
+            <button type="button" id="port" disabled>Port</button>
+            <button type="button" id="save" disabled>Save</button>
+        </div>
+
+        <fieldset>
+            <legend>5. Report</legend>
+            <div class="list sunken">
+                <table>
+                    <thead><tr><th>File</th><th>Changes</th></tr></thead>
+                    <tbody id="report"><tr><td class="empty" colspan="2">Nothing ported yet.</td></tr></tbody>
+                </table>
+            </div>
+        </fieldset>
+    </div>
+    <div class="status-bar"><span id="status" role="status">Loading tables...</span><span id="size">&nbsp;</span></div>
+</main>
+<div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
+    <div class="start-banner" aria-hidden="true">CEM Porter</div>
+    <ul>
+        <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
+        <li class="separator" role="separator"></li>
+        <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
+        <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
+        <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
+    </ul>
+</div>
+<div class="taskbar">
+    <button class="start" type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
+    <button class="task" type="button" tabindex="-1">CEM Porter</button>
+    <button class="task" type="button" id="notes-task" hidden>Readme</button>
+    <span class="tray" id="clock"></span>
+</div>
+<section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
+    <div class="title-bar">
+        <span class="title" id="notes-title">Readme - Pocket Word</span>
+        <button class="raised" id="notes-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="menu-bar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></div>
+    <div class="document sunken">
+        <h1>CEM Porter</h1>
+        <p class="tagline">Keep on keeping on!</p>
+        <p>Ports Windows CE programs and their installers between CE 2.11, 2.0 and 1.0 on MIPS and SH3 handhelds.</p>
+        <h2>Using it</h2>
+        <ul>
+            <li>Open a desktop installer, CE CAB, zip, LZH or program.</li>
+            <li>Pick a build, untick any files you don't want, and choose the device.</li>
+            <li>Port, read the report, and save a CAB (CE 2.0), a self-installing .exe (CE 1.0 and 2.0) or the files.</li>
+            <li>Run a self-installing .exe again to remove what it installed.</li>
+        </ul>
+        <h2>What it changes</h2>
+        <ul>
+            <li>CE 2.11 programs: system calls renumbered for CE 2.0, C runtime from VELOCRT.DLL.</li>
+            <li>CE 2.0 programs for CE 1.0: imports renamed or supplied by CE1COMPAT.DLL and VELOSHIM.DLL, direct kernel calls adapted, colour bitmaps reduced to 4 greys.</li>
+            <li>Setup DLLs run: wceload runs them from a CAB, the self-installer on CE 1.0.</li>
+            <li>MIPS programs built for 1 KB pages are moved to 4 KB pages for the Velo's R3910.</li>
+        </ul>
+        <h2>Limitations</h2>
+        <ul>
+            <li>Programs needing MFC 2.11 or Visual Basic need those runtimes installed separately.</li>
+            <li>On CE 1.0, programs built on CE 2.0 components (command bands, OLE storage, IMGDECMP, CE 2.0 Office) won't run. The report lists missing DLLs and functions.</li>
+            <li>A CAB holds one setup DLL, so a merged build keeps only the first.</li>
+            <li>Disc images (.iso) can't be opened yet.</li>
+            <li>A clean report doesn't guarantee a program runs. Please report what you find.</li>
+        </ul>
+    </div>
+</section>
+<script type="module" src="src/app.js"></script>
+</body>
+</html>

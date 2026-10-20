@@ -1,0 +1,1916 @@
+{
+"0xffff972a": [
+"ImmIsIMEDisabled"
+],
+"0xffff972e": [
+"ImmAssociateContext"
+],
+"0xffff9732": [
+"ImmSendDeterminedString"
+],
+"0xffff9736": [
+"ImmNotifyActiveKbd"
+],
+"0xffff973a": [
+"ImmSIPanelState"
+],
+"0xffff973e": [
+"ImmIsUIMessageW"
+],
+"0xffff9742": [
+"ImmEnumRegisterWordW"
+],
+"0xffff9746": [
+"ImmGetRegisterWordStyleW"
+],
+"0xffff974a": [
+"ImmUnregisterWordW"
+],
+"0xffff974e": [
+"ImmRegisterWordW"
+],
+"0xffff9752": [
+"ImmSetHotKey"
+],
+"0xffff9756": [
+"ImmGetHotKey"
+],
+"0xffff975a": [
+"ImmSimulateHotKey"
+],
+"0xffff975e": [
+"ImmGetDescriptionW"
+],
+"0xffff9762": [
+"ImmGetIMCCLockCount"
+],
+"0xffff9766": [
+"ImmDestroyIMCC"
+],
+"0xffff976a": [
+"ImmCreateIMCC"
+],
+"0xffff9772": [
+"ImmGetIMCLockCount"
+],
+"0xffff9776": [
+"ImmGetConversionListW"
+],
+"0xffff977a": [
+"ImmGetGuideLineW"
+],
+"0xffff977e": [
+"ImmGetCandidateListCountW"
+],
+"0xffff9782": [
+"ImmSetCompositionFontW"
+],
+"0xffff9786": [
+"ImmGetCompositionFontW"
+],
+"0xffff978a": [
+"ImmSetCompositionStringW"
+],
+"0xffff978e": [
+"ImmGetCandidateWindow"
+],
+"0xffff9792": [
+"ImmGetCompositionWindow"
+],
+"0xffff9796": [
+"ImmSetCandidateWindow"
+],
+"0xffff979a": [
+"ImmSetCompositionWindow"
+],
+"0xffff979e": [
+"ImmSetStatusWindowPos"
+],
+"0xffff97a2": [
+"ImmSetActiveContext"
+],
+"0xffff97a6": [
+"ImmGetDefaultIMEWnd"
+],
+"0xffff97aa": [
+"ImmEscapeW"
+],
+"0xffff97ae": [
+"ImmConfigureIMEW"
+],
+"0xffff97b2": [
+"ImmGetProperty"
+],
+"0xffff97b6": [
+"ImmSetOpenStatus"
+],
+"0xffff97ba": [
+"ImmSetConversionStatus"
+],
+"0xffff97be": [
+"ImmGenerateMessage"
+],
+"0xffff97c2": [
+"ImmUnlockIMCC"
+],
+"0xffff97c6": [
+"ImmLockIMCC"
+],
+"0xffff97ca": [
+"ImmUnlockIMC"
+],
+"0xffff97ce": [
+"ImmLockIMC"
+],
+"0xffff97d2": [
+"ImmGetIMCCSize"
+],
+"0xffff97d6": [
+"ImmReSizeIMCC"
+],
+"0xffff97e2": [
+"ImmGetCandidateListW"
+],
+"0xffff97e6": [
+"ImmGetCompositionStringW"
+],
+"0xffff97ea": [
+"ImmGetOpenStatus"
+],
+"0xffff97ee": [
+"ImmGetConversionStatus"
+],
+"0xffff97f2": [
+"ImmGetContext"
+],
+"0xffff97f6": [
+"ImmReleaseContext"
+],
+"0xffff97fa": [
+"ImmNotifyIME"
+],
+"0xffff9fb6": [
+"lineAddProvider"
+],
+"0xffff9fba": [
+"lineGetID"
+],
+"0xffff9fbe": [
+"lineTranslateDialog"
+],
+"0xffff9fc2": [
+"lineTranslateAddress"
+],
+"0xffff9fca": [
+"lineSetStatusMessages"
+],
+"0xffff9fce": [
+"lineSetDevConfig"
+],
+"0xffff9fd6": [
+"lineNegotiateAPIVersion"
+],
+"0xffff9fda": [
+"lineMakeCall"
+],
+"0xffff9fe2": [
+"lineGetTranslateCaps"
+],
+"0xffff9fe6": [
+"lineGetDevConfig"
+],
+"0xffff9fea": [
+"lineGetDevCaps"
+],
+"0xffff9fee": [
+"lineDrop"
+],
+"0xffff9ff2": [
+"lineDeallocateCall"
+],
+"0xffff9ff6": [
+"lineConfigDialogEdit"
+],
+"0xffff9ffa": [
+"lineClose"
+],
+"0xffffa3ea": [
+"LoadFSD"
+],
+"0xffffa3ee": [
+"CreateDeviceHandle"
+],
+"0xffffa3f2": [
+"CloseAllDeviceHandles"
+],
+"0xffffa3f6": [
+"DeregisterDevice"
+],
+"0xffffa3fa": [
+"RegisterDevice"
+],
+"0xffffa7ae": [
+"SHLoadDIBitmap"
+],
+"0xffffa7b2": [
+"ExitWindowsEx"
+],
+"0xffffa7b6": [
+"SHShowOutOfMemory"
+],
+"0xffffa7ba": [
+"SHGetShortcutTarget"
+],
+"0xffffa7c2": [
+"CeEventHasOccurred"
+],
+"0xffffa7c6": [
+"CeGetUserNotificationPreferences",
+"PegGetUserNotificationPreferences"
+],
+"0xffffa7ca": [
+"CeHandleAppNotifications",
+"PegHandleAppNotifications"
+],
+"0xffffa7ce": [
+"CeRunAppAtEvent",
+"PegRunAppAtEvent"
+],
+"0xffffa7d2": [
+"CeRunAppAtTime",
+"PegRunAppAtTime"
+],
+"0xffffa7d6": [
+"CeClearUserNotification",
+"PegClearUserNotification"
+],
+"0xffffa7da": [
+"CeSetUserNotification",
+"PegSetUserNotification"
+],
+"0xffffa7e2": [
+"SHCreateShortcut"
+],
+"0xffffa7e6": [
+"SHAddToRecentDocs"
+],
+"0xffffa7ea": [
+"Shell_NotifyIcon"
+],
+"0xffffa7ee": [
+"SHGetFileInfo"
+],
+"0xffffa7f2": [
+"GetSaveFileNameW"
+],
+"0xffffa7f6": [
+"GetOpenFileNameW"
+],
+"0xffffa7fa": [
+"ShellExecuteEx"
+],
+"0xffffab1e": [
+"DumpFileSystemHeap"
+],
+"0xffffab22": [
+"CeChangeDatabaseLCID"
+],
+"0xffffab26": [
+"RegisterHiddenAFS"
+],
+"0xffffab2a": [
+"GetDiskFreeSpaceExW"
+],
+"0xffffab2e": [
+"DeregisterAFSName"
+],
+"0xffffab32": [
+"RegisterAFSName"
+],
+"0xffffab36": [
+"CeSetReplChangeBits"
+],
+"0xffffab3a": [
+"FileSystemPowerFunction"
+],
+"0xffffab42": [
+"SetPasswordActive"
+],
+"0xffffab46": [
+"GetPasswordActive"
+],
+"0xffffab4a": [
+"DeregisterAFS"
+],
+"0xffffab4e": [
+"RegisterAFS"
+],
+"0xffffab52": [
+"RegRestoreFile"
+],
+"0xffffab56": [
+"DeleteAndRenameFile"
+],
+"0xffffab5a": [
+"CloseAllFileHandles"
+],
+"0xffffab5e": [
+"RegCopyFile"
+],
+"0xffffab62": [
+"SetSystemMemoryDivision"
+],
+"0xffffab66": [
+"GetSystemMemoryDivision"
+],
+"0xffffab6a": [
+"CeSetReplOtherBits"
+],
+"0xffffab6e": [
+"CeGetReplOtherBits"
+],
+"0xffffab72": [
+"CeClearReplChangeBits"
+],
+"0xffffab76": [
+"CeGetReplChangeBits"
+],
+"0xffffab7a": [
+"CeSetReplChangeMask"
+],
+"0xffffab7e": [
+"CeGetReplChangeMask"
+],
+"0xffffab82": [
+"GetStoreInformation"
+],
+"0xffffab86": [
+"SetFileAttributesW"
+],
+"0xffffab8a": [
+"SetPassword"
+],
+"0xffffab8e": [
+"CheckPassword"
+],
+"0xffffab92": [
+"CeDeleteDatabase",
+"PegDeleteDatabase"
+],
+"0xffffab96": [
+"GetTempPathW"
+],
+"0xffffab9a": [
+"RegSetValueExW"
+],
+"0xffffab9e": [
+"RegQueryValueExW"
+],
+"0xffffaba6": [
+"RegOpenKeyExW"
+],
+"0xffffabb2": [
+"RegDeleteValueW"
+],
+"0xffffabb6": [
+"RegDeleteKeyW"
+],
+"0xffffabbe": [
+"RegCloseKey"
+],
+"0xffffabc2": [
+"CeOpenDatabase",
+"PegOpenDatabase"
+],
+"0xffffabc6": [
+"CeSetDatabaseInfo",
+"PegSetDatabaseInfo"
+],
+"0xffffabca": [
+"CeCreateDatabase",
+"PegCreateDatabase"
+],
+"0xffffabce": [
+"CeFindFirstDatabase",
+"PegFindFirstDatabase"
+],
+"0xffffabd2": [
+"CeOidGetInfo",
+"PegOidGetInfo"
+],
+"0xffffabd6": [
+"CeRegisterReplNotification"
+],
+"0xffffabda": [
+"CeRegisterFileSystemNotification"
+],
+"0xffffabde": [
+"CreateFileW"
+],
+"0xffffabe2": [
+"FindFirstFileW"
+],
+"0xffffabe6": [
+"GetFileAttributesW"
+],
+"0xffffabea": [
+"DeleteFileW"
+],
+"0xffffabee": [
+"CopyFileW"
+],
+"0xffffabf2": [
+"MoveFileW"
+],
+"0xffffabf6": [
+"RemoveDirectoryW"
+],
+"0xffffabfa": [
+"CreateDirectoryW"
+],
+"0xffffafa6": [
+"RasSetEntryDevConfig"
+],
+"0xffffafaa": [
+"RasGetEntryDevConfig"
+],
+"0xffffafae": [
+"RasGetConnectStatus"
+],
+"0xffffafb2": [
+"RasEnumConnections"
+],
+"0xffffafba": [
+"RasRenameEntry"
+],
+"0xffffafbe": [
+"RasDeleteEntry"
+],
+"0xffffafc2": [
+"RasValidateEntryName"
+],
+"0xffffafc6": [
+"RasSetEntryProperties"
+],
+"0xffffafca": [
+"RasGetEntryProperties"
+],
+"0xffffafce": [
+"RasSetEntryDialParams"
+],
+"0xffffafd2": [
+"RasGetEntryDialParams"
+],
+"0xffffafd6": [
+"RasEnumEntries"
+],
+"0xffffafde": [
+"RasIOControl"
+],
+"0xffffafea": [
+"RasHangUp",
+"RasHangup"
+],
+"0xffffafee": [
+"RasDial"
+],
+"0xffffb44a": [
+"ImageList_SetImageCount"
+],
+"0xffffb44e": [
+"ImageList_Duplicate"
+],
+"0xffffb452": [
+"ImageList_Copy"
+],
+"0xffffb456": [
+"UnregisterHotKey"
+],
+"0xffffb45a": [
+"RegisterHotKey"
+],
+"0xffffb45e": [
+"GetMessageSource"
+],
+"0xffffb462": [
+"GetDlgItemTextW"
+],
+"0xffffb466": [
+"SetDlgItemTextW"
+],
+"0xffffb46a": [
+"SendDlgItemMessageW"
+],
+"0xffffb46e": [
+"SendInput"
+],
+"0xffffb476": [
+"RegisterWindowMessageW"
+],
+"0xffffb47e": [
+"DrawFrameControl"
+],
+"0xffffb482": [
+"SetSysColors"
+],
+"0xffffb486": [
+"DrawMenuBar"
+],
+"0xffffb48a": [
+"GetAssociatedMenu"
+],
+"0xffffb48e": [
+"SetAssociatedMenu"
+],
+"0xffffb492": [
+"MsgWaitForMultipleObjectsEx"
+],
+"0xffffb496": [
+"GetAsyncShiftFlags"
+],
+"0xffffb49a": [
+"RegisterSIPanel"
+],
+"0xffffb49e": [
+"GetKeyboardStatus"
+],
+"0xffffb4a2": [
+"EnableHardwareKeyboard"
+],
+"0xffffb4a6": [
+"BatteryDrvrSupportsChangeNotification"
+],
+"0xffffb4aa": [
+"GetMouseMovePoints"
+],
+"0xffffb4ae": [
+"EnableCaretSystemWide"
+],
+"0xffffb4b2": [
+"DisableCaretSystemWide"
+],
+"0xffffb4ba": [
+"SetCursor"
+],
+"0xffffb4be": [
+"LoadCursorW"
+],
+"0xffffb4c2": [
+"BatteryNotifyOfTimeChange"
+],
+"0xffffb4c6": [
+"GwesPowerOffSystem"
+],
+"0xffffb4ca": [
+"BatteryDrvrGetLevels"
+],
+"0xffffb4ce": [
+"BatteryGetLifeTimeInfo"
+],
+"0xffffb4d2": [
+"TouchCalibrate"
+],
+"0xffffb4d6": [
+"ShellModalEnd"
+],
+"0xffffb4da": [
+"CreateIconIndirect"
+],
+"0xffffb4de": [
+"GetWindowThreadProcessId"
+],
+"0xffffb4e2": [
+"GetDoubleClickTime"
+],
+"0xffffb4e6": [
+"GetDialogBaseUnits"
+],
+"0xffffb4ea": [
+"GetSystemPowerStatusEx"
+],
+"0xffffb4ee": [
+"MapDialogRect"
+],
+"0xffffb4f2": [
+"RectangleAnimation"
+],
+"0xffffb4f6": [
+"EnumWindows"
+],
+"0xffffb4fa": [
+"NLedSetDevice"
+],
+"0xffffb4fe": [
+"NLedGetDeviceInfo"
+],
+"0xffffb502": [
+"QAUnhookWindowsJournalHook"
+],
+"0xffffb506": [
+"QASetWindowsJournalHook"
+],
+"0xffffb50a": [
+"GetMessagePos"
+],
+"0xffffb50e": [
+"GetCaretBlinkTime"
+],
+"0xffffb512": [
+"SetCaretBlinkTime"
+],
+"0xffffb516": [
+"GetMenuItemInfoW"
+],
+"0xffffb51a": [
+"SetMenuItemInfoW"
+],
+"0xffffb51e": [
+"NotifyWinUserSystem"
+],
+"0xffffb522": [
+"GetKeyboardTarget"
+],
+"0xffffb526": [
+"SetKeyboardTarget"
+],
+"0xffffb52a": [
+"GetClipboardDataAlloc"
+],
+"0xffffb532": [
+"SystemIdleTimerReset"
+],
+"0xffffb536": [
+"MessageBeep"
+],
+"0xffffb53a": [
+"GetOpenClipboardWindow"
+],
+"0xffffb53e": [
+"GetPriorityClipboardFormat"
+],
+"0xffffb542": [
+"IsClipboardFormatAvailable"
+],
+"0xffffb546": [
+"EmptyClipboard"
+],
+"0xffffb54a": [
+"GetClipboardFormatNameW"
+],
+"0xffffb54e": [
+"EnumClipboardFormats"
+],
+"0xffffb552": [
+"CountClipboardFormats"
+],
+"0xffffb556": [
+"RegisterClipboardFormatW"
+],
+"0xffffb55a": [
+"GetClipboardData"
+],
+"0xffffb55e": [
+"SetClipboardData"
+],
+"0xffffb562": [
+"GetClipboardOwner"
+],
+"0xffffb566": [
+"CloseClipboard"
+],
+"0xffffb56a": [
+"OpenClipboard"
+],
+"0xffffb572": [
+"ScrollDC"
+],
+"0xffffb57a": [
+"ImageList_SetDragCursorImage"
+],
+"0xffffb57e": [
+"ImageList_DragMove"
+],
+"0xffffb582": [
+"ImageList_DragLeave"
+],
+"0xffffb586": [
+"ImageList_DragEnter"
+],
+"0xffffb58a": [
+"ImageList_EndDrag"
+],
+"0xffffb58e": [
+"ImageList_BeginDrag"
+],
+"0xffffb592": [
+"ImageList_LoadImage"
+],
+"0xffffb596": [
+"ImageList_GetIcon"
+],
+"0xffffb59a": [
+"ImageList_Remove"
+],
+"0xffffb5a2": [
+"ImageList_AddMasked"
+],
+"0xffffb5a6": [
+"ImageList_Replace"
+],
+"0xffffb5aa": [
+"ImageList_Draw"
+],
+"0xffffb5ae": [
+"ImageList_SetOverlayImage"
+],
+"0xffffb5b2": [
+"ImageList_GetBkColor"
+],
+"0xffffb5b6": [
+"ImageList_SetBkColor"
+],
+"0xffffb5ba": [
+"ImageList_ReplaceIcon"
+],
+"0xffffb5be": [
+"ImageList_Add"
+],
+"0xffffb5c2": [
+"ImageList_GetImageCount"
+],
+"0xffffb5c6": [
+"ImageList_Destroy"
+],
+"0xffffb5ca": [
+"ImageList_Create"
+],
+"0xffffb5da": [
+"TranslateAcceleratorW"
+],
+"0xffffb5de": [
+"PostThreadMessageW"
+],
+"0xffffb5e2": [
+"SendNotifyMessageW"
+],
+"0xffffb5e6": [
+"DefDlgProcW"
+],
+"0xffffb5ea": [
+"GetSubMenu"
+],
+"0xffffb5ee": [
+"CreateMenu"
+],
+"0xffffb5f2": [
+"IsWindowEnabled"
+],
+"0xffffb5f6": [
+"EnableWindow"
+],
+"0xffffb5fa": [
+"CheckRadioButton"
+],
+"0xffffb5fe": [
+"GetNextDlgGroupItem"
+],
+"0xffffb602": [
+"KillTimer"
+],
+"0xffffb606": [
+"SetTimer"
+],
+"0xffffb60a": [
+"ExtractIconExW"
+],
+"0xffffb61e": [
+"GetCaretPos"
+],
+"0xffffb622": [
+"SetCaretPos"
+],
+"0xffffb626": [
+"ShowCaret"
+],
+"0xffffb62a": [
+"HideCaret"
+],
+"0xffffb62e": [
+"DestroyCaret"
+],
+"0xffffb632": [
+"CreateCaret"
+],
+"0xffffb636": [
+"FindWindowW"
+],
+"0xffffb63a": [
+"GetDlgItemInt"
+],
+"0xffffb63e": [
+"SetDlgItemInt"
+],
+"0xffffb642": [
+"IsDialogMessageW"
+],
+"0xffffb646": [
+"CreateDialogIndirectParamW"
+],
+"0xffffb64a": [
+"GetNextDlgTabItem"
+],
+"0xffffb64e": [
+"GetClassInfoW"
+],
+"0xffffb652": [
+"CallWindowProcW"
+],
+"0xffffb656": [
+"SetActiveWindow"
+],
+"0xffffb65a": [
+"RegisterTaskBar"
+],
+"0xffffb65e": [
+"SetForegroundWindow"
+],
+"0xffffb662": [
+"GetForegroundWindow"
+],
+"0xffffb666": [
+"LoadImageW"
+],
+"0xffffb66a": [
+"MapWindowPoints"
+],
+"0xffffb66e": [
+"GetClassNameW"
+],
+"0xffffb672": [
+"GetMessageWNoWait"
+],
+"0xffffb676": [
+"MapVirtualKeyW"
+],
+"0xffffb67a": [
+"PeekMessageW"
+],
+"0xffffb67e": [
+"GetScrollInfo"
+],
+"0xffffb682": [
+"SetScrollRange"
+],
+"0xffffb686": [
+"SetScrollPos"
+],
+"0xffffb68a": [
+"SetScrollInfo"
+],
+"0xffffb68e": [
+"mouse_event"
+],
+"0xffffb692": [
+"keybd_event"
+],
+"0xffffb69a": [
+"PostKeybdMessage"
+],
+"0xffffb69e": [
+"KeybdInitStates"
+],
+"0xffffb6a2": [
+"KeybdGetDeviceInfo"
+],
+"0xffffb6a6": [
+"GetKeyState"
+],
+"0xffffb6aa": [
+"GetDlgCtrlID"
+],
+"0xffffb6ae": [
+"GetDlgItem"
+],
+"0xffffb6b2": [
+"EndDialog"
+],
+"0xffffb6b6": [
+"DialogBoxIndirectParamW"
+],
+"0xffffb6ba": [
+"LoadStringW"
+],
+"0xffffb6be": [
+"GetAsyncKeyState"
+],
+"0xffffb6c2": [
+"DestroyIcon"
+],
+"0xffffb6ca": [
+"LoadIconW"
+],
+"0xffffb6ce": [
+"DeleteMenu"
+],
+"0xffffb6d2": [
+"CheckMenuRadioItem"
+],
+"0xffffb6d6": [
+"CheckMenuItem"
+],
+"0xffffb6da": [
+"LoadBitmapW"
+],
+"0xffffb6de": [
+"ValidateRect"
+],
+"0xffffb6e2": [
+"IsWindowVisible"
+],
+"0xffffb6e6": [
+"IsChild"
+],
+"0xffffb6ea": [
+"GetWindowTextLengthW"
+],
+"0xffffb6ee": [
+"BringWindowToTop"
+],
+"0xffffb6f2": [
+"GetUpdateRect"
+],
+"0xffffb6f6": [
+"GetUpdateRgn"
+],
+"0xffffb6fa": [
+"MoveWindow"
+],
+"0xffffb6fe": [
+"EnableMenuItem"
+],
+"0xffffb702": [
+"LoadMenuW"
+],
+"0xffffb706": [
+"TrackPopupMenuEx"
+],
+"0xffffb70a": [
+"DestroyMenu"
+],
+"0xffffb70e": [
+"RemoveMenu"
+],
+"0xffffb712": [
+"AppendMenuW"
+],
+"0xffffb716": [
+"InsertMenuW"
+],
+"0xffffb71a": [
+"CreatePopupMenu"
+],
+"0xffffb71e": [
+"IsWindow"
+],
+"0xffffb722": [
+"AdjustWindowRectEx"
+],
+"0xffffb726": [
+"GetSysColor"
+],
+"0xffffb72a": [
+"GetWindowDC"
+],
+"0xffffb72e": [
+"GetActiveWindow"
+],
+"0xffffb732": [
+"GetFocus"
+],
+"0xffffb736": [
+"SetFocus"
+],
+"0xffffb73a": [
+"MessageBoxW"
+],
+"0xffffb73e": [
+"GetParent"
+],
+"0xffffb742": [
+"SetParent"
+],
+"0xffffb746": [
+"UpdateWindow"
+],
+"0xffffb74a": [
+"ShowWindow"
+],
+"0xffffb74e": [
+"DestroyWindow"
+],
+"0xffffb752": [
+"SetClassLong",
+"SetClassLongW"
+],
+"0xffffb756": [
+"GetClassLong",
+"GetClassLongW"
+],
+"0xffffb75a": [
+"DefWindowProcW"
+],
+"0xffffb75e": [
+"ReleaseDC"
+],
+"0xffffb762": [
+"GetDC"
+],
+"0xffffb766": [
+"EndPaint"
+],
+"0xffffb76a": [
+"BeginPaint"
+],
+"0xffffb76e": [
+"GetWindowLongW"
+],
+"0xffffb772": [
+"SetWindowLongW"
+],
+"0xffffb776": [
+"GetWindowTextW"
+],
+"0xffffb77a": [
+"SetWindowTextW"
+],
+"0xffffb77e": [
+"ScreenToClient"
+],
+"0xffffb782": [
+"ClientToScreen"
+],
+"0xffffb786": [
+"ChildWindowFromPoint"
+],
+"0xffffb78a": [
+"WindowFromPoint"
+],
+"0xffffb78e": [
+"ImageList_DragShowNolock"
+],
+"0xffffb792": [
+"ImageList_DrawIndirect"
+],
+"0xffffb796": [
+"ImageList_CopyDitherImage"
+],
+"0xffffb7a2": [
+"ImageList_Merge"
+],
+"0xffffb7a6": [
+"ImageList_GetImageInfo"
+],
+"0xffffb7aa": [
+"ImageList_SetIconSize"
+],
+"0xffffb7ae": [
+"ImageList_GetIconSize"
+],
+"0xffffb7b2": [
+"ImageList_GetDragImage"
+],
+"0xffffb7b6": [
+"GetSystemMetrics"
+],
+"0xffffb7ba": [
+"GetWindow"
+],
+"0xffffb7be": [
+"InvalidateRect"
+],
+"0xffffb7c2": [
+"GetClientRect"
+],
+"0xffffb7c6": [
+"GetWindowRect"
+],
+"0xffffb7ca": [
+"SetWindowPos"
+],
+"0xffffb7ce": [
+"ReleaseCapture"
+],
+"0xffffb7d2": [
+"SetCapture"
+],
+"0xffffb7d6": [
+"GetCapture"
+],
+"0xffffb7da": [
+"DispatchMessageW"
+],
+"0xffffb7de": [
+"TranslateMessage"
+],
+"0xffffb7e2": [
+"GetMessageW"
+],
+"0xffffb7e6": [
+"SendMessageW"
+],
+"0xffffb7ea": [
+"PostQuitMessage"
+],
+"0xffffb7ee": [
+"PostMessageW"
+],
+"0xffffb7f6": [
+"UnregisterClassW"
+],
+"0xffffb7fa": [
+"RegisterClassW",
+"RegisterClassWStub"
+],
+"0xffffba86": [
+"SetObjectOwner"
+],
+"0xffffba8e": [
+"SetViewportOrgEx"
+],
+"0xffffba96": [
+"CreatePatternBrush"
+],
+"0xffffba9a": [
+"RectVisible"
+],
+"0xffffba9e": [
+"SetRectRgn"
+],
+"0xffffbaa2": [
+"SetROP2"
+],
+"0xffffbaa6": [
+"FillRgn"
+],
+"0xffffbaaa": [
+"CreateRectRgn"
+],
+"0xffffbaae": [
+"CreateDCW"
+],
+"0xffffbab2": [
+"SetAbortProc"
+],
+"0xffffbab6": [
+"AbortDoc"
+],
+"0xffffbaba": [
+"EndPage"
+],
+"0xffffbabe": [
+"StartPage"
+],
+"0xffffbac2": [
+"EndDoc"
+],
+"0xffffbac6": [
+"StartDocW"
+],
+"0xffffbaca": [
+"CreatePen"
+],
+"0xffffbace": [
+"GetNearestPaletteIndex"
+],
+"0xffffbad2": [
+"GetSystemPaletteEntries"
+],
+"0xffffbad6": [
+"SetPaletteEntries"
+],
+"0xffffbada": [
+"GetPaletteEntries"
+],
+"0xffffbade": [
+"RealizePalette"
+],
+"0xffffbae2": [
+"SelectPalette"
+],
+"0xffffbae6": [
+"CreatePalette"
+],
+"0xffffbaee": [
+"DeleteEnhMetaFile"
+],
+"0xffffbaf2": [
+"CreateEnhMetaFileW"
+],
+"0xffffbaf6": [
+"CloseEnhMetaFile"
+],
+"0xffffbafe": [
+"CeRemoveFontResource",
+"PegRemoveFontResource"
+],
+"0xffffbb02": [
+"GetClipBox"
+],
+"0xffffbb06": [
+"IntersectClipRect"
+],
+"0xffffbb0a": [
+"GetSysColorBrush"
+],
+"0xffffbb0e": [
+"CreateCompatibleBitmap"
+],
+"0xffffbb12": [
+"CreateBitmap"
+],
+"0xffffbb1a": [
+"SetTextColor"
+],
+"0xffffbb1e": [
+"SetPixel"
+],
+"0xffffbb22": [
+"SetBrushOrgEx"
+],
+"0xffffbb26": [
+"SetBkMode"
+],
+"0xffffbb2a": [
+"SetBkColor"
+],
+"0xffffbb2e": [
+"SelectObject"
+],
+"0xffffbb32": [
+"SelectClipRgn"
+],
+"0xffffbb36": [
+"SaveDC"
+],
+"0xffffbb3a": [
+"RoundRect"
+],
+"0xffffbb3e": [
+"RestoreDC"
+],
+"0xffffbb42": [
+"RemoveFontResourceW"
+],
+"0xffffbb46": [
+"RectInRegion"
+],
+"0xffffbb4a": [
+"Rectangle"
+],
+"0xffffbb4e": [
+"PtInRegion"
+],
+"0xffffbb52": [
+"Polyline"
+],
+"0xffffbb56": [
+"Polygon"
+],
+"0xffffbb5a": [
+"OffsetRgn"
+],
+"0xffffbb62": [
+"GetTextMetricsW"
+],
+"0xffffbb66": [
+"GetTextFaceW"
+],
+"0xffffbb6a": [
+"GetTextExtentExPointW"
+],
+"0xffffbb6e": [
+"GetTextColor"
+],
+"0xffffbb72": [
+"PatBlt"
+],
+"0xffffbb76": [
+"GetStockObject"
+],
+"0xffffbb7a": [
+"GetRgnBox"
+],
+"0xffffbb7e": [
+"GetRegionData"
+],
+"0xffffbb82": [
+"GetPixel"
+],
+"0xffffbb86": [
+"GetObjectType"
+],
+"0xffffbb8a": [
+"GetObjectW"
+],
+"0xffffbb8e": [
+"GetNearestColor"
+],
+"0xffffbb92": [
+"GetDeviceCaps"
+],
+"0xffffbb96": [
+"GetCurrentObject"
+],
+"0xffffbb9a": [
+"GetClipRgn"
+],
+"0xffffbb9e": [
+"GetBkMode"
+],
+"0xffffbba2": [
+"GetBkColor"
+],
+"0xffffbbaa": [
+"FillRect"
+],
+"0xffffbbb2": [
+"ExcludeClipRect"
+],
+"0xffffbbba": [
+"EnumFontFamiliesW",
+"EnumFontsW"
+],
+"0xffffbbbe": [
+"Ellipse"
+],
+"0xffffbbc2": [
+"DrawTextW"
+],
+"0xffffbbc6": [
+"DrawFocusRect"
+],
+"0xffffbbca": [
+"DrawEdge"
+],
+"0xffffbbce": [
+"DeleteObject"
+],
+"0xffffbbd2": [
+"DeleteDC"
+],
+"0xffffbbd6": [
+"CreateSolidBrush"
+],
+"0xffffbbda": [
+"CreatePenIndirect"
+],
+"0xffffbbde": [
+"CreateRectRgnIndirect"
+],
+"0xffffbbe2": [
+"CreateFontIndirectW"
+],
+"0xffffbbea": [
+"CreateDIBPatternBrushPt"
+],
+"0xffffbbee": [
+"CreateCompatibleDC"
+],
+"0xffffbbf2": [
+"CombineRgn"
+],
+"0xffffbbfa": [
+"AddFontResourceW"
+],
+"0xffffc3fa": [
+"MapViewOfFile"
+],
+"0xffffd3fa": [
+"CeFindNextDatabase",
+"PegFindNextDatabase"
+],
+"0xffffd7ee": [
+"CeWriteRecordProps",
+"PegWriteRecordProps"
+],
+"0xffffd7f2": [
+"CeReadRecordProps",
+"PegReadRecordProps"
+],
+"0xffffd7f6": [
+"CeDeleteRecord",
+"PegDeleteRecord"
+],
+"0xffffd7fa": [
+"CeSeekDatabase",
+"PegSeekDatabase"
+],
+"0xffffdbfa": [
+"FindNextFileW"
+],
+"0xffffdc02": [
+"FindClose"
+],
+"0xffffdfd2": [
+"ReadFilePagein"
+],
+"0xffffdfda": [
+"SetEndOfFile"
+],
+"0xffffdfde": [
+"SetFileTime"
+],
+"0xffffdfe2": [
+"GetFileTime"
+],
+"0xffffdfe6": [
+"FlushFileBuffers"
+],
+"0xffffdfea": [
+"GetFileInformationByHandle"
+],
+"0xffffdfee": [
+"SetFilePointer"
+],
+"0xffffdff2": [
+"GetFileSize"
+],
+"0xffffdff6": [
+"WriteFile"
+],
+"0xffffdffa": [
+"ReadFile"
+],
+"0xffffe3f2": [
+"VerifyAPIHandle"
+],
+"0xffffe3f6": [
+"CreateAPIHandle"
+],
+"0xffffe3fa": [
+"RegisterAPISet"
+],
+"0xffffe7fa": [
+"ReleaseMutex"
+],
+"0xffffebf6": [
+"AddEventAccess"
+],
+"0xffffebfa": [
+"EventModify"
+],
+"0xfffff3e2": [
+"DebugActiveProcess"
+],
+"0xfffff3e6": [
+"WriteProcessMemory"
+],
+"0xfffff3ea": [
+"ReadProcessMemory"
+],
+"0xfffff3ee": [
+"FlushInstructionCache"
+],
+"0xfffff3f2": [
+"GetProcessIndexFromID"
+],
+"0xfffff3f6": [
+"GetExitCodeProcess"
+],
+"0xfffff3fa": [
+"TerminateProcess"
+],
+"0xfffff7de": [
+"TerminateThread"
+],
+"0xfffff7e2": [
+"SetThreadContext"
+],
+"0xfffff7e6": [
+"GetThreadContext"
+],
+"0xfffff7ea": [
+"GetExitCodeThread"
+],
+"0xfffff7ee": [
+"GetThreadPriority"
+],
+"0xfffff7f2": [
+"SetThreadPriority"
+],
+"0xfffff7f6": [
+"ResumeThread"
+],
+"0xfffff9fe": [
+"ForcePageout"
+],
+"0xfffffa02": [
+"KernExtractIcons"
+],
+"0xfffffa06": [
+"QueryPerformanceFrequency"
+],
+"0xfffffa0a": [
+"QueryPerformanceCounter"
+],
+"0xfffffa0e": [
+"GetModuleFileNameW"
+],
+"0xfffffa12": [
+"GetProcessVersion"
+],
+"0xfffffa16": [
+"DumpKCallProfile"
+],
+"0xfffffa1a": [
+"NotifyForceCleanboot"
+],
+"0xfffffa1e": [
+"THGrow"
+],
+"0xfffffa22": [
+"THCreateSnapshot"
+],
+"0xfffffa26": [
+"OpenProcess"
+],
+"0xfffffa2a": [
+"DebugNotify"
+],
+"0xfffffa2e": [
+"ContinueDebugEvent"
+],
+"0xfffffa32": [
+"WaitForDebugEvent"
+],
+"0xfffffa36": [
+"GetCallerProcessIndex"
+],
+"0xfffffa3a": [
+"RaiseException"
+],
+"0xfffffa42": [
+"QueryAPISetID"
+],
+"0xfffffa46": [
+"SetHardwareWatch"
+],
+"0xfffffa4a": [
+"SetGwesPowerHandler"
+],
+"0xfffffa4e": [
+"SetPowerOffHandler"
+],
+"0xfffffa52": [
+"SetKMode"
+],
+"0xfffffa56": [
+"InterruptDisable"
+],
+"0xfffffa5a": [
+"InterruptDone"
+],
+"0xfffffa5e": [
+"InterruptInitialize"
+],
+"0xfffffa62": [
+"ConnectDebugger"
+],
+"0xfffffa6a": [
+"SignalStarted"
+],
+"0xfffffa6e": [
+"PPSHRestart"
+],
+"0xfffffa72": [
+"MapUncompressedFileW"
+],
+"0xfffffa76": [
+"KernelIoControl"
+],
+"0xfffffa7a": [
+"CreateFileForMapping"
+],
+"0xfffffa7e": [
+"FlushViewOfFile"
+],
+"0xfffffa82": [
+"UnmapViewOfFile"
+],
+"0xfffffa86": [
+"CreateFileMappingW"
+],
+"0xfffffa8a": [
+"LoadDriver"
+],
+"0xfffffa8e": [
+"SetHandleOwner"
+],
+"0xfffffa9a": [
+"GetProcName"
+],
+"0xfffffa9e": [
+"GetLastError"
+],
+"0xfffffaa2": [
+"SetLastError"
+],
+"0xfffffaa6": [
+"NKTerminateThread"
+],
+"0xfffffaaa": [
+"TurnOffSyscallProfiling"
+],
+"0xfffffaae": [
+"TurnOnSyscallProfiling"
+],
+"0xfffffab2": [
+"TurnOffProfiling"
+],
+"0xfffffab6": [
+"TurnOnProfiling"
+],
+"0xfffffabe": [
+"SetDbgZone"
+],
+"0xfffffac2": [
+"CreateMutexW"
+],
+"0xfffffac6": [
+"PowerOffSystem"
+],
+"0xfffffaca": [
+"CreateCrit",
+"InitializeCriticalSection"
+],
+"0xffffface": [
+"SetCleanRebootFlag"
+],
+"0xfffffad2": [
+"SetTimeZoneBias"
+],
+"0xfffffad6": [
+"SetDaylightTime"
+],
+"0xfffffada": [
+"SetGwesHeapMark"
+],
+"0xfffffade": [
+"GetCurrentPermissions"
+],
+"0xfffffae2": [
+"SetProcPermissions"
+],
+"0xfffffae6": [
+"IsPrimaryThread"
+],
+"0xfffffaea": [
+"SetLowestScheduledPriority"
+],
+"0xfffffaee": [
+"GetIdleTime"
+],
+"0xfffffaf2": [
+"GetCallerProcess"
+],
+"0xfffffaf6": [
+"GetOwnerProcess"
+],
+"0xfffffafa": [
+"KillAllOtherThreads"
+],
+"0xfffffafe": [
+"OtherThreadsRunning"
+],
+"0xfffffb02": [
+"GetFSHeapInfo"
+],
+"0xfffffb06": [
+"GetProcAddrBits"
+],
+"0xfffffb0a": [
+"IsBadCodePtr",
+"IsBadPtr",
+"IsBadReadPtr",
+"IsBadWritePtr"
+],
+"0xfffffb0e": [
+"GetProcFromPtr"
+],
+"0xfffffb12": [
+"MapPtrUnsecure"
+],
+"0xfffffb16": [
+"MapPtrToProcess"
+],
+"0xfffffb1e": [
+"LeaveCritSec"
+],
+"0xfffffb22": [
+"TakeCritSec"
+],
+"0xfffffb26": [
+"InputDebugCharW"
+],
+"0xfffffb2a": [
+"CreateThread"
+],
+"0xfffffb32": [
+"CreateEventW"
+],
+"0xfffffb36": [
+"BinaryDecompress"
+],
+"0xfffffb3a": [
+"BinaryCompress"
+],
+"0xfffffb3e": [
+"StringDecompress"
+],
+"0xfffffb42": [
+"StringCompress"
+],
+"0xfffffb46": [
+"SetGwesOOMEvent"
+],
+"0xfffffb4a": [
+"CloseProcOE"
+],
+"0xfffffb4e": [
+"SetPFHandle"
+],
+"0xfffffb52": [
+"RefreshKernelAlarm"
+],
+"0xfffffb56": [
+"SetKernelAlarm"
+],
+"0xfffffb5a": [
+"FilterTrackedItem"
+],
+"0xfffffb5e": [
+"RegisterTrackedItem"
+],
+"0xfffffb62": [
+"SetExceptionHandler"
+],
+"0xfffffb66": [
+"GiveKPhys"
+],
+"0xfffffb6a": [
+"GetKPhys"
+],
+"0xfffffb6e": [
+"PrintTrackedItem"
+],
+"0xfffffb72": [
+"DeleteTrackedItem"
+],
+"0xfffffb76": [
+"AddTrackedItem"
+],
+"0xfffffb7a": [
+"CacheSync"
+],
+"0xfffffb7e": [
+"GetRomFileBytes"
+],
+"0xfffffb82": [
+"GetRomFileInfo"
+],
+"0xfffffb86": [
+"ExtractResource"
+],
+"0xfffffb8a": [
+"ProcessDetachAllDLLs"
+],
+"0xfffffb8e": [
+"SetRealTime"
+],
+"0xfffffb92": [
+"GetRealTime"
+],
+"0xfffffb96": [
+"SizeofResource"
+],
+"0xfffffb9a": [
+"LoadResource"
+],
+"0xfffffb9e": [
+"FindResource",
+"FindResourceW"
+],
+"0xfffffba2": [
+"ProfileSyscall"
+],
+"0xfffffba6": [
+"NKDbgPrintfW",
+"NKvDbgPrintfW"
+],
+"0xfffffbaa": [
+"RegisterDbgZones"
+],
+"0xfffffbae": [
+"U_rclose"
+],
+"0xfffffbb2": [
+"U_rlseek"
+],
+"0xfffffbb6": [
+"U_rwrite"
+],
+"0xfffffbba": [
+"U_rread"
+],
+"0xfffffbbe": [
+"U_ropen"
+],
+"0xfffffbc2": [
+"GetSystemInfo"
+],
+"0xfffffbc6": [
+"TlsCall"
+],
+"0xfffffbca": [
+"OutputDebugStringW"
+],
+"0xfffffbce": [
+"GetTickCount"
+],
+"0xfffffbd2": [
+"ThreadDetachAllDLLs"
+],
+"0xfffffbd6": [
+"ThreadAttachAllDLLs"
+],
+"0xfffffbda": [
+"GetProcAddressW"
+],
+"0xfffffbde": [
+"FreeLibrary"
+],
+"0xfffffbe2": [
+"LoadLibraryW"
+],
+"0xfffffbe6": [
+"VirtualCopy"
+],
+"0xfffffbea": [
+"VirtualQuery"
+],
+"0xfffffbee": [
+"VirtualProtect"
+],
+"0xfffffbf2": [
+"VirtualFree"
+],
+"0xfffffbf6": [
+"VirtualAlloc"
+],
+"0xfffffbfa": [
+"CreateAPISet"
+],
+"0xfffffc02": [
+"AFS_Unmount",
+"CloseHandle"
+],
+"0xfffffc0a": [
+"AFS_CreateDirectoryW"
+],
+"0xfffffc0e": [
+"AFS_RemoveDirectoryW"
+],
+"0xfffffc12": [
+"AFS_GetFileAttributesW"
+],
+"0xfffffc16": [
+"AFS_SetFileAttributesW"
+],
+"0xfffffc1e": [
+"AFS_DeleteFileW"
+],
+"0xfffffc22": [
+"AFS_MoveFileW"
+],
+"0xfffffc26": [
+"AFS_FindFirstFileW"
+],
+"0xfffffc2e": [
+"AFS_OidGetInfo"
+],
+"0xfffffc32": [
+"AFS_PrestoChangoFileName"
+],
+"0xfffffc36": [
+"AFS_CloseAllFileHandles"
+],
+"0xfffffc3a": [
+"AFS_GetDiskFreeSpace"
+],
+"0xfffffc3e": [
+"AFS_NotifyMountedFS"
+],
+"0xfffffc42": [
+"AFS_RegisterFileSystemFunction"
+]
+}
