@@ -4,7 +4,7 @@
 
 Use it at https://gadgetoid.github.io/cem-porter/
 
-A single-page tool for porting Windows CE programs and installers between CE 2.11, 2.0 and 1.0 on MIPS and SH3 handhelds. Open a desktop installer, CE CAB, zip, LZH or program, pick a build and a target device, and save a CAB for CE 2.0, a self-installing program for CE 1.0 (and 2.0), or the ported files as a zip.
+A single-page tool for porting Windows CE 2.11 and 2.0 programs and installers back to CE 2.0 and 1.0 for MIPS and SH3 handhelds. Open a desktop installer, CE CAB, zip, LZH or program, pick a build and a target device, and save a CAB for CE 2.0, a self-installing program for CE 1.0 (and 2.0), or the ported files as a zip.
 
 Served from GitHub Pages; no build step. Open `index.html` through any static server (`python3 -m http.server`) to run it locally.
 
