@@ -337,7 +337,8 @@ function openFolder(folder) {
     elements["window-title"].textContent = `${folder.parent ? folder.name : state.source.name} - ROM Explorer`;
     renderFolderList();
     renderView();
-    elements.view.focus();
+    elements.view.scrollTop = 0;
+    elements.view.focus({ preventScroll: true });
 }
 
 function activate(node) {
