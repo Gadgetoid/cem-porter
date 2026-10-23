@@ -190,13 +190,13 @@
         <h2>What it reads</h2>
         <ul>
             <li>CE BIN (B000FF) images and flat ROM or flash dumps, wherever the ROM sits in the dump, even wrapping round its end.</li>
-            <li>Windows CE 1.0 to 4.2, with their compressed modules and files, including ROMs split into chained regions.</li>
+            <li>Windows CE 1.0 to 6.0, with their compressed modules and files, including ROMs split into chained regions.</li>
             <li>Folders and shortcuts from the ROM's initobj.dat, so the tree matches the device after a cold boot.</li>
         </ul>
         <h2>Limitations</h2>
         <ul>
             <li>Relocations aren't in ROM modules, so rebuilt programs only load at their original address.</li>
-            <li>CE 5.0 and later, and Windows Mobile IMGFS partitions, aren't read yet.</li>
+            <li>Windows Mobile IMGFS partitions aren't read, so a Windows Mobile ROM shows only its XIP part.</li>
             <li>Some devices keep their OS compressed in flash for a boot loader to unpack; those dumps have no ROM to show.</li>
         </ul>
     </div>

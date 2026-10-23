@@ -133,14 +133,14 @@ class RomRegion {
     }
 
     decompress(stored, size, scheme = this.compression) {
-        if (scheme === "lzx") return lzxBlocksDecode(stored, size);
+        if (scheme === "lzx" || scheme === "xpress") return lzxBlocksDecode(stored, size, scheme);
         return lzDecode(stored, size, scheme === "lz4k" ? LZ_BLOCK_CE212 : LZ_BLOCK);
     }
 
     detectCompression() {
         const fallback = this.version && (this.version[0] > 2 || (this.version[0] === 2 && this.version[1] >= 12)) ? "lz4k" : "lz1k";
         const samples = this.files.filter((file) => file.storedSize < file.size).slice(0, 24);
-        const scores = new Map([["lz1k", 0], ["lz4k", 0], ["lzx", 0]]);
+        const scores = new Map([["lz1k", 0], ["lz4k", 0], ["lzx", 0], ["xpress", 0]]);
         for (const file of samples) {
             for (const scheme of scores.keys()) {
                 try {
@@ -153,7 +153,7 @@ class RomRegion {
         const best = Math.max(...scores.values());
         if (!best) return fallback;
         const leaders = [...scores].filter(([, score]) => score === best).map(([scheme]) => scheme);
-        if (leaders.includes("lzx")) return "lzx";
+        for (const blocked of ["lzx", "xpress"]) if (leaders.includes(blocked)) return blocked;
         return leaders.includes(fallback) ? fallback : leaders[0];
     }
 
@@ -322,7 +322,7 @@ class RomRegion {
             const before = u32(raw, this.unitsOffset - 4);
             const after = u16(raw, this.unitsOffset + 8 * UNIT_NAMES.length);
             const end = Math.max(0, ...sections.map((section) => section.rva + section.virtualSize));
-            const recorded = u32(raw, this.unitsOffset - 8);
+            const recorded = u32(raw, this.unitsOffset === 24 ? 16 : 20);
             module.header = {
                 sectionCount: u16(raw, 0),
                 flags: u16(raw, 2),
@@ -562,6 +562,7 @@ function validCe1Table(data, fileOffset, headerOffset, fields) {
 
 function candidateStarts(data, headerOffset, fields, signatureStarts, knownBase) {
     const span = fields.physLast - fields.physFirst;
+    if (knownBase === "signatures") return signatureStarts.filter((start) => start <= headerOffset && headerOffset < start + span);
     if (knownBase !== null) return [fields.physFirst - masked(knownBase)];
     const starts = [0, ...signatureStarts];
     for (let start = Math.max(0, headerOffset - span) & ~(PAGE - 1); start <= headerOffset; start += PAGE) starts.push(start);
@@ -576,7 +577,7 @@ function findRegions(data, knownBase) {
     const regions = [];
     for (let offset = 0; offset + HEADER_SIZE <= data.length; offset += 4) {
         const fields = plausibleHeader(data, offset);
-        if (!fields || (knownBase === null && fields.physLast - fields.physFirst > data.length)) continue;
+        if (!fields || (knownBase !== null && knownBase !== "signatures" ? false : fields.physLast - fields.physFirst > data.length)) continue;
         for (const start of candidateStarts(data, offset, fields, signatureStarts, knownBase)) {
             const layout = validCe2Table(data, start, offset, fields) ? "ce2" : validCe1Table(data, start, offset, fields) ? "ce1" : null;
             if (!layout) continue;
@@ -742,6 +743,10 @@ export function openRom(input, name = "") {
         format = "CE BIN (B000FF)";
     }
     const regions = buildRegions(data, findRegions(data, bin ? bin.base : null));
+    if (bin && !isCompleteOs(regions)) {
+        const found = buildRegions(data, findRegions(data, "signatures"));
+        if (isCompleteOs(found)) regions.splice(0, regions.length, ...found);
+    }
     if (!bin && !isCompleteOs(regions)) {
         for (const shift of misalignedShifts(data)) {
             const shifted = data.subarray(shift);

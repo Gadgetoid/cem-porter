@@ -87,7 +87,63 @@ export function lzDecode(data, size, blockSize = LZ_BLOCK) {
     return output.result(Math.min(size, output.length));
 }
 
-export function lzxBlocksDecode(data, size) {
+function xpressDecode(data, size) {
+    const output = new Uint8Array(size);
+    let written = 0;
+    let position = 0;
+    let flags = 0;
+    let flagCount = 0;
+    let halfByte = -1;
+    while (written < size) {
+        if (!flagCount) {
+            if (position + 4 > data.length) break;
+            flags = u32(data, position);
+            position += 4;
+            flagCount = 32;
+        }
+        flagCount--;
+        if (!((flags >>> flagCount) & 1)) {
+            if (position >= data.length) break;
+            output[written++] = data[position++];
+            continue;
+        }
+        if (position + 2 > data.length) break;
+        const match = data[position] | (data[position + 1] << 8);
+        position += 2;
+        let length = match & 7;
+        const offset = (match >> 3) + 1;
+        if (length === 7) {
+            if (halfByte < 0) {
+                length = data[position] & 0x0f;
+                halfByte = position++;
+            } else {
+                length = data[halfByte] >> 4;
+                halfByte = -1;
+            }
+            if (length === 15) {
+                length = data[position++];
+                if (length === 255) {
+                    length = data[position] | (data[position + 1] << 8);
+                    position += 2;
+                    if (!length) {
+                        length = u32(data, position);
+                        position += 4;
+                    }
+                    length -= 15 + 7;
+                }
+                length += 15;
+            }
+            length += 7;
+        }
+        length += 3;
+        if (offset > written) throw new Error("XPRESS match is outside the output");
+        for (let index = 0; index < length && written < size; index++) output[written] = output[written++ - offset];
+    }
+    if (written !== size) throw new Error(`XPRESS block produced ${written} of ${size} bytes`);
+    return output;
+}
+
+export function lzxBlocksDecode(data, size, method = "lzx") {
     if (data.length < 3) return new Uint8Array(size);
     const total = Math.min(size, read24(data, 0));
     const count = Math.ceil(total / LZX_BLOCK);
@@ -101,11 +157,16 @@ export function lzxBlocksDecode(data, size) {
         if (chunk.length === want) {
             output.set(chunk, block * LZX_BLOCK);
         } else {
-            const windowBits = u32(chunk, 0);
-            const compressed = u32(chunk, 8);
-            const uncompressed = u32(chunk, 12);
-            if (windowBits < 15 || windowBits > 21 || compressed !== chunk.length - 16 || uncompressed !== want) throw new Error("LZX block header doesn't match");
-            output.set(decompressLzx(chunk.subarray(16), windowBits, want), block * LZX_BLOCK);
+            if (method === "xpress") {
+                if (u32(chunk, 0) !== 16 || u32(chunk, 8) !== chunk.length - 16) throw new Error("XPRESS block header doesn't match");
+                output.set(xpressDecode(chunk.subarray(16), want), block * LZX_BLOCK);
+            } else {
+                const windowBits = u32(chunk, 0);
+                const compressed = u32(chunk, 8);
+                const uncompressed = u32(chunk, 12);
+                if (windowBits < 15 || windowBits > 21 || compressed !== chunk.length - 16 || uncompressed !== want) throw new Error("LZX block header doesn't match");
+                output.set(decompressLzx(chunk.subarray(16), windowBits, want), block * LZX_BLOCK);
+            }
         }
         start = end;
     }

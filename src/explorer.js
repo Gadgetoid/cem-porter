@@ -488,7 +488,7 @@ function range(first, last) {
     return `${hex(first)}-${hex(last)} (${formatSize(((last >>> 0) - (first >>> 0)) >>> 0)})`;
 }
 
-const COMPRESSION_NAMES = { lz1k: "LZ, 1 KB blocks", lz4k: "LZ, 4 KB blocks", lzx: "LZX, 4 KB blocks", lzw: "LZW" };
+const COMPRESSION_NAMES = { lz1k: "LZ, 1 KB blocks", lz4k: "LZ, 4 KB blocks", lzx: "LZX, 4 KB blocks", xpress: "XPRESS, 4 KB blocks", lzw: "LZW" };
 
 function romSummary() {
     const region = state.region;
