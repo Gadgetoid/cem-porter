@@ -2,6 +2,7 @@ import { blast } from "./blast.js";
 import { readCabinet } from "./cabread.js";
 import { inflateRaw } from "./inflate.js";
 import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
+import { extractIs5, isIs5 } from "./is5.js";
 import { isLzh, scanLzh } from "./lzh.js";
 import { isPe, readSections, u16, u32 } from "./pe.js";
 import { findBytes, hasEndRecordNearEnd, readLocalEntries, readZip, readZipLeniently, tryDecodeCp932 } from "./zip.js";
@@ -48,6 +49,11 @@ export function safeName(name) {
 
 function baseName(name) {
     return name.slice(name.lastIndexOf("/") + 1);
+}
+
+function folderName(name) {
+    const slash = name.lastIndexOf("/");
+    return slash < 0 ? "" : name.slice(0, slash);
 }
 
 function joinPath(directory, name) {
@@ -178,6 +184,29 @@ function readIs3(data) {
 function tryReadIs3(data) {
     try {
         return readIs3(data);
+    } catch {
+        return null;
+    }
+}
+
+function readIs5(name, data, siblings) {
+    const path = safeName(name);
+    const volume = /^([^.\d]*)(\d+)\.cab$/i.exec(baseName(path));
+    if (!volume || Number(volume[2]) !== 1) return null;
+    const prefix = volume[1].toLowerCase();
+    const volumes = new Map([[1, data]]);
+    let header = data;
+    for (const sibling of siblings) {
+        const siblingPath = safeName(sibling.name);
+        if (folderName(siblingPath) !== folderName(path)) continue;
+        const match = /^([^.\d]*)(\d+)\.(cab|hdr)$/i.exec(baseName(siblingPath));
+        if (!match || match[1].toLowerCase() !== prefix || !isIs5(sibling.data)) continue;
+        if (match[3].toLowerCase() === "hdr" && Number(match[2]) === 1) header = sibling.data;
+        else if (match[3].toLowerCase() === "cab" && Number(match[2]) > 1) volumes.set(Number(match[2]), sibling.data);
+    }
+    try {
+        const { members, failed } = extractIs5(header, volumes);
+        return extractLikeBsdtar(members.map((member) => ({ name: null, nameBytes: member.nameBytes, data: member.data })), failed);
     } catch {
         return null;
     }
@@ -328,7 +357,7 @@ function tryReadZip(data) {
     }
 }
 
-export function membersOf(name, data) {
+export function membersOf(name, data, siblings = []) {
     const lower = name.toLowerCase();
     if (startsWith(data, ZIP_LOCAL_SIGNATURE) || (lower.endsWith(".zip") && hasEndRecordNearEnd(data))) {
         const members = tryReadZip(data);
@@ -341,6 +370,10 @@ export function membersOf(name, data) {
     if (isIs3(data)) {
         const members = tryReadIs3(data);
         return { members, method: members ? "InstallShield 3 archive" : null };
+    }
+    if (isIs5(data)) {
+        const members = readIs5(name, data, siblings);
+        if (members) return { members, method: "InstallShield cabinet" };
     }
     if (startsWith(data, SZDD_SIGNATURE)) {
         const expanded = expandSzdd(data);
@@ -358,15 +391,15 @@ export function membersOf(name, data) {
     return { members: null, method: null };
 }
 
-function unpackInto(name, data, directory, tree, log, depth) {
-    const { members, method } = depth > MAX_DEPTH ? { members: null, method: null } : membersOf(name, data);
+function unpackInto(name, data, directory, tree, log, depth, siblings = []) {
+    const { members, method } = depth > MAX_DEPTH ? { members: null, method: null } : membersOf(name, data, siblings);
     if (members === null) {
         tree.write(joinPath(directory, safeName(name)), data);
         return;
     }
     const folder = joinPath(directory, safeName(name) + ".d");
     log.push({ container: folder, method, members: members.length });
-    for (const member of members) unpackInto(member.name, member.data, folder, tree, log, depth + 1);
+    for (const member of members) unpackInto(member.name, member.data, folder, tree, log, depth + 1, members);
 }
 
 export function unpack(name, data) {

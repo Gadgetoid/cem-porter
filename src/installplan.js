@@ -212,10 +212,31 @@ function registryLocation(root, key, appName) {
     return [rootName, key === "~" ? `Software\\Apps\\${appName}` : key];
 }
 
-export function planFromLoadScript(script, findSource, { installFolder, appName }) {
+function scriptInstallFolder(lines, fallback) {
+    const copied = new Set();
+    const launched = [];
+    for (const line of lines) {
+        const tokens = loadTokens(line);
+        const command = tokens[0]?.toLowerCase();
+        if (!command) continue;
+        if (command.startsWith("exit")) break;
+        if ((command === "copy" || command === "copyshared") && tokens.length === 4 && tokens[2] === ".") copied.add(tokens[3].toLowerCase());
+        else if ((command === "remoteexec" || command === "execonunload") && tokens.length >= 2 && tokens[1].startsWith("\\")) launched.push(tokens[1]);
+    }
+    for (const program of launched) {
+        const slash = program.lastIndexOf("\\");
+        const folder = program.slice(0, slash);
+        if (folder && folder.toLowerCase() !== "\\windows" && copied.has(program.slice(slash + 1).toLowerCase())) return folder;
+    }
+    return fallback;
+}
+
+export function planFromLoadScript(script, findSource, { installFolder: defaultFolder, appName }) {
+    const lines = script.split(/\r?\n/);
+    const installFolder = scriptInstallFolder(lines, defaultFolder);
     const plan = new Plan(appName);
     plan.operations.push({ kind: "regkey", root: "HKLM", key: `Software\\Apps\\${appName}` });
-    for (const line of script.split(/\r?\n/)) {
+    for (const line of lines) {
         const tokens = loadTokens(line).map((token) => token.replaceAll("%P", installFolder));
         if (!tokens.length) continue;
         const command = tokens[0].toLowerCase();

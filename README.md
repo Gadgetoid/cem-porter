@@ -15,12 +15,15 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - InstallShield 3 (`.z`), PKWARE DCL, SZDD (`.ex_`)
 - zip, LZH (`-lh0-`, `-lh5-` to `-lh7-`)
 - MS CAB: stored, MSZIP and LZX (not Quantum)
+- InstallShield 5 and 6 cabinets (`data1.cab`, with `data1.hdr` and further volumes when present)
 - Installers with any of these embedded, recursively
 
 ### Finds builds
 
 - CE CABs (any folder with a `.000` setup file)
 - H/PC Explorer `.load` scripts; scripts in sibling folders are merged into one build
+- `.load.full`, `.load.lite` and similar scripts are offered as separate builds
+- Files a script copies are found under per-CPU or per-variant names (`LE.exe.MIPS`, `ParaKey.dll.SH3.Full`) anywhere in the package; a `remoteExec` path sets the install folder
 - Loose programs, grouped by CPU and folder
 - Packages with a CAB per program are also offered merged, one build per CPU, CE version and variant ("(Color)", "(B&W)"), with any shared-files CAB included
 - Each build's files can be picked or left out before porting

@@ -6,6 +6,8 @@ const CAB_ARCHITECTURES = { 4000: "mips", 10003: "sh3", 10004: "sh3" };
 const CPU_OF_MACHINE = { [MACHINE_MIPS]: "mips", [MACHINE_SH3]: "sh3" };
 const CPU_FOLDER = /^(mips|mip|r4000|r3000|sh3|sh-3|sh 3|hitachi|(mips|sh3)[ _-]?ce ?[12](\.\d+)?|ce ?[12](\.\d+)?(\.x)?|ce1\.0-2\.0|wce ?[12]0?|for all cpus|hpc|h_pc|en)$/i;
 const CPU_SUFFIXES = { mips: [".aur", ".r39", ".mips", ".mip", ".mps", ".r4000"], sh3: [".sh3", ".sh"] };
+const LOAD_SCRIPT = /\.load(?:\.([a-z]+))?$/i;
+const NOT_LOAD_VARIANTS = /^(txt|bak|old|orig|log|doc|htm|html)$/i;
 
 function folderOf(path) {
     const slash = path.lastIndexOf("/");
@@ -79,7 +81,7 @@ export function findBuilds(inputName, files) {
     }
     const title = inputName.replace(/\.[^.]+$/, "").replace(/[-_ ]?(mips|sh3|hpc|ce2?|setup|install)$/i, "") || "Application";
     builds.push(...mergeCabBuilds(builds, title));
-    const scripts = files.filter((file) => /\.load$/i.test(file.path) && !used.has(file.path) && !/(^|[^a-z])(sh-?4|arm|x86)([^a-z]|$)/i.test(file.path));
+    const scripts = files.filter((file) => isLoadScript(file.path) && !used.has(file.path) && !/(^|[^a-z])(sh-?4|arm|x86)([^a-z]|$)/i.test(file.path));
     const siblings = new Map();
     for (const script of scripts) {
         const parent = folderOf(folderOf(script.path));
@@ -94,27 +96,40 @@ export function findBuilds(inputName, files) {
         scriptFolders.get(key).push(script);
     }
     const within = (path, folder) => !folder || path.startsWith(folder + "/");
-    for (const [folder, scripts] of scriptFolders) {
-        const scriptDirectories = new Set(scripts.map((script) => folderOf(script.path)));
+    for (const [folder, folderScripts] of scriptFolders) {
+        const scriptDirectories = new Set(folderScripts.map((script) => folderOf(script.path)));
         const candidates = files.filter((other) => !used.has(other.path) && isPe(other.data) && within(other.path, folder) && [...scriptDirectories].some((directory) => folderOf(other.path) === directory || folderOf(folderOf(other.path)) === directory));
-        const infos = candidates.map((other) => binaryInfo(other.data)).filter(Boolean);
-        for (const cpu of [...new Set(infos.map((info) => info.cpu).filter(Boolean))]) {
-            const described = describeBuild(infos.filter((info) => info.cpu === cpu));
-            const buildTitle = scripts.length === 1 ? leafOf(scripts[0].path).replace(/\.load$/i, "") : title;
-            builds.push({
-                kind: "load",
-                title: buildTitle,
-                source: scripts.length === 1 ? scripts[0].path : `${folder || inputName} (${scripts.length} scripts)`,
-                cpu,
-                ce: described.ce,
-                ceLabel: described.ceLabel,
-                plan: () => mergePlans(buildTitle, scripts.map((script) => {
-                    const appName = leafOf(script.path).replace(/\.load$/i, "");
-                    return planFromLoadScript(latin1Decode(script.data), (wanted) => findLoadSource(files, folderOf(script.path), wanted, cpu), { installFolder: `${PROGRAM_FILES}\\${safeFolderName(appName)}`, appName });
-                })),
-            });
+        const variants = [...new Set(folderScripts.map((script) => loadVariant(script.path)).filter(Boolean))];
+        const sets = variants.length ? variants.map((variant) => [variant, folderScripts.filter((script) => [variant, ""].includes(loadVariant(script.path)))]) : [["", folderScripts]];
+        const resolved = [];
+        for (const [variant, scripts] of sets) {
+            const baseTitle = scripts.length === 1 ? loadAppName(scripts[0].path) : title;
+            const buildTitle = variant ? `${baseTitle} (${variant[0].toUpperCase()}${variant.slice(1)})` : baseTitle;
+            const planFor = (cpu) => mergePlans(buildTitle, scripts.map((script) => {
+                const appName = loadAppName(script.path);
+                const searchFolders = [folderOf(script.path), containerOf(script.path)];
+                return planFromLoadScript(latin1Decode(script.data), (wanted) => findLoadSource(files, searchFolders, wanted, cpu, variant), { installFolder: `${PROGRAM_FILES}\\${safeFolderName(appName)}`, appName });
+            }));
+            const infos = candidates.map((other) => binaryInfo(other.data)).filter(Boolean);
+            for (const cpu of Object.values(CPU_OF_MACHINE)) {
+                const sources = planFor(cpu).operations.filter((operation) => operation.kind === "file").map((operation) => operation.source);
+                resolved.push(...sources);
+                infos.push(...sources.map((path) => binaryInfo(byPath.get(path))).filter((info) => info?.cpu === cpu));
+            }
+            for (const cpu of [...new Set(infos.map((info) => info.cpu).filter(Boolean))]) {
+                const described = describeBuild(infos.filter((info) => info.cpu === cpu));
+                builds.push({
+                    kind: "load",
+                    title: buildTitle,
+                    source: scripts.length === 1 ? scripts[0].path : `${folder || inputName} (${scripts.length} scripts)`,
+                    cpu,
+                    ce: described.ce,
+                    ceLabel: described.ceLabel,
+                    plan: () => planFor(cpu),
+                });
+            }
         }
-        for (const other of [...candidates, ...scripts]) used.add(other.path);
+        for (const path of [...candidates.map((other) => other.path), ...folderScripts.map((script) => script.path), ...resolved]) used.add(path);
     }
     const loose = files.filter((file) => !used.has(file.path));
     const groups = new Map();
@@ -158,15 +173,38 @@ export function findBuilds(inputName, files) {
     return builds;
 }
 
-function findLoadSource(files, folder, name, cpu) {
-    const wanted = [name, ...CPU_SUFFIXES[cpu].map((suffix) => name + suffix), name + `.${cpu}.200`, name + `.${cpu}.100`].map((candidate) => candidate.toLowerCase());
-    const prefix = folder ? folder + "/" : "";
-    const matches = files.filter((file) => file.path.startsWith(prefix) && wanted.includes(leafOf(file.path).toLowerCase()));
-    const preferred = matches.find((file) => {
+function isLoadScript(path) {
+    const match = LOAD_SCRIPT.exec(path);
+    return Boolean(match) && !NOT_LOAD_VARIANTS.test(match[1] ?? "");
+}
+
+function loadVariant(path) {
+    return LOAD_SCRIPT.exec(path)?.[1]?.toLowerCase() ?? "";
+}
+
+function loadAppName(path) {
+    return leafOf(path).replace(LOAD_SCRIPT, "");
+}
+
+function containerOf(path) {
+    return /^(.*\.d)\//.exec(path)?.[1] ?? "";
+}
+
+function findLoadSource(files, folders, name, cpu, variant) {
+    const bases = [name, ...CPU_SUFFIXES[cpu].map((suffix) => name + suffix), name + `.${cpu}.200`, name + `.${cpu}.100`];
+    const wanted = (variant ? [`.${variant}`, ""] : [""]).flatMap((ending) => bases.map((base) => (base + ending).toLowerCase()));
+    const suitsCpu = (file) => {
         const info = isPe(file.data) ? binaryInfo(file.data) : null;
         return !info || info.cpu === cpu;
-    });
-    return preferred?.path ?? null;
+    };
+    for (const folder of [...new Set(folders)]) {
+        const prefix = folder ? folder + "/" : "";
+        const matches = files.filter((file) => file.path.startsWith(prefix) && wanted.includes(leafOf(file.path).toLowerCase()) && suitsCpu(file));
+        const isVariant = (file) => Boolean(variant) && leafOf(file.path).toLowerCase().endsWith(`.${variant}`);
+        matches.sort((left, right) => isVariant(right) - isVariant(left));
+        if (matches.length) return matches[0].path;
+    }
+    return null;
 }
 
 function variantOf(buildTitle) {
