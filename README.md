@@ -66,7 +66,8 @@ Programs that need Microsoft runtimes (MFC 2.11, Visual Basic) need them install
 https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a Windows CE ROM image like the device's own Explorer and saves its contents as a zip.
 
 - Reads CE BIN (B000FF) images and flat ROM or flash dumps, finding the ROM header wherever the image sits, including dumps shifted by a few bytes and images that wrap round the end of a mirrored flash dump; zip and 7z archives are unpacked first, and every ROM in them is listed
-- CE 1.0 and 1.01 (inline TOC names, LZW) and CE 2.0 to 3.0 (LZ, 1 KB or 4 KB blocks, detected per ROM)
+- CE 1.0 and 1.01 (inline TOC names, LZW), CE 2.0 to 4.1 (LZ, 1 KB or 4 KB blocks) and CE 4.2 (LZX, 4 KB blocks); the compression is detected per ROM from the files' recorded sizes
+- Regions chained together (CE 4.2's kernel and XIP regions share a ROM extensions block) are shown as one ROM
 - Modules are rebuilt as PE files; data directories pointing at sections romimage stripped are cleared
 - Folders and shortcut copies come from the ROM's `initobj.dat`; shortcuts show their target's icon
 - Icons and version information are read from each module's resources; bitmaps, including 2 bpp `.2bp` files, text and sounds can be previewed

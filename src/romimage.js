@@ -1,5 +1,5 @@
 import { latin1Decode, u16, u32 } from "./pe.js";
-import { lzDecode, lzwDecode, lzwFileDecode } from "./romlz.js";
+import { lzDecode, lzwDecode, lzwFileDecode, lzxBlocksDecode } from "./romlz.js";
 
 const HEADER_SIZE = 0x54;
 const HEADER_FIELDS = ["dllFirst", "dllLast", "physFirst", "physLast", "moduleCount", "ramStart", "ramFree", "ramEnd", "copyEntries", "copyOffset", "profileLength", "profileOffset", "fileCount", "kernelFlags", "fsRamPercent", "driverGlobalsStart", "driverGlobalsLength"];
@@ -34,7 +34,7 @@ const FILETIME_UNIX_EPOCH_MS = 11644473600000n;
 
 export const MACHINE_NAMES = {
     0x14c: "x86", 0x162: "MIPS R3000", 0x166: "MIPS R4000", 0x168: "MIPS R10000", 0x169: "MIPS (WCE v2)", 0x266: "MIPS16", 0x366: "MIPS FPU",
-    0x1a2: "SH3", 0x1a3: "SH3 DSP", 0x1a4: "SH3E", 0x1a6: "SH4", 0x1a8: "SH5", 0x1c0: "ARM", 0x1c2: "Thumb", 0x1c4: "ARMv7", 0x1f0: "PowerPC",
+    0x1a2: "SH3", 0x1a3: "SH3 DSP", 0x1a4: "SH3E", 0x1a6: "SH4", 0x1a8: "SH5", 0x1c0: "ARM", 0x1c2: "ARM with Thumb (ARMV4I)", 0x1c4: "ARMv7", 0x1f0: "PowerPC",
 };
 const MACHINE_MIPS = 0x166;
 const MACHINE_SH3 = 0x1a2;
@@ -122,8 +122,9 @@ class RomRegion {
         this.headerAddress = (this.header.physFirst - masked(this.header.physFirst) + masked(base) + headerOffset) >>> 0;
         this.modules = layout === "ce1" ? this.readCe1Modules() : this.readModules();
         this.files = layout === "ce1" ? this.readCe1Files() : this.readFiles();
+        for (const item of [...this.modules, ...this.files]) item.region = this;
         this.version = this.kernelVersion();
-        this.lzBlock = this.layout === "ce2" ? this.detectLzBlock() : LZ_BLOCK;
+        this.compression = this.layout === "ce2" ? this.detectCompression() : "lzw";
         if (layout === "ce2") {
             this.unitsOffset = this.findUnitsOffset();
             for (const module of this.modules) this.readModuleHeader(module);
@@ -131,22 +132,29 @@ class RomRegion {
         this.machine = this.detectMachine();
     }
 
-    detectLzBlock() {
-        const fallback = this.version && (this.version[0] > 2 || (this.version[0] === 2 && this.version[1] >= 12)) ? LZ_BLOCK_CE212 : LZ_BLOCK;
+    decompress(stored, size, scheme = this.compression) {
+        if (scheme === "lzx") return lzxBlocksDecode(stored, size);
+        return lzDecode(stored, size, scheme === "lz4k" ? LZ_BLOCK_CE212 : LZ_BLOCK);
+    }
+
+    detectCompression() {
+        const fallback = this.version && (this.version[0] > 2 || (this.version[0] === 2 && this.version[1] >= 12)) ? "lz4k" : "lz1k";
         const samples = this.files.filter((file) => file.storedSize < file.size).slice(0, 24);
-        const scores = new Map([[LZ_BLOCK, 0], [LZ_BLOCK_CE212, 0]]);
+        const scores = new Map([["lz1k", 0], ["lz4k", 0], ["lzx", 0]]);
         for (const file of samples) {
-            for (const block of scores.keys()) {
+            for (const scheme of scores.keys()) {
                 try {
-                    if (lzDecode(this.read(file.load, file.storedSize), file.size, block).length === file.size) scores.set(block, scores.get(block) + 1);
+                    if (this.decompress(this.read(file.load, file.storedSize), file.size + 1, scheme).length === file.size) scores.set(scheme, scores.get(scheme) + 1);
                 } catch {
                     continue;
                 }
             }
         }
-        const [small, large] = [scores.get(LZ_BLOCK), scores.get(LZ_BLOCK_CE212)];
-        if (small === large) return fallback;
-        return small > large ? LZ_BLOCK : LZ_BLOCK_CE212;
+        const best = Math.max(...scores.values());
+        if (!best) return fallback;
+        const leaders = [...scores].filter(([, score]) => score === best).map(([scheme]) => scheme);
+        if (leaders.includes("lzx")) return "lzx";
+        return leaders.includes(fallback) ? fallback : leaders[0];
     }
 
     offset(address, check = true) {
@@ -366,7 +374,7 @@ class RomRegion {
         const stored = this.read(section.pointer, section.storedSize);
         if (!(section.flags & SCN_COMPRESSED)) return stored;
         if (this.layout === "ce1") return lzwDecode(stored, section.virtualSize);
-        return lzDecode(stored, section.virtualSize, this.lzBlock);
+        return this.decompress(stored, section.virtualSize);
     }
 
     moduleData(module) {
@@ -378,7 +386,7 @@ class RomRegion {
     fileData(file) {
         const stored = this.read(file.load, file.storedSize);
         if (this.layout === "ce1") return file.attributes & FILE_ATTRIBUTE_COMPRESSED || file.storedSize < file.size ? lzwFileDecode(stored, file.size) : stored.slice(0, file.size);
-        if (file.storedSize !== file.size) return lzDecode(stored, file.size, this.lzBlock);
+        if (file.storedSize !== file.size) return this.decompress(stored, file.size);
         return stored.slice();
     }
 
@@ -690,9 +698,38 @@ function buildRegions(data, found) {
     }).filter((region) => !region.failed);
 }
 
+function moduleNames(regions) {
+    return new Set(regions.flatMap((region) => region.modules.filter((module) => module.header).map((module) => module.name.toLowerCase())));
+}
+
+function isCompleteOs(regions) {
+    const names = moduleNames(regions);
+    return names.has("nk.exe") && names.has("coredll.dll");
+}
+
 function hasKernel(region) {
-    const names = new Set(region.modules.filter((module) => module.header).map((module) => module.name.toLowerCase()));
-    return Number(names.has("nk.exe") && names.has("coredll.dll"));
+    return Number(isCompleteOs([region]));
+}
+
+function groupRegions(regions) {
+    const groups = [];
+    const used = new Set();
+    for (const region of regions) {
+        if (used.has(region)) continue;
+        const chain = region.header.extensions ? regions.filter((other) => !used.has(other) && other.header.extensions === region.header.extensions) : [region];
+        chain.forEach((member) => used.add(member));
+        groups.push(chain);
+    }
+    for (const group of groups) {
+        if (isCompleteOs(group) || !moduleNames(group).has("coredll.dll")) continue;
+        const kernel = groups.find((other) => other !== group && other.length === 1 && moduleNames(other).has("nk.exe") && !moduleNames(other).has("coredll.dll"));
+        if (kernel) {
+            group.push(...kernel);
+            groups.splice(groups.indexOf(kernel), 1);
+        }
+    }
+    const size = (group) => group.reduce((total, region) => total + region.modules.length + region.files.length, 0);
+    return groups.sort((left, right) => Number(isCompleteOs(right)) - Number(isCompleteOs(left)) || size(right) - size(left));
 }
 
 export function openRom(input, name = "") {
@@ -705,21 +742,21 @@ export function openRom(input, name = "") {
         format = "CE BIN (B000FF)";
     }
     const regions = buildRegions(data, findRegions(data, bin ? bin.base : null));
-    if (!bin && !regions.some(hasKernel)) {
+    if (!bin && !isCompleteOs(regions)) {
         for (const shift of misalignedShifts(data)) {
             const shifted = data.subarray(shift);
             const found = buildRegions(shifted, findRegions(shifted, null));
-            if (found.some(hasKernel)) {
+            if (isCompleteOs(found)) {
                 regions.push(...found);
                 format = `Flat image, starting ${shift} byte${shift === 1 ? "" : "s"} into the file`;
                 break;
             }
         }
     }
-    if (!bin && !regions.some(hasKernel)) {
+    if (!bin && !isCompleteOs(regions)) {
         for (const wrapped of wrappedRegions(data)) {
             const found = buildRegions(wrapped.data, [{ start: 0, offset: wrapped.offset, layout: "ce2" }]);
-            if (found.some(hasKernel)) {
+            if (isCompleteOs(found)) {
                 regions.push(...found);
                 format = `Flat image, wrapping round the end of the file from ${hex(wrapped.start, 6)}`;
                 break;
@@ -728,5 +765,6 @@ export function openRom(input, name = "") {
     }
     if (!regions.length) throw new Error(`No Windows CE ROM found. ${describeUnreadable(data)}`);
     regions.sort((left, right) => hasKernel(right) - hasKernel(left) || right.physicalSize - left.physicalSize || right.modules.length - left.modules.length);
-    return { name, format, size: input.length, bin, regions, primary: regions[0] };
+    const groups = groupRegions(regions);
+    return { name, format, size: input.length, bin, regions, groups, primary: groups[0].find((region) => moduleNames([region]).has("coredll.dll")) ?? groups[0][0] };
 }

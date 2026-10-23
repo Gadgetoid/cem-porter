@@ -8,7 +8,7 @@ import { artIcon, bitmapIcon, iconKind } from "./romicons.js";
 import { saveBytes, setupDesktop } from "./desktop.js";
 
 const elements = Object.fromEntries(["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "save-all", "region", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok"].map((id) => [id, document.getElementById(id)]));
-const state = { source: null, rom: null, region: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new Map(), iconJob: 0, dialogNode: undefined, exportNames: new Map(), choices: [] };
+const state = { source: null, rom: null, region: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new Map(), iconJob: 0, dialogNode: undefined, exportNames: new Map(), choices: [], regions: [] };
 const TEXT_EXTENSIONS = new Set(["txt", "ini", "inf", "htm", "html", "htc", "htp", "lnk", "reg", "bat", "xml", "log"]);
 const IMAGE_TYPES = { bmp: "image/bmp", "2bp": "image/bmp", gif: "image/gif", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", ico: "image/x-icon" };
 const SOUND_TYPES = { wav: "audio/wav" };
@@ -39,6 +39,7 @@ function versionLabel(region) {
     if (!version) return "unknown";
     const [major, minor] = version;
     if (minor === 0) return `${major}.0`;
+    if (major >= 4 && minor % 10 === 0) return `${major}.${minor / 10}`;
     return minor < 10 ? `${major}.0${minor}` : `${major}.${minor}`;
 }
 
@@ -55,8 +56,16 @@ function ce1Minor(region) {
     return label;
 }
 
+function groupModules() {
+    return state.regions.flatMap((region) => region.modules);
+}
+
+function groupFiles() {
+    return state.regions.flatMap((region) => region.files);
+}
+
 function platformGuess(region) {
-    const names = new Set(region.modules.map((module) => module.name.toLowerCase()));
+    const names = new Set(groupModules().map((module) => module.name.toLowerCase()));
     const version = versionLabel(region);
     const palm = names.has("aygshell.dll");
     if (region.layout === "ce1") return "Handheld PC 1.0";
@@ -65,6 +74,10 @@ function platformGuess(region) {
     if (version === "2.11") return palm ? "Palm-size PC 1.2" : "Handheld PC Professional";
     if (version === "2.12") return "Windows CE 2.12";
     if (version === "3.0") return palm ? "Pocket PC 2000 or 2002" : names.has("explorer.exe") ? "Handheld PC 2000 or Windows CE 3.0" : "Windows CE 3.0";
+    const major = Number(version.split(".")[0]);
+    if (major === 4) return `Windows CE .NET ${version}`;
+    if (major === 6) return `Windows Embedded CE ${version}`;
+    if (major >= 7) return `Windows Embedded Compact ${version}`;
     return `Windows CE ${version}`;
 }
 
@@ -74,7 +87,7 @@ function machineName(machine) {
 
 function nodeData(node) {
     const item = node.item;
-    return item.kind === "module" ? state.region.moduleData(item) : state.region.fileData(item);
+    return item.kind === "module" ? item.region.moduleData(item) : item.region.fileData(item);
 }
 
 function nodeSize(node) {
@@ -475,14 +488,18 @@ function range(first, last) {
     return `${hex(first)}-${hex(last)} (${formatSize(((last >>> 0) - (first >>> 0)) >>> 0)})`;
 }
 
+const COMPRESSION_NAMES = { lz1k: "LZ, 1 KB blocks", lz4k: "LZ, 4 KB blocks", lzx: "LZX, 4 KB blocks", lzw: "LZW" };
+
 function romSummary() {
     const region = state.region;
-    const kernel = region.modules.find((module) => module.name.toLowerCase() === "nk.exe");
-    const items = [...region.modules, ...region.files];
+    const modules = groupModules();
+    const files = groupFiles();
+    const kernel = modules.find((module) => module.name.toLowerCase() === "nk.exe");
+    const items = [...modules, ...files];
     const times = items.map((item) => item.time).filter(Boolean).sort((a, b) => a - b);
-    const compressedModules = region.modules.filter((module) => module.sections?.some((section) => section.flags & 0x2000)).length;
-    const compressedFiles = region.files.filter((file) => file.storedSize < file.size || (region.layout === "ce1" && file.attributes & 0x800)).length;
-    const stored = region.files.reduce((total, file) => total + file.storedSize, 0);
+    const compressedModules = modules.filter((module) => module.sections?.some((section) => section.flags & 0x2000)).length;
+    const compressedFiles = files.filter((file) => file.storedSize < file.size || (file.region.layout === "ce1" && file.attributes & 0x800)).length;
+    const stored = files.reduce((total, file) => total + file.storedSize, 0);
     return [
         ["File", state.source.name + (state.source.container ? ` (in ${state.source.container})` : "")],
         ["File size", exactSize(state.source.size)],
@@ -493,14 +510,24 @@ function romSummary() {
         ["Kernel built", formatDate(kernel?.time)],
         ["Newest file", formatDate(times[times.length - 1])],
         ["Oldest file", formatDate(times[0])],
-        ["Modules", `${region.modules.length} (${compressedModules} compressed)`],
-        ["Files", `${region.files.length} (${compressedFiles} compressed, ${formatSize(stored)} stored)`],
+        ["Modules", `${modules.length} (${compressedModules} compressed)`],
+        ["Files", `${files.length} (${compressedFiles} compressed, ${formatSize(stored)} stored)`],
+        ["Compression", compressedModules || compressedFiles ? COMPRESSION_NAMES[region.compression] : "None"],
+        ["ROM regions", state.regions.length > 1 ? `${state.regions.length}, chained (see Memory)` : null],
         ["Contents", formatSize(items.reduce((total, item) => total + item.size, 0))],
     ];
 }
 
 function romMemory() {
-    const region = state.region;
+    return state.regions.flatMap((region, index) => {
+        const rows = regionMemory(region);
+        if (state.regions.length < 2) return rows;
+        const contents = region.modules.slice(0, 3).map((module) => module.name).join(", ");
+        return [[`Region ${index + 1}`, `${region.modules.length} modules, ${region.files.length} files (${contents}${region.modules.length > 3 ? ", ..." : ""})`], ...rows.map(([term, value]) => [`  ${term}`, value])];
+    });
+}
+
+function regionMemory(region) {
     const header = region.header;
     return [
         ["ROM", range(header.physFirst, header.physLast)],
@@ -529,9 +556,9 @@ function romReport() {
         state.rom.regions.forEach((region, index) => lines.push(`  ${index + 1}. header ${hex(region.headerAddress)}, ${range(region.header.physFirst, region.header.physLast)}, ${region.modules.length} modules, ${region.files.length} files, CE ${versionLabel(region)}`));
     }
     lines.push("", "Modules (name, size, image base, entry, sections):");
-    for (const module of state.region.modules) lines.push(`  ${module.name.padEnd(24)} ${String(module.size).padStart(9)}  ${module.header ? `${hex(module.header.imageBase)} ${hex(module.header.imageBase + module.header.entry)} ${module.sections.map((section) => `${section.name}${section.flags & 0x2000 ? "*" : ""}`).join(" ")}` : module.problem ?? ""}`);
+    for (const module of groupModules()) lines.push(`  ${module.name.padEnd(24)} ${String(module.size).padStart(9)}  ${module.header ? `${hex(module.header.imageBase)} ${hex(module.header.imageBase + module.header.entry)} ${module.sections.map((section) => `${section.name}${section.flags & 0x2000 ? "*" : ""}`).join(" ")}` : module.problem ?? ""}`);
     lines.push("", "Files (name, size, stored size, attributes, address):");
-    for (const file of state.region.files) lines.push(`  ${file.name.padEnd(24)} ${String(file.size).padStart(9)} ${String(file.storedSize).padStart(9)}  ${hex(file.attributes, 4)}  ${hex(file.load)}`);
+    for (const file of groupFiles()) lines.push(`  ${file.name.padEnd(24)} ${String(file.size).padStart(9)} ${String(file.storedSize).padStart(9)}  ${hex(file.attributes, 4)}  ${hex(file.load)}`);
     lines.push("", "* compressed in ROM");
     return lines.join("\r\n") + "\r\n";
 }
@@ -543,15 +570,15 @@ function romTabs() {
     ];
     if (state.rom.regions.length > 1) {
         tabs.push(["Images", () => {
-            const rows = state.rom.regions.map((region, index) => [String(index + 1), hex(region.headerAddress), range(region.header.physFirst, region.header.physLast), String(region.modules.length), String(region.files.length), versionLabel(region)]);
+            const rows = state.rom.regions.map((region, index) => [String(index + 1), state.regions.includes(region) ? "Yes" : "", hex(region.headerAddress), range(region.header.physFirst, region.header.physLast), String(region.modules.length), String(region.files.length), versionLabel(region)]);
             const note = document.createElement("p");
-            note.textContent = "This file holds more than one ROM image. Pick one from the list in the toolbar.";
-            return [note, table(["#", "Header", "Range", "Modules", "Files", "CE"], rows, [3, 4])];
+            note.textContent = "This file holds more than one ROM region. Regions chained together are shown as one; pick others from the list in the toolbar.";
+            return [note, table(["#", "Shown", "Header", "Range", "Modules", "Files", "CE"], rows, [4, 5])];
         }]);
     }
-    if (state.region.header.copyEntries) {
+    if (state.regions.some((region) => region.header.copyEntries)) {
         tabs.push(["Copy entries", () => {
-            const rows = state.region.copyEntries().map((entry) => [hex(entry.source), hex(entry.destination), formatSize(entry.copyLength), formatSize(entry.destinationLength)]);
+            const rows = state.regions.flatMap((region) => region.copyEntries()).map((entry) => [hex(entry.source), hex(entry.destination), formatSize(entry.copyLength), formatSize(entry.destinationLength)]);
             const note = document.createElement("p");
             note.textContent = "Data the kernel copies from ROM to RAM at boot.";
             return [note, table(["From", "To", "Copied", "Size in RAM"], rows, [2, 3])];
@@ -588,7 +615,7 @@ function programTab(node) {
     const header = item.header;
     const rows = [];
     if (header) {
-        rows.push(["Processor", machineName(state.region.layout === "ce1" ? header.machine : state.region.machine)]);
+        rows.push(["Processor", machineName(item.region.layout === "ce1" ? header.machine : item.region.machine)]);
         rows.push(["Kind", header.flags & 0x2000 ? "DLL" : "Program"]);
         rows.push(["Image base", hex(header.imageBase)]);
         rows.push(["Entry point", hex(header.imageBase + header.entry)]);
@@ -617,11 +644,11 @@ function programTab(node) {
 function exportNames(dll) {
     const key = dll.toLowerCase();
     if (!state.exportNames.has(key)) {
-        const module = state.region.modules.find((candidate) => candidate.name.toLowerCase() === key);
+        const module = groupModules().find((candidate) => candidate.name.toLowerCase() === key);
         let names = null;
         if (module) {
             try {
-                names = new Map(readExports(state.region.moduleData(module)).filter((entry) => entry.name).map((entry) => [entry.ordinal, entry.name]));
+                names = new Map(readExports(module.region.moduleData(module)).filter((entry) => entry.name).map((entry) => [entry.ordinal, entry.name]));
             } catch {
                 names = null;
             }
@@ -746,19 +773,21 @@ function useChoice(index) {
     const choice = state.choices[index];
     state.rom = choice.rom;
     state.source = { name: choice.candidate.name, size: choice.candidate.data.length, container: choice.candidate.container };
-    state.region = state.rom.regions[choice.index];
+    state.regions = choice.group;
+    state.region = choice.group.find((region) => region.modules.some((module) => module.name.toLowerCase() === "coredll.dll")) ?? choice.group[0];
     state.icons.clear();
     state.exportNames.clear();
-    const { root, notes } = buildTree(state.region);
+    const { root, notes } = buildTree(state.regions);
     state.tree = root;
     const windows = findPath(root, "\\Windows");
     elements.folder.disabled = false;
     elements["save-all"].disabled = false;
     openFolder(windows ?? root);
     const region = state.region;
-    const names = new Set(region.modules.map((module) => module.name.toLowerCase()));
+    const names = new Set(groupModules().map((module) => module.name.toLowerCase()));
     const partial = names.has("nk.exe") && names.has("coredll.dll") ? "" : " No kernel and COREDLL together, so this is probably a boot loader or a partial image.";
-    setStatus(`${state.source.name}: Windows CE ${versionLabel(region)}, ${machineName(region.machine)}, ${region.modules.length} modules and ${region.files.length} files.${partial}${notes.length ? " " + notes.join(" ") : ""}`);
+    const chained = state.regions.length > 1 ? ` in ${state.regions.length} chained regions` : "";
+    setStatus(`${state.source.name}: Windows CE ${versionLabel(region)}, ${machineName(region.machine)}, ${groupModules().length} modules and ${groupFiles().length} files${chained}.${partial}${notes.length ? " " + notes.join(" ") : ""}`);
 }
 
 function* romCandidates(name, data) {
@@ -785,7 +814,7 @@ async function openFile(file) {
     for (const candidate of romCandidates(file.name, data)) {
         try {
             const rom = openRom(candidate.data, candidate.name);
-            rom.regions.forEach((region, index) => choices.push({ rom, candidate, index }));
+            rom.groups.forEach((group, index) => choices.push({ rom, candidate, group, index }));
             if (!candidate.container) break;
         } catch (error) {
             failures.push(candidate.container ? `${candidate.name}: ${error.message}` : error.message);
@@ -799,9 +828,10 @@ async function openFile(file) {
     const files = new Set(choices.map((choice) => choice.candidate.name));
     elements.region.hidden = choices.length < 2;
     elements.region.replaceChildren(...choices.map((choice, index) => {
-        const region = choice.rom.regions[choice.index];
+        const region = choice.group.find((member) => member.modules.some((module) => module.name.toLowerCase() === "coredll.dll")) ?? choice.group[0];
         const prefix = files.size > 1 ? `${choice.candidate.name}, ` : "";
-        return new Option(`${prefix}image ${choice.index + 1}: ${region.modules.length} modules, CE ${versionLabel(region)}`, String(index));
+        const modules = choice.group.reduce((total, member) => total + member.modules.length, 0);
+        return new Option(`${prefix}image ${choice.index + 1}: ${modules} modules, CE ${versionLabel(region)}`, String(index));
     }));
     useChoice(0);
 }

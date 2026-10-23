@@ -92,20 +92,20 @@ export function shortcutTarget(data) {
     return { command, target, arguments: args };
 }
 
-export function buildTree(region) {
+export function buildTree(regions) {
     const root = folder("", null);
     const windows = ensureFolder(root, "\\Windows");
-    const items = [...region.modules, ...region.files];
+    const items = regions.flatMap((region) => [...region.modules, ...region.files]);
     for (const item of items) {
         const node = { kind: item.kind, name: uniqueName(windows, item.name), parent: windows, item };
         windows.children.push(node);
     }
-    const initobj = region.files.find((file) => file.name.toLowerCase() === "initobj.dat");
+    const initobj = regions.flatMap((region) => region.files).find((file) => file.name.toLowerCase() === "initobj.dat");
     const notes = [];
     if (initobj) {
         let text = "";
         try {
-            text = decodeText(region.fileData(initobj));
+            text = decodeText(initobj.region.fileData(initobj));
         } catch (error) {
             notes.push(`initobj.dat couldn't be read: ${error.message}`);
         }

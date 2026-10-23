@@ -1,6 +1,8 @@
+import { decompressLzx } from "./lzx.js";
 import { u32 } from "./pe.js";
 
 const LZ_BLOCK = 1024;
+const LZX_BLOCK = 4096;
 const LZW_CODES = 4096;
 const LZW_CLEAR = 256;
 const LZW_FIRST = 257;
@@ -83,6 +85,31 @@ export function lzDecode(data, size, blockSize = LZ_BLOCK) {
         start = end;
     }
     return output.result(Math.min(size, output.length));
+}
+
+export function lzxBlocksDecode(data, size) {
+    if (data.length < 3) return new Uint8Array(size);
+    const total = Math.min(size, read24(data, 0));
+    const count = Math.ceil(total / LZX_BLOCK);
+    const output = new Uint8Array(total);
+    let start = 3 + 3 * count;
+    for (let block = 0; block < count; block++) {
+        const end = read24(data, 3 + 3 * block);
+        const want = Math.min(LZX_BLOCK, total - block * LZX_BLOCK);
+        const chunk = data.subarray(start, end);
+        if (end < start || end > data.length) throw new Error("LZX block table is out of range");
+        if (chunk.length === want) {
+            output.set(chunk, block * LZX_BLOCK);
+        } else {
+            const windowBits = u32(chunk, 0);
+            const compressed = u32(chunk, 8);
+            const uncompressed = u32(chunk, 12);
+            if (windowBits < 15 || windowBits > 21 || compressed !== chunk.length - 16 || uncompressed !== want) throw new Error("LZX block header doesn't match");
+            output.set(decompressLzx(chunk.subarray(16), windowBits, want), block * LZX_BLOCK);
+        }
+        start = end;
+    }
+    return output;
 }
 
 export function lzwDecode(data, size) {

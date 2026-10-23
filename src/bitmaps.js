@@ -11,6 +11,7 @@ export function resourceLeaves(image) {
     const base = image.offset(rootRva);
     const leaves = [];
     const walk = (offset, path) => {
+        if (path.length > 3 || base + offset + 16 > image.data.length) return;
         const named = u16(image.data, base + offset + 12);
         const numbered = u16(image.data, base + offset + 14);
         for (let index = 0; index < named + numbered; index++) {
