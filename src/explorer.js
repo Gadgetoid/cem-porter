@@ -5,7 +5,7 @@ import { openRom, MACHINE_NAMES, ATTRIBUTE_NAMES, hex } from "./romimage.js";
 import { buildTree, decodeText, extensionOf, findPath, pathOf, resolveShortcut, sortChildren, typeName } from "./romtree.js";
 import { iconSizes, readBitmapFile, readExports, readIcon, readVersion } from "./romres.js";
 import { artIcon, bitmapIcon, iconKind } from "./romicons.js";
-import { saveBytes, setupDesktop } from "./desktop.js";
+import { raiseWindow, saveBytes, setupDesktop } from "./desktop.js";
 
 const elements = Object.fromEntries(["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "save-all", "region", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok", "rom-bar", "rom-facts", "rom-details"].map((id) => [id, document.getElementById(id)]));
 const state = { source: null, rom: null, region: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new Map(), iconJob: 0, dialogNode: undefined, exportNames: new Map(), choices: [], regions: [] };
@@ -761,6 +761,7 @@ function showProperties(node = null) {
     }));
     showTab(0);
     elements.dialog.hidden = false;
+    raiseWindow(elements.dialog);
     elements["dialog-ok"].focus();
 }
 

@@ -11,6 +11,10 @@ const DESKTOP_WIDTH = "(min-width: 561px)";
 const KEEP_VISIBLE = 40;
 let topLayer = 30;
 
+export function raiseWindow(element) {
+    element.style.zIndex = String(++topLayer);
+}
+
 function resetWindow(element) {
     for (const property of ["position", "left", "top", "width", "margin", "transform", "zIndex"]) element.style[property] = "";
 }
@@ -38,7 +42,7 @@ function makeDraggable(element, handle, wide) {
     handle.addEventListener("pointerup", end);
     handle.addEventListener("pointercancel", end);
     element.addEventListener("pointerdown", () => {
-        if (element.style.position === "fixed") element.style.zIndex = String(++topLayer);
+        if (element.style.position === "fixed" || !element.classList.contains("window")) raiseWindow(element);
     });
 }
 
@@ -62,6 +66,7 @@ export function setupDesktop({ readmeKey }) {
     };
     const showNotes = (open) => {
         elements.notes.hidden = !open;
+        if (open) raiseWindow(elements.notes);
         elements["notes-task"].hidden = !open;
         elements["about-button"].setAttribute("aria-expanded", String(open));
         if (open) elements["notes-close"].focus();
