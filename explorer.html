@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ROM Explorer</title>
+<meta name="description" content="Browse the files and programs in a Windows CE ROM image, see what's known about each, and save them as a zip.">
+<link rel="stylesheet" href="src/ce.css">
+<style>
+.explorer { max-width: 960px; }
+
+.explorer .body { gap: 6px; }
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 3px; }
+
+.toolbar button { min-width: 0; padding: 0 8px; }
+
+.toolbar button[aria-pressed="true"] {
+    box-shadow: inset 1px 1px var(--dark-shadow), inset -1px -1px var(--highlight), inset 2px 2px var(--shadow), inset -2px -2px var(--light);
+    background: var(--light);
+}
+
+.toolbar .separator { width: 2px; height: 20px; margin: 0 2px; box-shadow: inset 1px 0 var(--shadow), inset -1px 0 var(--highlight); }
+
+.toolbar select { width: auto; min-width: 120px; flex: 1 1 180px; max-width: 360px; }
+
+.view { height: min(60vh, 520px); overflow: auto; padding: 4px; position: relative; }
+
+.view:focus-visible { outline: 1px dotted var(--text); outline-offset: -4px; }
+
+.icons { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px 2px; }
+
+.icons li { display: grid; justify-items: center; align-content: start; gap: 2px; padding: 2px; cursor: default; text-align: center; min-width: 0; }
+
+.icons img { width: 32px; height: 32px; image-rendering: pixelated; }
+
+.icons span { padding: 0 2px; max-width: 100%; overflow-wrap: anywhere; line-height: 1.25; }
+
+.icons li.selected span { background: var(--selection); color: var(--selection-text); }
+
+.icons li.selected img { filter: brightness(0.7) sepia(1) hue-rotate(190deg) saturate(3); }
+
+.details td { white-space: nowrap; cursor: default; }
+
+.details td.name { display: flex; gap: 4px; align-items: center; white-space: normal; }
+
+.details td.name img { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
+
+.details tr.selected td { background: var(--selection); color: var(--selection-text); }
+
+.details th button { all: unset; cursor: pointer; display: block; width: 100%; }
+
+.view .drop { position: absolute; inset: 4px; }
+
+.dialog {
+    position: fixed;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(620px, calc(100% - 32px));
+    max-height: calc(100vh - 90px);
+    display: flex;
+    flex-direction: column;
+    z-index: 15;
+    padding: 3px;
+}
+
+.dialog[hidden] { display: none; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 0; padding: 6px 6px 0; }
+
+.tabs button {
+    min-width: 0;
+    height: 21px;
+    padding: 0 10px;
+    box-shadow: inset 1px 1px var(--highlight), inset -1px 0 var(--dark-shadow), inset -2px 0 var(--shadow);
+}
+
+.tabs button[aria-selected="true"] { background: var(--face); font-weight: bold; position: relative; top: 1px; }
+
+.panel { flex: 1; overflow: auto; margin: 0 6px; padding: 8px; display: grid; gap: 8px; align-content: start; }
+
+.panel .heading { display: flex; gap: 10px; align-items: center; font-weight: bold; font-size: 12px; }
+
+.panel .heading img { width: 32px; height: 32px; image-rendering: pixelated; }
+
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; margin: 0; }
+
+.facts dt { color: var(--text); }
+
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+
+.panel table { font-size: 11px; }
+
+.panel td { white-space: nowrap; }
+
+.panel pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.35 "Courier New", monospace; max-height: 320px; overflow: auto; }
+
+.panel .preview-image { image-rendering: pixelated; max-width: 100%; justify-self: start; background: var(--window); }
+
+.panel hr { border: 0; height: 2px; margin: 0; box-shadow: inset 0 1px var(--shadow), inset 0 -1px var(--highlight); }
+
+.dialog .actions { padding: 8px 6px 4px; }
+
+@media (max-width: 560px) {
+    .toolbar select { max-width: none; flex-basis: 100%; order: -1; }
+    .view { height: 60vh; }
+    .facts { grid-template-columns: 1fr; gap: 0; }
+    .facts dd { margin-bottom: 4px; }
+}
+</style>
+</head>
+<body>
+<main class="window raised explorer">
+    <div class="title-bar">
+        <span class="title" id="window-title">ROM Explorer</span>
+        <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </div>
+    <div class="body">
+        <div class="toolbar raised" role="toolbar" aria-label="ROM Explorer">
+            <button type="button" id="open">Open...</button>
+            <span class="separator" aria-hidden="true"></span>
+            <select id="folder" aria-label="Folder" disabled></select>
+            <button type="button" id="up" aria-label="Up one level" disabled>Up</button>
+            <span class="separator" aria-hidden="true"></span>
+            <button type="button" id="view-icons" aria-pressed="true">Icons</button>
+            <button type="button" id="view-details" aria-pressed="false">Details</button>
+            <span class="separator" aria-hidden="true"></span>
+            <button type="button" id="properties" disabled>Properties</button>
+            <button type="button" id="save-selected" disabled>Save</button>
+            <button type="button" id="save-all" disabled>Save all (.zip)</button>
+            <select id="region" aria-label="ROM image in this file" hidden></select>
+        </div>
+        <div class="view sunken" id="view" tabindex="0" aria-label="Folder contents">
+            <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+                <strong id="drop-title">Drop a Windows CE ROM image here</strong>
+                <span id="drop-hint">nk.bin, .nb0, a flash dump, or a .zip or .7z holding one. Or tap to open one.</span>
+            </div>
+        </div>
+        <input class="visually-hidden" type="file" id="file-input" aria-label="Open a ROM image">
+    </div>
+    <div class="status-bar"><span id="status" role="status">No ROM open.</span><span id="size">&nbsp;</span></div>
+</main>
+<section class="dialog raised" id="dialog" hidden aria-labelledby="dialog-title" role="dialog">
+    <div class="title-bar">
+        <span class="title" id="dialog-title">Properties</span>
+        <button class="raised" id="dialog-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="tabs" id="dialog-tabs" role="tablist"></div>
+    <div class="panel sunken" id="dialog-panel" role="tabpanel"></div>
+    <div class="actions">
+        <button type="button" id="dialog-save">Save file</button>
+        <button type="button" id="dialog-ok">OK</button>
+    </div>
+</section>
+<div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
+    <div class="start-banner" aria-hidden="true">ROM Explorer</div>
+    <ul>
+        <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
+        <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
+        <li class="separator" role="separator"></li>
+        <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
+        <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
+        <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
+    </ul>
+</div>
+<div class="taskbar">
+    <button class="start" type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
+    <button class="task" type="button" tabindex="-1">ROM Explorer</button>
+    <button class="task" type="button" id="notes-task" hidden>Readme</button>
+    <span class="tray" id="clock"></span>
+</div>
+<section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
+    <div class="title-bar">
+        <span class="title" id="notes-title">Readme - Pocket Word</span>
+        <button class="raised" id="notes-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="menu-bar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></div>
+    <div class="document sunken">
+        <h1>ROM Explorer</h1>
+        <p class="tagline">Keep on keeping on!</p>
+        <p>Opens a Windows CE ROM image and shows what's in it, the way the device's own Explorer would.</p>
+        <h2>Using it</h2>
+        <ul>
+            <li>Open an nk.bin, a raw flash dump, or a zip or 7z holding one. Archives with several ROMs list each in the toolbar.</li>
+            <li>Double-click a folder to open it, or a file to see its properties: version, CPU, sections, imports, exports and where it sits in the ROM.</li>
+            <li>Properties with nothing selected describes the ROM: CE version, CPU, address ranges and build dates.</li>
+            <li>Save the selected files, or everything as a zip. Programs and DLLs are rebuilt as ordinary PE files.</li>
+        </ul>
+        <h2>What it reads</h2>
+        <ul>
+            <li>CE BIN (B000FF) images and flat ROM or flash dumps, wherever the ROM sits in the dump, even wrapping round its end.</li>
+            <li>Windows CE 1.0 to 3.0, with their compressed modules and files.</li>
+            <li>Folders and shortcuts from the ROM's initobj.dat, so the tree matches the device after a cold boot.</li>
+        </ul>
+        <h2>Limitations</h2>
+        <ul>
+            <li>Relocations aren't in ROM modules, so rebuilt programs only load at their original address.</li>
+            <li>CE 4.0 and later compression, and Windows Mobile IMGFS partitions, aren't read yet.</li>
+            <li>Some devices keep their OS compressed in flash for a boot loader to unpack; those dumps have no ROM to show.</li>
+        </ul>
+    </div>
+</section>
+<script type="module" src="src/explorer.js"></script>
+</body>
+</html>

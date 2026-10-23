@@ -5,8 +5,9 @@ import { isPe } from "./pe.js";
 import { findBuilds, matchScore } from "./analyze.js";
 import { DEVICES, deviceSettings, portPlan, buildCab, buildSelfInstaller, planOnCard } from "./convert.js";
 import { safeFolderName } from "./installplan.js";
+import { saveBytes, setupDesktop } from "./desktop.js";
 
-const elements = Object.fromEntries(["drop", "drop-title", "drop-hint", "file-input", "builds", "contents", "select-all", "select-none", "on-card", "output", "ce-version", "device", "four-kb", "port", "save", "report", "status", "size", "clock", "notes", "notes-task", "notes-close", "about-button", "start", "start-menu", "menu-readme"].map((id) => [id, document.getElementById(id)]));
+const elements = Object.fromEntries(["drop", "drop-title", "drop-hint", "file-input", "builds", "contents", "select-all", "select-none", "on-card", "output", "ce-version", "device", "four-kb", "port", "save", "report", "status", "size"].map((id) => [id, document.getElementById(id)]));
 const state = { assets: null, input: null, files: [], builds: [], selected: -1, output: null, plan: null, excluded: new Set() };
 const KIND_LABELS = { cab: "CE CAB", load: "H/PC Explorer", files: "Program files" };
 
@@ -272,16 +273,7 @@ function portSelected() {
 }
 
 function save() {
-    const blob = new Blob([state.output.data], { type: "application/octet-stream" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = state.output.name;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-}
-
-function tick() {
-    elements.clock.textContent = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    saveBytes(state.output.data, state.output.name);
 }
 
 function setup() {
@@ -336,58 +328,7 @@ function setup() {
     elements.save.addEventListener("click", save);
     elements["select-all"].addEventListener("click", () => setAll(true));
     elements["select-none"].addEventListener("click", () => setAll(false));
-    const showNotes = (open) => {
-        elements.notes.hidden = !open;
-        elements["notes-task"].hidden = !open;
-        elements["about-button"].setAttribute("aria-expanded", String(open));
-        if (open) elements["notes-close"].focus();
-    };
-    const toggleNotes = () => showNotes(elements.notes.hidden);
-    elements["about-button"].addEventListener("click", toggleNotes);
-    const menuItems = () => [...elements["start-menu"].querySelectorAll("[role=menuitem]")];
-    const showMenu = (open) => {
-        elements["start-menu"].hidden = !open;
-        elements.start.setAttribute("aria-expanded", String(open));
-        if (open) menuItems()[0].focus();
-    };
-    elements.start.addEventListener("click", (event) => {
-        event.stopPropagation();
-        showMenu(elements["start-menu"].hidden);
-    });
-    elements["menu-readme"].addEventListener("click", () => {
-        showMenu(false);
-        showNotes(true);
-    });
-    menuItems().forEach((item) => item.addEventListener("click", () => showMenu(false)));
-    elements["start-menu"].addEventListener("keydown", (event) => {
-        const items = menuItems();
-        const index = items.indexOf(document.activeElement);
-        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-            event.preventDefault();
-            items[(index + (event.key === "ArrowDown" ? 1 : items.length - 1)) % items.length].focus();
-        } else if (event.key === "Escape") {
-            showMenu(false);
-            elements.start.focus();
-        }
-    });
-    document.addEventListener("click", (event) => {
-        if (!elements["start-menu"].hidden && !elements["start-menu"].contains(event.target)) showMenu(false);
-    });
-    elements["notes-task"].addEventListener("click", toggleNotes);
-    elements["notes-close"].addEventListener("click", () => showNotes(false));
-    document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && !elements.notes.hidden) showNotes(false);
-    });
-    try {
-        if (!localStorage.getItem("ce-porter-readme")) {
-            showNotes(true);
-            localStorage.setItem("ce-porter-readme", "seen");
-        }
-    } catch (error) {
-        showNotes(false);
-    }
-    tick();
-    setInterval(tick, 15000);
+    setupDesktop({ readmeKey: "ce-porter-readme" });
     loadAssets(fetchBytes(new URL("../", import.meta.url)))
         .then((assets) => {
             state.assets = assets;

@@ -16,6 +16,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - zip, LZH (`-lh0-`, `-lh5-` to `-lh7-`)
 - MS CAB: stored, MSZIP and LZX (not Quantum)
 - InstallShield 5 and 6 cabinets (`data1.cab`, with `data1.hdr` and further volumes when present)
+- 7z: LZMA, LZMA2, Deflate and Copy, with BCJ, BCJ2, ARM and Delta filters (not PPMd, BZip2 or encrypted archives)
 - Installers with any of these embedded, recursively
 
 ### Finds builds
@@ -59,6 +60,19 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - "Install to Storage Card/PC Card" puts everything outside `\Windows` on the card. DLLs stay in `\Windows`, the only place CE 1.0 and 2.0 load them from. The self-installer finds the card at run time; CABs use `\Storage Card`
 
 Programs that need Microsoft runtimes (MFC 2.11, Visual Basic) need them installed separately.
+
+## ROM Explorer
+
+https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a Windows CE ROM image like the device's own Explorer and saves its contents as a zip.
+
+- Reads CE BIN (B000FF) images and flat ROM or flash dumps, finding the ROM header wherever the image sits, including dumps shifted by a few bytes and images that wrap round the end of a mirrored flash dump; zip and 7z archives are unpacked first, and every ROM in them is listed
+- CE 1.0 and 1.01 (inline TOC names, LZW) and CE 2.0 to 3.0 (LZ, 1 KB or 4 KB blocks, detected per ROM)
+- Modules are rebuilt as PE files; data directories pointing at sections romimage stripped are cleared
+- Folders and shortcut copies come from the ROM's `initobj.dat`; shortcuts show their target's icon
+- Icons and version information are read from each module's resources; bitmaps, including 2 bpp `.2bp` files, text and sounds can be previewed
+- Properties show the ROM's CE version, CPU (from the ROM header, or from the kernel's code when it's not set), address ranges, build dates and copy entries, and for each module its sections, imports (named from the exporting DLL in the same ROM), exports and version
+- Files holding several ROM images (boot loader and OS, for example) list each one
+- Files with no readable ROM are described: blank, mostly blank, another format, compressed throughout, or naming CE files without a ROM table
 
 ## Licence
 

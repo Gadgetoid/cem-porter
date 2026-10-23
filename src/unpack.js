@@ -5,6 +5,7 @@ import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
 import { extractIs5, isIs5 } from "./is5.js";
 import { isLzh, scanLzh } from "./lzh.js";
 import { isPe, readSections, u16, u32 } from "./pe.js";
+import { extractSevenZip, isSevenZip } from "./sevenzip.js";
 import { findBytes, hasEndRecordNearEnd, readLocalEntries, readZip, readZipLeniently, tryDecodeCp932 } from "./zip.js";
 
 export const MAX_DEPTH = 6;
@@ -212,6 +213,14 @@ function readIs5(name, data, siblings) {
     }
 }
 
+function readSevenZip(data) {
+    try {
+        return extractLikeBsdtar(extractSevenZip(data).map((member) => ({ name: member.name.replaceAll("\\", "/"), data: member.data })), false);
+    } catch {
+        return null;
+    }
+}
+
 export function expandSzdd(data) {
     const missingChar = data.length > 9 ? data[9] : null;
     const expandedSize = u32(data, 10);
@@ -370,6 +379,10 @@ export function membersOf(name, data, siblings = []) {
     if (isIs3(data)) {
         const members = tryReadIs3(data);
         return { members, method: members ? "InstallShield 3 archive" : null };
+    }
+    if (isSevenZip(data)) {
+        const members = readSevenZip(data);
+        if (members) return { members, method: "7z" };
     }
     if (isIs5(data)) {
         const members = readIs5(name, data, siblings);

@@ -5,7 +5,7 @@ const RT_ICON = 3;
 const RT_GROUP_ICON = 14;
 const GREY_LEVELS = [0, 85, 170, 255];
 
-function resourceLeaves(image) {
+export function resourceLeaves(image) {
     const [rootRva] = image.directory(2);
     if (!rootRva) return [];
     const base = image.offset(rootRva);
