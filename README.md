@@ -73,6 +73,8 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Icons and version information are read from each module's resources; bitmaps, including 2 bpp `.2bp` files, text and sounds can be previewed
 - Properties show the ROM's CE version, CPU (from the ROM header, or from the kernel's code when it's not set), address ranges, build dates and copy entries, and for each module its sections, imports (named from the exporting DLL in the same ROM), exports and version
 - Files holding several ROM images (boot loader and OS, for example) list each one
+- A bar under the toolbar shows the ROM's CE version, CPU, module and file counts, sizes and kernel date
+- Windows can be dragged by their title bars on desktop-sized screens
 - Files with no readable ROM are described: blank, mostly blank, another format, compressed throughout, or naming CE files without a ROM table
 
 ## Licence

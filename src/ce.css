@@ -59,6 +59,10 @@ body {
     height: 22px;
 }
 
+@media (min-width: 561px) and (pointer: fine) {
+    .window > .title-bar, .notes > .title-bar, .dialog > .title-bar { cursor: default; user-select: none; }
+}
+
 .title-bar .title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .title-bar button {
@@ -214,6 +218,7 @@ tr.selected .problem, tr.selected .note { color: var(--selection-text); }
     padding: 2px;
     background: var(--face);
     box-shadow: inset 0 1px var(--highlight), inset 0 2px var(--light);
+    z-index: 100000;
 }
 
 .taskbar .start { font-weight: bold; min-width: 0; padding: 0 6px; }
@@ -228,7 +233,7 @@ tr.selected .problem, tr.selected .note { color: var(--selection-text); }
     bottom: 28px;
     display: flex;
     padding: 3px;
-    z-index: 20;
+    z-index: 100001;
     min-width: 190px;
 }
 

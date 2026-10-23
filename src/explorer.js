@@ -7,7 +7,7 @@ import { iconSizes, readBitmapFile, readExports, readIcon, readVersion } from ".
 import { artIcon, bitmapIcon, iconKind } from "./romicons.js";
 import { saveBytes, setupDesktop } from "./desktop.js";
 
-const elements = Object.fromEntries(["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "save-all", "region", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok"].map((id) => [id, document.getElementById(id)]));
+const elements = Object.fromEntries(["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "save-all", "region", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok", "rom-bar", "rom-facts", "rom-details"].map((id) => [id, document.getElementById(id)]));
 const state = { source: null, rom: null, region: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new Map(), iconJob: 0, dialogNode: undefined, exportNames: new Map(), choices: [], regions: [] };
 const TEXT_EXTENSIONS = new Set(["txt", "ini", "inf", "htm", "html", "htc", "htp", "lnk", "reg", "bat", "xml", "log"]);
 const IMAGE_TYPES = { bmp: "image/bmp", "2bp": "image/bmp", gif: "image/gif", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", ico: "image/x-icon" };
@@ -764,6 +764,36 @@ function showProperties(node = null) {
     elements["dialog-ok"].focus();
 }
 
+function renderRomBar() {
+    const region = state.region;
+    const modules = groupModules();
+    const files = groupFiles();
+    const kernel = modules.find((module) => module.name.toLowerCase() === "nk.exe");
+    const contents = [...modules, ...files].reduce((total, item) => total + item.size, 0);
+    const platform = platformGuess(region);
+    const version = `Windows CE ${versionLabel(region)}`;
+    const rows = [
+        ["CE", platform === version ? versionLabel(region) : `${versionLabel(region)} (${platform})`],
+        ["CPU", machineName(region.machine)],
+        ["Modules", String(modules.length)],
+        ["Files", String(files.length)],
+        ["Contents", formatSize(contents)],
+        ["ROM file", formatSize(state.source.size)],
+        ["Kernel built", kernel?.time ? kernel.time.toLocaleDateString() : ""],
+        ["Regions", state.regions.length > 1 ? String(state.regions.length) : ""],
+    ];
+    elements["rom-facts"].replaceChildren(...rows.filter(([, value]) => value).map(([term, value]) => {
+        const pair = document.createElement("div");
+        const dt = document.createElement("dt");
+        dt.textContent = term;
+        const dd = document.createElement("dd");
+        dd.textContent = value;
+        pair.append(dt, dd);
+        return pair;
+    }));
+    elements["rom-bar"].hidden = false;
+}
+
 function closeDialog() {
     elements.dialog.hidden = true;
     elements.view.focus();
@@ -783,6 +813,7 @@ function useChoice(index) {
     elements.folder.disabled = false;
     elements["save-all"].disabled = false;
     openFolder(windows ?? root);
+    renderRomBar();
     const region = state.region;
     const names = new Set(groupModules().map((module) => module.name.toLowerCase()));
     const partial = names.has("nk.exe") && names.has("coredll.dll") ? "" : " No kernel and COREDLL together, so this is probably a boot loader or a partial image.";
@@ -891,6 +922,7 @@ function setup() {
     elements.properties.addEventListener("click", () => showProperties(state.selected.size === 1 ? [...state.selected][0] : null));
     elements["save-selected"].addEventListener("click", () => saveNodes([...state.selected]));
     elements["save-all"].addEventListener("click", saveAll);
+    elements["rom-details"].addEventListener("click", () => showProperties(null));
     elements.region.addEventListener("change", () => useChoice(Number(elements.region.value)));
     elements.view.addEventListener("click", () => {
         if (!state.folder) return;
