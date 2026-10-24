@@ -81,6 +81,28 @@
 
 .dialog[hidden] { display: none; }
 
+.dialog.check { width: min(760px, calc(100% - 32px)); height: min(640px, calc(100vh - 90px)); }
+
+.check .panel { display: flex; flex-direction: column; overflow: hidden; }
+
+.check .panel > * { flex: none; }
+
+.check .panel > .list { min-height: 70px; max-height: 190px; }
+
+#check-details { flex: 1 1 auto; min-height: 80px; overflow: auto; }
+
+.check label { display: flex; min-width: 0; }
+
+.check label select { flex: 1 1 auto; width: auto; min-width: 0; }
+
+.check .panel td { white-space: normal; }
+
+#check-details h3 { font-size: 11px; margin: 4px 0 2px; }
+
+#check-details ul { margin: 0 0 6px; padding-left: 18px; }
+
+#check-details li { overflow-wrap: anywhere; }
+
 .tabs { display: flex; flex-wrap: wrap; gap: 0; padding: 6px 6px 0; }
 
 .tabs button {
@@ -143,6 +165,7 @@
             <button type="button" id="properties" disabled>Properties</button>
             <button type="button" id="save-selected" disabled>Save</button>
             <button type="button" id="save-all" disabled>Save all (.zip)</button>
+            <button type="button" id="check-app" disabled>Check app...</button>
             <select id="region" aria-label="ROM image in this file" hidden></select>
         </div>
         <div class="rom-bar raised" id="rom-bar" hidden>
@@ -156,6 +179,7 @@
             </div>
         </div>
         <input class="visually-hidden" type="file" id="file-input" aria-label="Open a ROM image">
+        <input class="visually-hidden" type="file" id="check-input" aria-label="Open an app to check against the ROM">
     </div>
     <div class="status-bar"><span id="status" role="status">No ROM open.</span><span id="size">&nbsp;</span></div>
 </main>
@@ -169,6 +193,28 @@
     <div class="actions">
         <button type="button" id="dialog-save">Save file</button>
         <button type="button" id="dialog-ok">OK</button>
+    </div>
+</section>
+<section class="dialog check raised" id="check" hidden aria-labelledby="check-title" role="dialog">
+    <div class="title-bar">
+        <span class="title" id="check-title">Check app</span>
+        <button class="raised" id="check-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="panel sunken">
+        <p id="check-summary"></p>
+        <label id="check-build-label" hidden>Build <select id="check-build" aria-label="Build to check"></select></label>
+        <div class="list sunken" style="max-height: 220px;">
+            <table>
+                <thead><tr><th>File</th><th>Kind</th><th>Built for</th><th>Result</th></tr></thead>
+                <tbody id="check-results"></tbody>
+            </table>
+        </div>
+        <div id="check-details"></div>
+    </div>
+    <div class="actions">
+        <button type="button" id="check-another">Check another...</button>
+        <button type="button" id="check-save" disabled>Save report</button>
+        <button type="button" id="check-ok">Close</button>
     </div>
 </section>
 <div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
@@ -204,6 +250,7 @@
             <li>Double-click a folder to open it, or a file to see its properties: version, CPU, sections, imports, exports and where it sits in the ROM.</li>
             <li>Properties with nothing selected describes the ROM: CE version, CPU, address ranges and build dates.</li>
             <li>Save the selected files, or everything as a zip. Programs and DLLs are rebuilt as ordinary PE files.</li>
+            <li>Check app checks a program, DLL, CAB or installer against the open ROM: CPU, CE version, and which DLLs and functions it imports that the ROM lacks. Functions CEM Porter supplies, and ordinals it renumbers, are marked separately.</li>
         </ul>
         <h2>What it reads</h2>
         <ul>

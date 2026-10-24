@@ -6,9 +6,14 @@ import { buildTree, decodeText, extensionOf, findPath, pathOf, resolveShortcut, 
 import { iconSizes, readBitmapFile, readExports, readIcon, readVersion } from "./romres.js";
 import { artIcon, bitmapIcon, iconKind } from "./romicons.js";
 import { raiseWindow, saveBytes, setupDesktop } from "./desktop.js";
+import { findBuilds } from "./analyze.js";
+import { fetchBytes, loadAssets } from "./assets.js";
+import { checkProgram, cpuFamily, ExportIndex, providerMap } from "./romcheck.js";
 
-const elements = Object.fromEntries(["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "save-all", "region", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok", "rom-bar", "rom-facts", "rom-details"].map((id) => [id, document.getElementById(id)]));
-const state = { source: null, rom: null, region: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new Map(), iconJob: 0, dialogNode: undefined, exportNames: new Map(), choices: [], regions: [] };
+const elements = Object.fromEntries(["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "save-all", "region", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok", "rom-bar", "rom-facts", "rom-details", "check-app", "check-input", "check", "check-title", "check-close", "check-summary", "check-build-label", "check-build", "check-results", "check-details", "check-another", "check-save", "check-ok"].map((id) => [id, document.getElementById(id)]));
+const state = { source: null, rom: null, region: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new Map(), iconJob: 0, dialogNode: undefined, exportNames: new Map(), choices: [], regions: [], romIndex: null, check: null };
+const BUILD_FAMILIES = { mips: "MIPS", sh3: "SH" };
+let assetsLoading = null;
 const TEXT_EXTENSIONS = new Set(["txt", "ini", "inf", "htm", "html", "htc", "htp", "lnk", "reg", "bat", "xml", "log"]);
 const IMAGE_TYPES = { bmp: "image/bmp", "2bp": "image/bmp", gif: "image/gif", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", ico: "image/x-icon" };
 const SOUND_TYPES = { wav: "audio/wav" };
@@ -796,6 +801,174 @@ function renderRomBar() {
     elements["rom-bar"].hidden = false;
 }
 
+function romExportIndex() {
+    if (!state.romIndex) {
+        const items = state.regions.flatMap((region) => [
+            ...region.modules.map((module) => ({ name: module.name, source: "ROM", data: () => region.moduleData(module) })),
+            ...region.files.filter((file) => /\.(dll|cpl|drv|ocx)$/i.test(file.name)).map((file) => ({ name: file.name, source: "ROM", data: () => region.fileData(file) })),
+        ]);
+        state.romIndex = new ExportIndex(providerMap(items));
+    }
+    return state.romIndex;
+}
+
+function appOptions(name, data) {
+    let files = [];
+    try {
+        files = unpack(name, data).files.map((file) => ({ path: file.path, data: file.data }));
+    } catch {
+        files = [];
+    }
+    if (isPe(data) && !files.some((file) => file.data === data)) files.push({ path: name, data });
+    const sources = new Map(files.map((file) => [file.path, file.data]));
+    const options = [];
+    let builds = [];
+    try {
+        builds = findBuilds(name, files);
+    } catch {
+        builds = [];
+    }
+    for (const build of builds) {
+        try {
+            const entries = build.plan().operations.filter((operation) => operation.kind === "file" && sources.has(operation.source)).map((operation) => ({ name: operation.path.split("\\").pop(), data: sources.get(operation.source) }));
+            if (entries.some((entry) => isPe(entry.data))) options.push({ label: `${build.title} (${String(build.cpu).toUpperCase()}, ${build.ceLabel})`, family: BUILD_FAMILIES[build.cpu] ?? null, entries });
+        } catch {
+            continue;
+        }
+    }
+    const loose = files.filter((file) => isPe(file.data)).map((file) => ({ name: file.path.split("/").pop(), data: file.data }));
+    if (loose.length) options.push({ label: `Every program in ${name} (${loose.length})`, family: null, entries: loose });
+    return options;
+}
+
+function statusText(result) {
+    if (result.status === "ok") return "Imports all resolve";
+    return [...result.problems, ...result.warnings].join("; ");
+}
+
+function runCheck() {
+    const option = state.check.options[Number(elements["check-build"].value) || 0];
+    const packageIndex = new ExportIndex(providerMap(option.entries.map((entry) => ({ name: entry.name, source: "package", data: () => entry.data }))));
+    const region = state.region;
+    const romVersion = region.layout === "ce1" ? 1 : region.version ? region.version[0] + region.version[1] / 100 : null;
+    const context = { romIndex: romExportIndex(), packageIndex, romMachine: region.machine, romVersion, tables: state.check.assets };
+    state.check.results = option.entries.filter((entry) => isPe(entry.data)).map((entry) => checkProgram(entry.name, entry.data, context)).filter(Boolean);
+    const counts = { ok: 0, warn: 0, fail: 0 };
+    for (const result of state.check.results) counts[result.status]++;
+    elements["check-summary"].textContent = `${state.check.name} against ${state.source.name} (CE ${versionLabel(region)}, ${machineName(region.machine)}): ${counts.ok} resolve, ${counts.warn} with warnings, ${counts.fail} with problems.${state.check.assets ? "" : " Ordinal tables couldn't be loaded, so ordinal imports are only checked by number."}`;
+    const body = elements["check-results"];
+    body.replaceChildren();
+    state.check.results.forEach((result, index) => {
+        const row = body.insertRow();
+        row.className = "selectable";
+        row.tabIndex = 0;
+        row.insertCell().textContent = result.name;
+        row.insertCell().textContent = result.kind;
+        row.insertCell().textContent = `CE ${result.builtFor}, ${machineName(result.machine)}`;
+        const cell = row.insertCell();
+        cell.textContent = statusText(result);
+        cell.className = result.status === "fail" ? "problem" : result.status === "ok" ? "note" : "";
+        const pick = () => {
+            [...body.rows].forEach((other) => other.classList.toggle("selected", other === row));
+            renderCheckDetails(result);
+        };
+        row.addEventListener("click", pick);
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") pick();
+        });
+        if (index === 0) pick();
+    });
+    if (!state.check.results.length) {
+        elements["check-details"].replaceChildren();
+        emptyResult(body, "No programs or DLLs in this build.");
+    }
+    elements["check-save"].disabled = !state.check.results.length;
+}
+
+function emptyResult(body, text) {
+    const row = body.insertRow();
+    const cell = row.insertCell();
+    cell.colSpan = 4;
+    cell.className = "empty";
+    cell.textContent = text;
+}
+
+function detailList(title, items, className) {
+    const fragment = document.createDocumentFragment();
+    const heading = document.createElement("h3");
+    heading.textContent = title;
+    if (className) heading.className = className;
+    fragment.append(heading);
+    if (!items.length) return fragment;
+    const list = document.createElement("ul");
+    for (const item of items) {
+        const entry = document.createElement("li");
+        entry.textContent = item;
+        list.append(entry);
+    }
+    fragment.append(list);
+    return fragment;
+}
+
+function renderCheckDetails(result) {
+    const parts = [];
+    parts.push(detailList(`${result.name}: ${result.kind}, CE ${result.builtFor}, ${machineName(result.machine)}${result.sdk ? `, COREDLL ordinals from ${result.sdk}` : ""}`, [...result.problems, ...result.warnings]));
+    for (const dll of result.dlls) {
+        const where = dll.source === "ROM" ? "in the ROM" : dll.source === "package" ? "in the package" : "not found";
+        const resolved = dll.total - dll.missing.length - dll.renumbered.length - dll.supplied.length;
+        parts.push(detailList(`${dll.dll} (${where}): ${dll.total} imports, ${resolved} resolve`, [
+            ...dll.missing.map((name) => `Missing: ${name}`),
+            ...dll.supplied.map((name) => `Supplied by CEM Porter: ${name}`),
+            ...dll.renumbered.map((name) => `Renumbered: ${name}`),
+            ...(dll.unverified.length ? [`By ordinal, not checked by name: ${dll.unverified.join(", ")}`] : []),
+        ], dll.source ? "" : "problem"));
+    }
+    elements["check-details"].replaceChildren(...parts);
+}
+
+function checkReport() {
+    const lines = [elements["check-summary"].textContent, ""];
+    for (const result of state.check.results) {
+        lines.push(`${result.name}: ${result.kind}, CE ${result.builtFor}, ${machineName(result.machine)}: ${statusText(result)}`);
+        for (const dll of result.dlls) {
+            lines.push(`  ${dll.dll} (${dll.source ?? "not found"}), ${dll.total} imports`);
+            for (const name of dll.missing) lines.push(`    missing ${name}`);
+            for (const name of dll.supplied) lines.push(`    supplied by CEM Porter ${name}`);
+            for (const name of dll.renumbered) lines.push(`    renumbered ${name}`);
+            for (const name of dll.unverified) lines.push(`    by ordinal ${name}`);
+        }
+    }
+    return lines.join("\r\n") + "\r\n";
+}
+
+async function checkApp(file) {
+    if (!state.region) return;
+    elements.check.hidden = false;
+    raiseWindow(elements.check);
+    elements["check-title"].textContent = `Check ${file.name}`;
+    elements["check-summary"].textContent = `Reading ${file.name}...`;
+    elements["check-results"].replaceChildren();
+    elements["check-details"].replaceChildren();
+    elements["check-save"].disabled = true;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assetsLoading ??= loadAssets(fetchBytes(new URL("../", import.meta.url))).catch(() => null);
+    const assets = await assetsLoading;
+    const data = new Uint8Array(await file.arrayBuffer());
+    const options = appOptions(file.name, data);
+    state.check = { name: file.name, options, assets, results: [] };
+    if (!options.length) {
+        elements["check-summary"].textContent = `No Windows CE programs or DLLs found in ${file.name}.`;
+        elements["check-build-label"].hidden = true;
+        return;
+    }
+    const family = cpuFamily(state.region.machine);
+    const preferred = Math.max(0, options.findIndex((option) => option.family === family));
+    elements["check-build"].replaceChildren(...options.map((option, index) => new Option(option.label, String(index))));
+    elements["check-build"].value = String(preferred);
+    elements["check-build-label"].hidden = options.length < 2;
+    runCheck();
+}
+
 function closeDialog() {
     elements.dialog.hidden = true;
     elements.view.focus();
@@ -809,11 +982,13 @@ function useChoice(index) {
     state.region = choice.group.find((region) => region.modules.some((module) => module.name.toLowerCase() === "coredll.dll")) ?? choice.group[0];
     state.icons.clear();
     state.exportNames.clear();
+    state.romIndex = null;
     const { root, notes } = buildTree(state.regions);
     state.tree = root;
     const windows = findPath(root, "\\Windows");
     elements.folder.disabled = false;
     elements["save-all"].disabled = false;
+    elements["check-app"].disabled = false;
     openFolder(windows ?? root);
     renderRomBar();
     const region = state.region;
@@ -925,6 +1100,21 @@ function setup() {
     elements["save-selected"].addEventListener("click", () => saveNodes([...state.selected]));
     elements["save-all"].addEventListener("click", saveAll);
     elements["rom-details"].addEventListener("click", () => showProperties(null));
+    const pickApp = () => elements["check-input"].click();
+    elements["check-app"].addEventListener("click", pickApp);
+    elements["check-another"].addEventListener("click", pickApp);
+    elements["check-input"].addEventListener("change", () => {
+        if (elements["check-input"].files[0]) checkApp(elements["check-input"].files[0]);
+        elements["check-input"].value = "";
+    });
+    elements["check-build"].addEventListener("change", runCheck);
+    const closeCheck = () => {
+        elements.check.hidden = true;
+        elements.view.focus({ preventScroll: true });
+    };
+    elements["check-close"].addEventListener("click", closeCheck);
+    elements["check-ok"].addEventListener("click", closeCheck);
+    elements["check-save"].addEventListener("click", () => saveBytes(new TextEncoder().encode(checkReport()), `${baseName(state.check.name)} on ${baseName(state.source.name)}.txt`));
     elements.region.addEventListener("change", () => useChoice(Number(elements.region.value)));
     elements.view.addEventListener("click", () => {
         if (!state.folder) return;

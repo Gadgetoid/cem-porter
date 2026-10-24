@@ -206,9 +206,10 @@ export function readExports(data) {
         const nameCount = u32(image.data, directory + 24);
         const names = u32(image.data, directory + 32);
         const ordinals = u32(image.data, directory + 36);
+        const functions = u32(image.data, directory + 28);
         const named = new Map();
         for (let index = 0; index < nameCount; index++) named.set(u16(image.data, image.offset(ordinals + 2 * index)), image.cString(image.word(names + 4 * index)));
-        return Array.from({ length: functionCount }, (_, index) => ({ ordinal: base + index, name: named.get(index) ?? null }));
+        return Array.from({ length: functionCount }, (_, index) => ({ ordinal: base + index, name: named.get(index) ?? null, rva: image.word(functions + 4 * index) })).filter((entry) => entry.rva);
     } catch {
         return [];
     }

@@ -73,6 +73,7 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Icons and version information are read from each module's resources; bitmaps, including 2 bpp `.2bp` files, text and sounds can be previewed
 - Properties show the ROM's CE version, CPU (from the ROM header, or from the kernel's code when it's not set), address ranges, build dates and copy entries, and for each module its sections, imports (named from the exporting DLL in the same ROM), exports and version
 - Files holding several ROM images (boot loader and OS, for example) list each one
+- Check app checks a program, DLL, CAB or installer against the open ROM: CPU family, CE version, and each imported DLL and function. Ordinal imports are named from the app's own SDK numbering, so functions the ROM numbers differently are reported as renumbered rather than missing; functions CEM Porter supplies (VELOCRT, CE1COMPAT, VELOSHIM, CE 1.0 renames) are marked as such. DLLs in the app's own package count as present
 - A bar under the toolbar shows the ROM's CE version, CPU, module and file counts, sizes and kernel date
 - Windows can be dragged by their title bars on desktop-sized screens
 - Files with no readable ROM are described: blank, mostly blank, another format, compressed throughout, or naming CE files without a ROM table
