@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>State Explorer</title>
+<meta name="description" content="Browse the files and registry in a velo-emu or sh3emu saved state, and save them as a zip.">
+<link rel="stylesheet" href="src/ce.css">
+<link rel="stylesheet" href="src/explorer.css">
+<style>
+.dialog.registry { width: min(760px, calc(100% - 32px)); height: min(600px, calc(100vh - 90px)); }
+
+.registry .path { display: flex; gap: 4px; align-items: center; padding: 6px 6px 0; }
+
+.registry .path span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; font-weight: bold; }
+
+.registry .panel { display: flex; flex-direction: column; overflow: hidden; }
+
+.registry .panel > .list { flex: 1 1 auto; max-height: none; min-height: 80px; }
+
+.registry td { white-space: nowrap; cursor: default; }
+
+.registry td.data { white-space: normal; overflow-wrap: anywhere; font-family: "Courier New", monospace; }
+
+.registry td.name { display: flex; gap: 4px; align-items: center; }
+
+.registry td.name img { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
+</style>
+</head>
+<body>
+<main class="window raised explorer">
+    <div class="title-bar">
+        <span class="title" id="window-title">State Explorer</span>
+        <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </div>
+    <div class="body">
+        <div class="toolbar raised" role="toolbar" aria-label="State Explorer">
+            <button type="button" id="open">Open...</button>
+            <span class="separator" aria-hidden="true"></span>
+            <select id="folder" aria-label="Folder" disabled></select>
+            <button type="button" id="up" aria-label="Up one level" disabled>Up</button>
+            <span class="separator" aria-hidden="true"></span>
+            <button type="button" id="view-icons" aria-pressed="true">Icons</button>
+            <button type="button" id="view-details" aria-pressed="false">Details</button>
+            <span class="separator" aria-hidden="true"></span>
+            <button type="button" id="properties" disabled>Properties</button>
+            <button type="button" id="save-selected" disabled>Save</button>
+            <button type="button" id="save-all" disabled>Save all (.zip)</button>
+            <button type="button" id="registry-open" disabled>Registry...</button>
+        </div>
+        <div class="rom-bar raised" id="state-bar" hidden>
+            <dl id="state-facts"></dl>
+            <button type="button" id="state-details">State details...</button>
+        </div>
+        <div class="view sunken" id="view" tabindex="0" aria-label="Folder contents">
+            <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+                <strong id="drop-title">Drop a saved state here</strong>
+                <span id="drop-hint">A state or snapshot from velo-emu or sh3emu (state-*.bin, *.state). Or tap to open one.</span>
+            </div>
+        </div>
+        <input class="visually-hidden" type="file" id="file-input" aria-label="Open a saved state">
+    </div>
+    <div class="status-bar"><span id="status" role="status">No state open.</span><span id="size">&nbsp;</span></div>
+</main>
+<section class="dialog raised" id="dialog" hidden aria-labelledby="dialog-title" role="dialog">
+    <div class="title-bar">
+        <span class="title" id="dialog-title">Properties</span>
+        <button class="raised" id="dialog-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="tabs" id="dialog-tabs" role="tablist"></div>
+    <div class="panel sunken" id="dialog-panel" role="tabpanel"></div>
+    <div class="actions">
+        <button type="button" id="dialog-save">Save file</button>
+        <button type="button" id="dialog-ok">OK</button>
+    </div>
+</section>
+<section class="dialog registry raised" id="registry" hidden aria-labelledby="registry-title" role="dialog">
+    <div class="title-bar">
+        <span class="title" id="registry-title">Registry</span>
+        <button class="raised" id="registry-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="path">
+        <button type="button" id="registry-up" aria-label="Up one level" disabled>Up</button>
+        <span id="registry-path">Registry</span>
+    </div>
+    <div class="panel sunken">
+        <p id="registry-summary"></p>
+        <div class="list sunken" id="registry-list" tabindex="0" aria-label="Keys and values">
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Data</th></tr></thead>
+                <tbody id="registry-rows"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="actions">
+        <button type="button" id="registry-save">Save .reg</button>
+        <button type="button" id="registry-ok">Close</button>
+    </div>
+</section>
+<div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
+    <div class="start-banner" aria-hidden="true">State Explorer</div>
+    <ul>
+        <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
+        <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
+        <li><a role="menuitem" href="explorer.html">R<u>O</u>M Explorer</a></li>
+        <li class="separator" role="separator"></li>
+        <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
+        <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
+        <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
+    </ul>
+</div>
+<div class="taskbar">
+    <button class="start" type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
+    <button class="task" type="button" tabindex="-1">State Explorer</button>
+    <button class="task" type="button" id="notes-task" hidden>Readme</button>
+    <span class="tray" id="clock"></span>
+</div>
+<section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
+    <div class="title-bar">
+        <span class="title" id="notes-title">Readme - Pocket Word</span>
+        <button class="raised" id="notes-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="menu-bar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></div>
+    <div class="document sunken">
+        <h1>State Explorer</h1>
+        <p class="tagline">Keep on keeping on!</p>
+        <p>Opens a saved state from velo-emu or sh3emu and shows the files and registry in its RAM, without running it.</p>
+        <h2>Using it</h2>
+        <ul>
+            <li>Open a state or snapshot: <code>state-*.bin</code> from the emulator's data folder, or a snapshot or backup from its <code>snapshots</code> folder.</li>
+            <li>Double-click a folder to open it, or a file to see its properties and preview it.</li>
+            <li>Save the selected files, or everything as a zip with the registry as a .reg file.</li>
+            <li>Registry browses the keys and values; Save .reg exports them all.</li>
+            <li>State details shows the emulator, when it was saved, the object store and the records in the file.</li>
+        </ul>
+        <h2>What it reads</h2>
+        <ul>
+            <li>Windows CE 1.0 to 2.12 object stores: files, folders and the registry.</li>
+            <li>On CE 1.0 and 1.01 the registry comes from <code>\Windows\Pegreg.reg</code> or <code>CEreg.reg</code>, as filesys last wrote it.</li>
+        </ul>
+        <h2>Limitations</h2>
+        <ul>
+            <li>Only files in RAM are listed. Files in ROM aren't in the state; open the ROM in ROM Explorer for those.</li>
+            <li>Databases (contacts, calendar, tasks, mail) are counted but not read.</li>
+            <li>A state saved before CE made its object store has nothing to show.</li>
+        </ul>
+    </div>
+</section>
+<script type="module" src="src/stateexplorer.js"></script>
+</body>
+</html>

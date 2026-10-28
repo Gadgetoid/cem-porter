@@ -6,81 +6,8 @@
 <title>ROM Explorer</title>
 <meta name="description" content="Browse the files and programs in a Windows CE ROM image, see what's known about each, and save them as a zip.">
 <link rel="stylesheet" href="src/ce.css">
+<link rel="stylesheet" href="src/explorer.css">
 <style>
-.explorer { max-width: 960px; }
-
-.explorer .body { gap: 6px; }
-
-.toolbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 3px; }
-
-.toolbar button { min-width: 0; padding: 0 8px; }
-
-.toolbar button[aria-pressed="true"] {
-    box-shadow: inset 1px 1px var(--dark-shadow), inset -1px -1px var(--highlight), inset 2px 2px var(--shadow), inset -2px -2px var(--light);
-    background: var(--light);
-}
-
-.toolbar .separator { width: 2px; height: 20px; margin: 0 2px; box-shadow: inset 1px 0 var(--shadow), inset -1px 0 var(--highlight); }
-
-.toolbar select { width: auto; min-width: 120px; flex: 1 1 180px; max-width: 360px; }
-
-.rom-bar { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; padding: 4px 6px; }
-
-.rom-bar[hidden] { display: none; }
-
-.rom-bar dl { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; flex: 1 1 auto; min-width: 0; }
-
-.rom-bar dl div { display: flex; gap: 4px; min-width: 0; }
-
-.rom-bar dt { color: var(--text); }
-
-.rom-bar dd { margin: 0; font-weight: bold; overflow-wrap: anywhere; }
-
-.rom-bar button { flex: none; }
-
-.view { height: min(60vh, 520px); overflow: auto; padding: 4px; position: relative; }
-
-.view:focus-visible { outline: 1px dotted var(--text); outline-offset: -4px; }
-
-.icons { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px 2px; }
-
-.icons li { display: grid; justify-items: center; align-content: start; gap: 2px; padding: 2px; cursor: default; text-align: center; min-width: 0; }
-
-.icons img { width: 32px; height: 32px; image-rendering: pixelated; }
-
-.icons span { padding: 0 2px; max-width: 100%; overflow-wrap: anywhere; line-height: 1.25; }
-
-.icons li.selected span { background: var(--selection); color: var(--selection-text); }
-
-.icons li.selected img { filter: brightness(0.7) sepia(1) hue-rotate(190deg) saturate(3); }
-
-.details td { white-space: nowrap; cursor: default; }
-
-.details td.name { display: flex; gap: 4px; align-items: center; white-space: normal; }
-
-.details td.name img { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
-
-.details tr.selected td { background: var(--selection); color: var(--selection-text); }
-
-.details th button { all: unset; cursor: pointer; display: block; width: 100%; }
-
-.view .drop { position: absolute; inset: 4px; }
-
-.dialog {
-    position: fixed;
-    top: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(620px, calc(100% - 32px));
-    max-height: calc(100vh - 90px);
-    display: flex;
-    flex-direction: column;
-    z-index: 15;
-    padding: 3px;
-}
-
-.dialog[hidden] { display: none; }
-
 .dialog.check { width: min(760px, calc(100% - 32px)); height: min(640px, calc(100vh - 90px)); }
 
 .check .panel { display: flex; flex-direction: column; overflow: hidden; }
@@ -102,48 +29,6 @@
 #check-details ul { margin: 0 0 6px; padding-left: 18px; }
 
 #check-details li { overflow-wrap: anywhere; }
-
-.tabs { display: flex; flex-wrap: wrap; gap: 0; padding: 6px 6px 0; }
-
-.tabs button {
-    min-width: 0;
-    height: 21px;
-    padding: 0 10px;
-    box-shadow: inset 1px 1px var(--highlight), inset -1px 0 var(--dark-shadow), inset -2px 0 var(--shadow);
-}
-
-.tabs button[aria-selected="true"] { background: var(--face); font-weight: bold; position: relative; top: 1px; }
-
-.panel { flex: 1; overflow: auto; margin: 0 6px; padding: 8px; display: grid; gap: 8px; align-content: start; }
-
-.panel .heading { display: flex; gap: 10px; align-items: center; font-weight: bold; font-size: 12px; }
-
-.panel .heading img { width: 32px; height: 32px; image-rendering: pixelated; }
-
-.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; margin: 0; }
-
-.facts dt { color: var(--text); }
-
-.facts dd { margin: 0; overflow-wrap: anywhere; }
-
-.panel table { font-size: 11px; }
-
-.panel td { white-space: nowrap; }
-
-.panel pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.35 "Courier New", monospace; max-height: 320px; overflow: auto; }
-
-.panel .preview-image { image-rendering: pixelated; max-width: 100%; justify-self: start; background: var(--window); }
-
-.panel hr { border: 0; height: 2px; margin: 0; box-shadow: inset 0 1px var(--shadow), inset 0 -1px var(--highlight); }
-
-.dialog .actions { padding: 8px 6px 4px; }
-
-@media (max-width: 560px) {
-    .toolbar select { max-width: none; flex-basis: 100%; order: -1; }
-    .view { height: 60vh; }
-    .facts { grid-template-columns: 1fr; gap: 0; }
-    .facts dd { margin-bottom: 4px; }
-}
 </style>
 </head>
 <body>
@@ -222,6 +107,7 @@
     <ul>
         <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
         <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
+        <li><a role="menuitem" href="state.html"><u>S</u>tate Explorer</a></li>
         <li class="separator" role="separator"></li>
         <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
         <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>

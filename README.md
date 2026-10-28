@@ -78,6 +78,16 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Windows can be dragged by their title bars on desktop-sized screens
 - Files with no readable ROM are described: blank, mostly blank, another format, compressed throughout, or naming CE files without a ROM table
 
+## State Explorer
+
+https://gadgetoid.github.io/cem-porter/state.html (`state.html`) lists the files and registry in a velo-emu or sh3emu saved state without running it, and saves them as a zip.
+
+- Reads states and snapshots from velo-emu (`VELO1 STATE v2`) and sh3emu (`SH3ODO01`), gzip-compressed or not
+- Finds the CE 1.0 to 2.12 object store in the saved DRAM (and the Velo's DRAM card) and rebuilds its folders and files, decompressing CE 1.0 LZW and CE 2.0 LZ chunks (1 KB or 4 KB blocks, detected per chunk)
+- Registry from the object store on CE 2.x, or from `\Windows\Pegreg.reg` or `CEreg.reg` on CE 1.x; browsed in its own window and saved as a REGEDIT4 `.reg`
+- State details show the emulator, save time, ROM hash, object store sections, object counts by type and the state's records
+- Files in ROM aren't in a state, and databases are counted but not read
+
 ## Licence
 
 MIT, see `LICENSE`. `vendor/fflate.js` is fflate 0.8.2 (MIT, `vendor/fflate-LICENSE`).
