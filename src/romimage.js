@@ -1,4 +1,5 @@
 import { latin1Decode, u16, u32 } from "./pe.js";
+import { attachRelocations } from "./recreate.js";
 import { lzDecode, lzwDecode, lzwFileDecode, lzxBlocksDecode } from "./romlz.js";
 
 const HEADER_SIZE = 0x54;
@@ -379,7 +380,10 @@ class RomRegion {
 
     moduleData(module) {
         if (module.cached) return module.cached;
-        module.cached = this.layout === "ce1" ? this.rebuildCe1(module) : this.rebuild(module);
+        const built = this.layout === "ce1" ? this.rebuildCe1(module) : this.rebuild(module);
+        // ROM/XIP modules ship reloc-stripped; recreate the table where it's reliable (ARM32/SH3) so
+        // the exported DLL/EXE is relocatable. No-op for MIPS/Thumb-2 and for modules that keep relocs.
+        module.cached = attachRelocations(built).pe;
         return module.cached;
     }
 

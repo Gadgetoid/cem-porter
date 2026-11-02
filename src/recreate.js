@@ -108,23 +108,38 @@ function encodeReloc(sites) {
 
 // Take a rebuilt PE (correct section RVAs, empty/stripped reloc) and return a relocatable PE:
 // recreate the relocations, append a .reloc section + directory entry, clear RELOCS_STRIPPED.
-export function attachRelocations(pe, { code = [".text"] } = {}) {
+// Reliable single-dump recreation only for single-word-literal CPUs: ARM32 and SH3/SH4.
+const RECREATABLE = new Set([0x1c0, 0x1a2, 0x1a3, 0x1a6]);
+const SCN_CNT_CODE = 0x20;
+
+export function attachRelocations(pe) {
+  try {
     const u16 = (o) => pe[o] | (pe[o + 1] << 8);
     const u32 = (o) => (pe[o] | (pe[o + 1] << 8) | (pe[o + 2] << 16) | (pe[o + 3] << 24)) >>> 0;
     const nt = u32(0x3c), opt = nt + 24, optSize = u16(nt + 20), nsec = u16(nt + 6);
+    // reject anything that isn't a well-formed PE we can safely extend
+    if (nt + 24 + optSize + nsec * 40 > pe.length || u16(nt) !== 0x4550) return { pe, count: 0 };
+    const machine = u16(nt + 4);
+    // no-op when the CPU isn't reliable for single-dump, or the module already has relocations
+    if (!RECREATABLE.has(machine) || u32(opt + 96 + 5 * 8 + 4) !== 0) return { pe, count: 0 };
     const imageBase = u32(opt + 28), sectAlign = u32(opt + 32), fileAlign = u32(opt + 36);
     const secTab = opt + optSize;
     const sections = [];
     for (let i = 0; i < nsec; i++) {
         const b = secTab + i * 40;
         sections.push({ name: String.fromCharCode(...pe.slice(b, b + 8)).replace(/\0+$/, ""),
-            rva: u32(b + 12), size: Math.max(u32(b + 8), u32(b + 16)), raw: u32(b + 20), rawSize: u32(b + 16) });
+            rva: u32(b + 12), size: Math.max(u32(b + 8), u32(b + 16)), raw: u32(b + 20), rawSize: u32(b + 16),
+            code: !!(u32(b + 36) & SCN_CNT_CODE) });
     }
     const imageSize = u32(opt + 56);
-    // flat image at RVAs
+    // bail on inconsistent geometry rather than corrupt/crash the export
+    if (!sectAlign || !fileAlign || !imageSize) return { pe, count: 0 };
+    for (const s of sections) {
+        if (s.raw + s.rawSize > pe.length || s.rva + s.rawSize > imageSize) return { pe, count: 0 };
+    }
     const bytes = new Uint8Array(imageSize);
     for (const s of sections) bytes.set(pe.slice(s.raw, s.raw + s.rawSize), s.rva);
-    const image = { bytes, imageBase, imageSize, sections: sections.map((s) => ({ rva: s.rva, size: s.size, code: code.includes(s.name) })) };
+    const image = { bytes, imageBase, imageSize, machine, sections: sections.map((s) => ({ rva: s.rva, size: s.size, code: s.code })) };
     const sites = recreateRelocations(image).map((r) => r.site);
     const reloc = encodeReloc(sites);
     // append .reloc section
@@ -146,4 +161,7 @@ export function attachRelocations(pe, { code = [".text"] } = {}) {
     dv.setUint32(nb + 16, alignUp(reloc.length, fileAlign), true); dv.setUint32(nb + 20, newRaw, true);
     dv.setUint32(nb + 36, 0x42000040, true);              // INITIALIZED_DATA|DISCARDABLE|READ
     return { pe: out, count: sites.length };
+  } catch {
+    return { pe, count: 0 };  // never let recreation break an export
+  }
 }

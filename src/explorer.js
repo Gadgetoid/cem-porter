@@ -226,6 +226,14 @@ function programTab(node) {
         rows.push(["Built for", `CE ${header.version[0]}.${String(header.version[1]).padStart(2, "0")}, subsystem ${header.subsystem}`]);
     }
     rows.push(["Rebuilt file", exactSize(data.length)]);
+    if (parsed) {
+        const recreatable = [0x1c0, 0x1a2, 0x1a3, 0x1a6].includes(parsed.machine);
+        rows.push(["Relocations", parsed.hasReloc
+            ? `Recreated (${formatSize(parsed.relocSize)}), relocatable to any address`
+            : recreatable
+                ? "None found"
+                : `None (can't be recreated from one ROM dump on this CPU; loads only at ${header ? hex(header.imageBase) : "its image base"})`]);
+    }
     const sizes = iconSizes(data);
     if (sizes.length) rows.push(["Icons", `${sizes[0].join(", ")}${sizes.length > 1 ? ` and ${sizes.length - 1} more icon${sizes.length === 2 ? "" : "s"}` : ""}`]);
     const content = [facts(rows)];

@@ -30,20 +30,37 @@ by scanning, not disassembly:
 Against the reloctut example `dumped_kbdrABB.dll` (ARM, stripped) vs its hand-made
 `relocateddll.dll`: the scan alone finds **all 144** real relocations plus 2 false
 positives; the `LDR` filter removes exactly those 2, giving a **byte-exact 144/144 match**.
-`src/recreate.js` reproduces this (`recreateRelocations(image)` returns the 144 entries,
-all `HIGHLOW`), and they feed the existing `encodeRelocations()` unchanged.
+
+Checked end-to-end through `attachRelocations()` against clean on-disk CE binaries whose
+original tables are the ground truth (strip the reloc directory, recreate, compare):
+
+| Binary (gsf unzip.dll) | CPU | real sites | recreated | missed | false-pos |
+|---|---|---|---|---|---|
+| ARM | 0x1c0 | 746 | 750 | 0 | 4 |
+| SH3 | 0x1a2 | 1131 | 1135 | 0 | 4 |
+| SH4 | 0x1a6 | 1133 | 1137 | 0 | 4 |
+
+Recreation is **complete** (zero missed, so every real pointer is fixed up and the module
+loads and runs at any base). The handful of false positives are coincidental in-image
+constants loaded as data; they are harmless at the preferred base (delta 0) and rebase a
+non-pointer word only when relocated. This is the inherent limit of single-dump scanning;
+the two-dump diff (`relocationsByDiff`) is exact when two dumps at different bases exist.
 
 ## Integration (implemented)
 
 - `recreateRelocations(image)` -> relocation entries; `attachRelocations(pe)` runs it on a
   rebuilt PE, encodes a `.reloc` section, appends it, sets the fixup directory, and clears
-  `IMAGE_FILE_RELOCS_STRIPPED`. Validated end-to-end on the ARM32 example: 144 relocations,
-  flag cleared, `.reloc` appended - a complete relocatable PE.
-- **ROM Explorer wiring:** `openRom()` already parses real ROMs (including the Sharp SDU) and
-  `region.rebuild(module)` already emits a standalone PE with correct RVAs and intact imports.
-  Add an "Export relocatable DLL/EXE" action to the module save path that pipes
-  `rebuild(module)` through `attachRelocations()`. The core is done; only the UI handler
-  (explorer.js module save) remains.
+  `IMAGE_FILE_RELOCS_STRIPPED`. It is **machine-gated** (ARM32, SH3, SH4 only), a no-op for
+  modules that already carry relocations, and crash-safe: any malformed or unexpected PE
+  passes through untouched rather than corrupting an export.
+- **ROM Explorer:** `region.moduleData(module)` (the export data path behind the module save
+  and properties view) now pipes every rebuilt module through `attachRelocations()`. On
+  ARM32/SH3/SH4 ROMs the exported DLL/EXE comes out relocatable; on MIPS and CE6 Thumb-2 it
+  is left exactly as before (see below). Confirmed on the Windows CE 2.12 SH3 reference ROM
+  (modules export with a populated `.reloc`) and on the Thumb-2 Sharp SDU (unchanged, no-op).
+- The module properties panel shows a **Relocations** row: "Recreated (size), relocatable to
+  any address" where a table was rebuilt, or a note that the CPU can't be recreated from a
+  single dump and the module loads only at its image base.
 
 ## Original notes
 
@@ -63,9 +80,12 @@ all `HIGHLOW`), and they feed the existing `encodeRelocations()` unchanged.
 - **Two-dump diff (even more reliable).** With two dumps of the same module at different load
   bases, the words that differ by exactly the base delta ARE the relocations - no LDR
   heuristic, no false positives. Prefer this when two dumps exist.
-- **MIPS/SH3.** Addresses aren't all literal-pool words: MIPS uses `lui`/`addiu` (HIGH/LOW)
-  pairs - `realign.js` already pairs those (`pairLows`), so MIPS recreation can reuse it;
-  SH3 uses literal pools like ARM but with its own load encodings.
+- **SH3/SH4.** Done: literal pools like ARM, filtered on `mov.l @(disp,PC),Rn`.
+- **MIPS.** Single-dump recreation is **not reliable** and is deliberately not shipped. MIPS
+  addresses come from `lui`/`addiu` (HIGH16/LOW16) pairs, and telling a real address pair from
+  an ordinary immediate pair needs register dataflow, not a scan - a prototype produced
+  thousands of false positives. The two-dump diff recovers MIPS relocations exactly (it catches
+  the changed `lui`/`addiu` immediates for free), so that is the path for MIPS.
 
 ## CE 6.0 ARM (Thumb-2) status
 
@@ -90,7 +110,8 @@ attach) already works on real SDU modules.
 |---|---|---|---|
 | ARM32 (0x1c0) | literal pools, `LDR Rd,[pc]` | scan + LDR filter | 144/144 exact (reloctut example) |
 | SH3/SH4 (0x1a2/0x1a6) | literal pools, `mov.l @(disp,PC),Rn` | scan + mov.l filter | all 1131 found, 4 false positives on unzip.dll |
-| MIPS (0x166) | `lui`+`addiu`/`ori` HIGH16/LOW16 pairs (data pointers still single words) | HIGHLOW scan for data + lui/low pairing (reuse `pairLows`) | not yet implemented |
+| MIPS (0x166) | `lui`+`addiu`/`ori` HIGH16/LOW16 pairs | single-dump needs register dataflow (prototype gave thousands of false positives) | not shipped for single-dump; use two-dump diff |
+| CE6 ARM Thumb-2 (0x1c2) | literal pools, T1/T2 `LDR` in a mixed 16/32-bit stream | needs a Thumb-2 literal detector | not shipped for single-dump; use two-dump diff |
 | Any | — | **two-dump diff** (`relocationsByDiff`) | 1131/1131 exact, zero false positives |
 
 `recreateRelocations(image)` dispatches on `image.machine` for ARM32 and SH3/SH4. The single-dump
@@ -102,8 +123,13 @@ architecture-independent, false-positive-free path when two dumps at different b
 
 ## Still to incorporate
 
-- **MIPS lui/addiu pairing** in `recreateRelocations` (reuse `realign.js` `pairLows`).
-- **CE 6.0 ARM / Thumb-2 (0x1c2)** literal detector (T1/T2 `LDR`), for the SDU-class ROMs.
-- **ROM Explorer UI**: "Export relocatable DLL/EXE" action = `attachRelocations(rebuild(module))`.
+- **CE 6.0 ARM / Thumb-2 (0x1c2)** literal detector (T1/T2 `LDR`), for the SDU-class ROMs. This
+  is the one bounded piece that would extend single-dump recreation to the modern CE6 ROMs;
+  until then those modules export as-is (loadable at their image base) and the two-dump diff is
+  the exact route.
 - **False-positive refinement** for single-dump SH3/ARM (target-validity heuristics), or prefer
   `relocationsByDiff` where two dumps exist.
+
+Done: ARM32/SH3/SH4 single-dump recreation, two-dump diff, `attachRelocations`, and the ROM
+Explorer export hookup (`moduleData` + properties-panel Relocations row). MIPS single-dump is
+intentionally out of scope (unreliable); use the two-dump diff.

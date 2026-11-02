@@ -117,6 +117,7 @@ export function parsePe(data) {
         dll: Boolean(characteristics & 0x2000),
         relocsStripped: Boolean(characteristics & 0x0001),
         hasReloc: Boolean(directories.length > 5 && directories[5][0]),
+        relocSize: directories.length > 5 ? directories[5][1] : 0,
         imageBase: u32(data, optional + 28),
         sectionAlignment: u32(data, optional + 32),
         fileAlignment: u32(data, optional + 36),
