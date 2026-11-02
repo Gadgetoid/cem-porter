@@ -88,6 +88,17 @@ https://gadgetoid.github.io/cem-porter/state.html (`state.html`) lists the files
 - State details show the emulator, save time, ROM hash, object store sections, object counts by type and the state's records
 - Files in ROM aren't in a state, and databases are counted but not read
 
+## Font Converter
+
+https://gadgetoid.github.io/cem-porter/fonts.html (`fonts.html`) converts a desktop font into a TrueType or bitmap font for Windows CE 1.0 and 2.0.
+
+- Opens .ttf, .otf and .woff files, and zips of them such as Google Fonts downloads; variable fonts are set to a named instance or any axis values
+- TrueType output keeps only the chosen characters and the tables CE's rasterizer uses (OS/2 version 1, Mac and Windows cmaps, post format 3, no hinting or OpenType layout), converts PostScript curves to TrueType ones, and can merge outline segments and use fewer units per em to make the file smaller
+- Character sets: Windows code pages 1250 to 1253, WGL4 and a few Unicode blocks, plus any extra characters typed in
+- Bitmap output is a version 2 .fnt per point size, laid out like the fonts in CE ROMs, drawn with the font's TrueType hinting and hinted widths (`hdmx`) where it has them, for code page 1250, 1251, 1252 or 1253
+- Previews the result at real size
+- Saves the font files, a CE 2.0 CAB, or a self-installing .exe for MIPS or SH3; both install to `\Windows\Fonts`, which CE 1.0 and 2.0 load fonts from at boot. Soft reset after installing
+
 ## Licence
 
-MIT, see `LICENSE`. `vendor/fflate.js` is fflate 0.8.2 (MIT, `vendor/fflate-LICENSE`).
+MIT, see `LICENSE`. `vendor/fflate.js` is fflate 0.8.2 (MIT, `vendor/fflate-LICENSE`). `vendor/opentype.js` is opentype.js 2.0.0 (MIT, `vendor/opentype-LICENSE`). `vendor/cubic2quad.js` is cubic2quad 1.2.1 (MIT, `vendor/cubic2quad-LICENSE`), with its CommonJS exports changed to ES module exports.
