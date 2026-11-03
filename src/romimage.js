@@ -1,6 +1,7 @@
 import { latin1Decode, u16, u32 } from "./pe.js";
 import { attachRelocations } from "./recreate.js";
 import { lzDecode, lzwDecode, lzwFileDecode, lzxBlocksDecode } from "./romlz.js";
+import { nandBinImages } from "./nandimage.js";
 
 const HEADER_SIZE = 0x54;
 const HEADER_FIELDS = ["dllFirst", "dllLast", "physFirst", "physLast", "moduleCount", "ramStart", "ramFree", "ramEnd", "copyEntries", "copyOffset", "profileLength", "profileOffset", "fileCount", "kernelFlags", "fsRamPercent", "driverGlobalsStart", "driverGlobalsLength"];
@@ -741,13 +742,31 @@ export function openRom(input, name = "") {
     let data = input instanceof Uint8Array ? input : new Uint8Array(input);
     let format = "Flat image";
     let bin = null;
-    if (data.length >= 7 && latin1Decode(data.subarray(0, 7)) === "B000FF\n") {
+    const nand = nandBinImages(data);
+    const regions = [];
+    if (nand) {
+        const labels = [];
+        for (const image of nand) {
+            let unpacked;
+            try {
+                unpacked = unpackBin(image.data);
+            } catch {
+                continue;
+            }
+            const found = buildRegions(unpacked.image, findRegions(unpacked.image, unpacked.base));
+            if (!bin || (!isCompleteOs(regions) && isCompleteOs(found))) bin = unpacked;
+            regions.push(...found);
+            labels.push(image.compressed ? `${image.partition.index} (LZSS)` : String(image.partition.index));
+        }
+        format = `NAND dump, CE BIN in partition${labels.length === 1 ? "" : "s"} ${labels.join(", ")}`;
+    }
+    if (!nand && data.length >= 7 && latin1Decode(data.subarray(0, 7)) === "B000FF\n") {
         bin = unpackBin(data);
         data = bin.image;
         format = "CE BIN (B000FF)";
     }
-    const regions = buildRegions(data, findRegions(data, bin ? bin.base : null));
-    if (bin && !isCompleteOs(regions)) {
+    if (!nand) regions.push(...buildRegions(data, findRegions(data, bin ? bin.base : null)));
+    if (!nand && bin && !isCompleteOs(regions)) {
         const found = buildRegions(data, findRegions(data, "signatures"));
         if (isCompleteOs(found)) regions.splice(0, regions.length, ...found);
     }

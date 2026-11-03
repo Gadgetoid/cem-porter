@@ -8,6 +8,9 @@ const LZW_CLEAR = 256;
 const LZW_FIRST = 257;
 const FILE_BLOCK = 4096;
 const RAW_BLOCK = 0x80000000;
+const LZSS_WINDOW = 4096;
+const LZSS_MIN_MATCH = 3;
+const LZSS_MAX_MATCH = 18;
 
 function read24(data, offset) {
     return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16);
@@ -85,6 +88,38 @@ export function lzDecode(data, size, blockSize = LZ_BLOCK) {
         start = end;
     }
     return output.result(Math.min(size, output.length));
+}
+
+export function lzssDecode(data, limit = Infinity) {
+    const window = new Uint8Array(LZSS_WINDOW);
+    const output = new Output(Math.min(limit, data.length * 2));
+    let cursor = LZSS_WINDOW - LZSS_MAX_MATCH;
+    let position = 0;
+    while (position < data.length && output.length < limit) {
+        const flags = data[position++];
+        for (let bit = 0; bit < 8; bit++) {
+            if (position >= data.length) break;
+            if (flags & (1 << bit)) {
+                const byte = data[position++];
+                output.push(byte);
+                window[cursor] = byte;
+                cursor = (cursor + 1) % LZSS_WINDOW;
+                continue;
+            }
+            if (position + 1 >= data.length) return output.result();
+            const low = data[position++];
+            const high = data[position++];
+            const source = low | ((high & 0xf0) << 4);
+            const length = (high & 0x0f) + LZSS_MIN_MATCH;
+            for (let index = 0; index < length; index++) {
+                const byte = window[(source + index) % LZSS_WINDOW];
+                output.push(byte);
+                window[cursor] = byte;
+                cursor = (cursor + 1) % LZSS_WINDOW;
+            }
+        }
+    }
+    return output.result();
 }
 
 function xpressDecode(data, size) {
