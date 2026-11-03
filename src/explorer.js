@@ -6,6 +6,7 @@ import { buildTree, findPath, pathOf, sortChildren, typeName } from "./romtree.j
 import { iconSizes, readExports } from "./romres.js";
 import { artIcon } from "./romicons.js";
 import { raiseWindow, saveBytes, setupDesktop } from "./desktop.js";
+import { putHandoff } from "./handoff.js";
 import { findBuilds } from "./analyze.js";
 import { fetchBytes, loadAssets } from "./assets.js";
 import { checkProgram, cpuFamily, ExportIndex, providerMap } from "./romcheck.js";
@@ -15,7 +16,16 @@ const elements = Object.fromEntries(["save-all", "region", "drop-title", "drop-h
 const state = { rom: null, region: null, exportNames: new Map(), choices: [], regions: [], romIndex: null, check: null };
 const BUILD_FAMILIES = { mips: "MIPS", sh3: "SH" };
 let assetsLoading = null;
-const browser = createBrowser({ title: "ROM Explorer", viewKey: "rom-explorer-view", readData: nodeData, generalFacts, extraTabs, summaryTabs: romTabs, openFile });
+const browser = createBrowser({
+    title: "ROM Explorer", viewKey: "rom-explorer-view", readData: nodeData, generalFacts, extraTabs, summaryTabs: romTabs, openFile,
+    nodeActions: [{
+        label: "Open in Hex",
+        show: (node) => node.kind === "module" || node.kind === "file",
+        run: (node, data) => putHandoff(node.name, data)
+            .then(() => { window.location.href = "hex.html"; })
+            .catch((error) => browser.setStatus(`Couldn't open in Hex: ${error.message}`)),
+    }],
+});
 const view = browser.state;
 const setStatus = browser.setStatus;
 

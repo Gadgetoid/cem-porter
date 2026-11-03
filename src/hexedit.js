@@ -2,6 +2,7 @@ import { saveBytes, setupDesktop } from "./desktop.js";
 import { formatSize } from "./browser.js";
 import { MACHINE_NAMES } from "./pe.js";
 import { ANNOTATORS, buildContext, buildLayer, hitsAt, hex } from "./hexannotate.js";
+import { takeHandoff } from "./handoff.js";
 
 const ids = ["open", "file-input", "drop", "drop-title", "drop-hint", "view", "space", "rows",
     "toggles", "goto", "find", "find-next", "inspector", "revert", "save", "status", "size", "edit-count"];
@@ -41,9 +42,12 @@ function narrowestAt(offset, layers) {
 // -- open ------------------------------------------------------------------
 
 async function openFile(file) {
-    const data = new Uint8Array(await file.arrayBuffer());
+    loadBytes(new Uint8Array(await file.arrayBuffer()), file.name);
+}
+
+function loadBytes(data, name) {
     state.data = data;
-    state.name = file.name;
+    state.name = name;
     state.ctx = buildContext(data);
     state.layerCache.clear();
     state.edits.clear();
@@ -58,9 +62,9 @@ async function openFile(file) {
     el.size.textContent = formatSize(data.length);
     if (state.ctx.isPe) {
         const pe = state.ctx.pe;
-        setStatus(`${file.name}: ${MACHINE_NAMES[pe.machine] ?? "?"} ${pe.dll ? "DLL" : "program"}, ${state.ctx.sections.length} sections.`);
+        setStatus(`${name}: ${MACHINE_NAMES[pe.machine] ?? "?"} ${pe.dll ? "DLL" : "program"}, ${state.ctx.sections.length} sections.`);
     } else {
-        setStatus(`${file.name}: not a PE file - raw bytes, strings annotation only.`);
+        setStatus(`${name}: not a PE file - raw bytes, strings annotation only.`);
     }
     el.inspector.textContent = "Click a byte to inspect it.";
 }
@@ -314,6 +318,11 @@ function setup() {
     window.addEventListener("resize", () => requestAnimationFrame(renderWindow));
     setupDesktop({ readmeKey: "hex-editor-readme" });
     setStatus("Open an executable to annotate it.");
+    takeHandoff()
+        .then((handoff) => {
+            if (handoff) loadBytes(handoff.data instanceof Uint8Array ? handoff.data : new Uint8Array(handoff.data), handoff.name);
+        })
+        .catch(() => {});
 }
 
 setup();

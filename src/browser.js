@@ -151,7 +151,7 @@ function versionTab(version) {
     return [facts([["File version", version.fileVersion], ["Product version", version.productVersion], ...Object.entries(version.strings)])];
 }
 
-export function createBrowser({ title, viewKey, readData, generalFacts, extraTabs = () => [], summaryTabs, openFile, shortcutPlace = "In this ROM" }) {
+export function createBrowser({ title, viewKey, readData, generalFacts, extraTabs = () => [], summaryTabs, openFile, shortcutPlace = "In this ROM", nodeActions = [] }) {
     const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
     const state = { source: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new WeakMap(), iconJob: 0, dialogNode: undefined };
 
@@ -517,6 +517,24 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
         elements["dialog-title"].textContent = `${node ? node.name || "\\" : state.source.name} Properties`;
         elements["dialog-save"].hidden = !node;
         elements["dialog-save"].textContent = node?.kind === "folder" ? "Save as .zip" : "Save file";
+        for (const button of [...elements.dialog.querySelectorAll(".node-action")]) button.remove();
+        if (node) {
+            for (const action of nodeActions) {
+                if (action.show && !action.show(node)) continue;
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "node-action";
+                button.textContent = action.label;
+                button.addEventListener("click", () => {
+                    try {
+                        action.run(node, readData(node));
+                    } catch (error) {
+                        setStatus(`Couldn't ${action.label.toLowerCase()}: ${error.message}`);
+                    }
+                });
+                elements["dialog-save"].before(button);
+            }
+        }
         const showTab = (index) => {
             [...elements["dialog-tabs"].children].forEach((button, buttonIndex) => button.setAttribute("aria-selected", String(buttonIndex === index)));
             try {
