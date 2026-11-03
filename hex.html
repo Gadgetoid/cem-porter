@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hex Annotator</title>
+<meta name="description" content="Annotated hex viewer and patcher for Windows CE executables: toggleable PE structure, strings, imports and relocation layers.">
+<link rel="stylesheet" href="src/ce.css">
+<link rel="stylesheet" href="src/explorer.css">
+<style>
+main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64px); display: flex; flex-direction: column; }
+.hex .body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
+.hex .toolbar input[type="text"] { width: 10ch; font-family: "Courier New", monospace; }
+.hex .toolbar .wide { width: 18ch; }
+
+.layer-bar { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 8px; align-items: center; }
+.layer-bar strong { font-weight: bold; margin-right: 2px; }
+.layer-bar label { white-space: nowrap; }
+
+.hex-main { flex: 1 1 auto; min-height: 0; display: flex; gap: 4px; }
+.hex-main .drop { flex: 1 1 auto; }
+
+.view { position: relative; overflow: auto; flex: 1 1 auto; min-width: 0; background: #fff;
+    font-family: "Courier New", monospace; font-size: 13px; outline: none; }
+#space { width: 1px; }
+#rows { position: absolute; top: 0; left: 0; padding: 2px 6px; }
+.hexrow { height: 18px; line-height: 18px; white-space: nowrap; }
+.off { color: #8a8a8a; padding-right: 10px; }
+.b { display: inline-block; width: 20px; text-align: center; cursor: pointer; }
+.b.gap { margin-left: 8px; }
+.b.blank { color: transparent; cursor: default; }
+.ascii { margin-left: 12px; color: #444; }
+.ascii span { display: inline-block; width: 8px; }
+
+.c-struct { background: #d9e4ff; }
+.c-code { background: #ddf3dd; }
+.c-data { background: #efefef; }
+.c-string { background: #fff0c2; }
+.c-import { background: #ead9ff; }
+.c-reloc { background: #ffdada; }
+
+.b.sel, .ascii span.sel { background: #000080; color: #fff; }
+.b.edited, .ascii span.edited { color: #c00000; font-weight: bold; }
+
+.inspector-pane { width: 300px; flex: none; display: flex; flex-direction: column; overflow: auto; padding: 6px; }
+#inspector { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: "Courier New", monospace; font-size: 12px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 4px 8px; font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i { width: 12px; height: 12px; display: inline-block; border: 1px solid #0003; }
+@media (max-width: 680px) { .inspector-pane { display: none; } }
+</style>
+</head>
+<body>
+<main class="window raised explorer hex">
+    <div class="title-bar">
+        <span class="title" id="window-title">Hex Annotator</span>
+        <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </div>
+    <div class="body">
+        <div class="toolbar raised" role="toolbar" aria-label="Hex Annotator">
+            <button type="button" id="open">Open...</button>
+            <span class="separator" aria-hidden="true"></span>
+            <label>Go to <input type="text" id="goto" placeholder="0x1234" aria-label="Go to offset"></label>
+            <label>Find <input type="text" id="find" class="wide" placeholder='01 a0 or "text"' aria-label="Find bytes or text"></label>
+            <button type="button" id="find-next">Find</button>
+            <span class="separator" aria-hidden="true"></span>
+            <button type="button" id="revert" disabled>Revert</button>
+            <button type="button" id="save" disabled>Save patched</button>
+            <span id="edit-count">No changes</span>
+        </div>
+        <div class="layer-bar raised"><strong>Layers:</strong><span id="toggles"></span></div>
+        <div class="hex-main">
+            <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+                <strong id="drop-title">Drop an executable here</strong>
+                <span id="drop-hint">A Windows CE .exe or .dll (any PE), or any binary. Or tap to open one.</span>
+            </div>
+            <div class="view sunken" id="view" hidden tabindex="0" aria-label="Hex view">
+                <div id="space"></div>
+                <div id="rows"></div>
+            </div>
+            <aside class="inspector-pane sunken">
+                <div class="legend" aria-hidden="true">
+                    <span><i class="c-struct"></i>structure</span>
+                    <span><i class="c-code"></i>code</span>
+                    <span><i class="c-data"></i>data</span>
+                    <span><i class="c-string"></i>string</span>
+                    <span><i class="c-import"></i>import</span>
+                    <span><i class="c-reloc"></i>reloc</span>
+                </div>
+                <pre id="inspector">Open a file.</pre>
+            </aside>
+        </div>
+        <input class="visually-hidden" type="file" id="file-input" aria-label="Open an executable">
+    </div>
+    <div class="status-bar"><span id="status" role="status">Loading...</span><span id="size">&nbsp;</span></div>
+</main>
+<div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
+    <div class="start-banner" aria-hidden="true">Hex Annotator</div>
+    <ul>
+        <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
+        <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
+        <li><a role="menuitem" href="explorer.html">R<u>O</u>M Explorer</a></li>
+        <li><a role="menuitem" href="state.html"><u>S</u>tate Explorer</a></li>
+        <li><a role="menuitem" href="fonts.html"><u>F</u>ont Converter</a></li>
+        <li class="separator" role="separator"></li>
+        <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
+        <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
+        <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
+    </ul>
+</div>
+<div class="taskbar">
+    <button class="start" type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
+    <button class="task" type="button" tabindex="-1">Hex Annotator</button>
+    <button class="task" type="button" id="notes-task" hidden>Readme</button>
+    <span class="tray" id="clock"></span>
+</div>
+<section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
+    <div class="title-bar">
+        <span class="title" id="notes-title">Readme - Pocket Word</span>
+        <button class="raised" id="notes-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="menu-bar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></div>
+    <div class="document sunken">
+        <h1>Hex Annotator</h1>
+        <p class="tagline">Keep on keeping on!</p>
+        <p>An annotated hex viewer and patcher for Windows CE executables. It reads a PE and
+            labels what the bytes mean, in toggleable layers, so you can find and change the
+            part you care about and save a patched file.</p>
+        <h2>Using it</h2>
+        <ul>
+            <li>Open a .exe, .dll or any binary.</li>
+            <li>Turn annotation layers on and off for the job at hand: PE structure, section
+                bodies, strings, imports, relocations. Each colours the bytes it understands.</li>
+            <li>Click a byte to inspect it: every enabled layer that covers it is listed, so you
+                see at once that a word is, say, inside .text, part of a string, and a relocation.</li>
+            <li>Type hex digits over a selected byte to edit it; arrow keys move. Changed bytes
+                turn red. Revert undoes all edits; Save patched writes a copy.</li>
+            <li>Go to jumps to an offset; Find takes hex bytes (<code>01 00 a0 e3</code>) or text
+                in quotes (<code>"Register"</code>).</li>
+        </ul>
+        <h2>Where it's going</h2>
+        <ul>
+            <li>More layers plug into the same interface: a disassembler and probable-instruction
+                pool, and patch-site heuristics for the preservation toolkit.</li>
+            <li>A future export will turn a patch into a small on-device .exe that finds and
+                patches a compatible file in place.</li>
+        </ul>
+        <h2>Limitations</h2>
+        <ul>
+            <li>Edits are byte-for-byte in place; it doesn't grow sections or fix checksums.</li>
+            <li>String detection is ASCII and UTF-16LE runs of four or more; it isn't exhaustive.</li>
+        </ul>
+    </div>
+</section>
+<script type="module" src="src/hexedit.js"></script>
+</body>
+</html>
