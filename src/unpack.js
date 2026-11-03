@@ -1,5 +1,6 @@
 import { blast } from "./blast.js";
 import { readCabinet } from "./cabread.js";
+import { cpkName, expandCpk, isCpk } from "./cpk.js";
 import { inflateRaw } from "./inflate.js";
 import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
 import { extractIs5, isIs5 } from "./is5.js";
@@ -387,6 +388,14 @@ export function membersOf(name, data, siblings = []) {
     if (isIs5(data)) {
         const members = readIs5(name, data, siblings);
         if (members) return { members, method: "InstallShield cabinet" };
+    }
+    if (isCpk(data)) {
+        try {
+            const expanded = expandCpk(data);
+            return { members: [{ name: baseName(cpkName(name)), data: expanded.data }], method: "CASIO .cpk" };
+        } catch {
+            return { members: null, method: null };
+        }
     }
     if (startsWith(data, SZDD_SIGNATURE)) {
         const expanded = expandSzdd(data);
