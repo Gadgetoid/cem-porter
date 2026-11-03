@@ -186,7 +186,89 @@ const relocations = {
     },
 };
 
-export const ANNOTATORS = [peStructure, sectionBodies, strings, imports, relocations];
+// Patch-site heuristics. Surfaces candidate sites with a concrete byte patch for a
+// human to apply and test (guided, not turnkey). Grounded in the corpus in
+// patch-points.md: the universal MIPS boolean-return tail and the ARM tst/bne gate.
+const MACHINE_MIPS = 0x166, MACHINE_ARM = 0x1c0;
+const MIPS_MOVE_V0_ZERO = 0x00001025;   // or $v0,$zero,$zero  = return 0
+const MIPS_LI_V0_ONE = 0x24020001;      // addiu $v0,$zero,1   = return 1
+const MIPS_JR_RA = 0x03e00008;          // jr $ra
+const ARM_BX_LR = 0xe12fff1e;
+
+const leBytes = (word) => [word & 0xff, (word >> 8) & 0xff, (word >> 16) & 0xff, (word >> 24) & 0xff];
+
+function codeSections(ctx) {
+    return ctx.sections.filter((s) => s.rawSize > 0 && s.characteristics & 0x20);
+}
+
+// The universal MIPS boolean-return tail: move $v0,$zero (return 0) as a function's
+// return, with jr $ra just after and a paired addiu $v0,$zero,1 (return 1) in the
+// same tail. The pairing is what makes it a boolean check rather than a void/error
+// return, and it holds across every MIPS point in the corpus.
+function mipsPatchSites(ctx) {
+    const { data } = ctx;
+    const word = (offset) => u32(data, offset);
+    const out = [];
+    for (const section of codeSections(ctx)) {
+        const start = section.rawOffset, end = start + section.rawSize;
+        for (let off = start; off + 4 <= end; off += 4) {
+            if (word(off) !== MIPS_MOVE_V0_ZERO) continue;
+            let returns = false;
+            for (let k = 1; k <= 3 && off + 4 * k + 4 <= end; k++) if (word(off + 4 * k) === MIPS_JR_RA) { returns = true; break; }
+            if (!returns) continue;
+            let paired = false;
+            for (let k = 1; k <= 16 && off - 4 * k >= start; k++) if (word(off - 4 * k) === MIPS_LI_V0_ONE) { paired = true; break; }
+            if (!paired) continue;
+            out.push({
+                start: off, end: off + 4, cat: "patch", confidence: "high",
+                label: "Return-flip site (boolean fail path)",
+                detail: "move $v0,$zero returns 0 here, with jr $ra just after and a paired 'return 1' above - a boolean check. Patch to addiu $v0,$zero,1 to force it to return 1.",
+                patch: { at: off, from: leBytes(MIPS_MOVE_V0_ZERO), to: leBytes(MIPS_LI_V0_ONE) },
+            });
+        }
+    }
+    return out;
+}
+
+// ARM constant-return stub: mov r0,#0 ; bx lr. The clean analog of the MIPS flip -
+// force a failing check to return 1. Gate-style patches (SoftMaker's tst/bne name
+// tie) are deliberately NOT scanned for: tst/cmp feeding a branch is ubiquitous
+// (thousands per binary), so those are located through the evidence layer (a string
+// or import xref to the validator) rather than a blind scan.
+function armPatchSites(ctx) {
+    const { data } = ctx;
+    const word = (offset) => u32(data, offset);
+    const out = [];
+    for (const section of codeSections(ctx)) {
+        const start = section.rawOffset, end = start + section.rawSize;
+        for (let off = start; off + 4 <= end; off += 4) {
+            const w = word(off);
+            if ((w & 0x0ffff000) !== 0x03a00000 || (w & 0xff) !== 0) continue;   // mov r0,#0
+            let stub = false;
+            for (let k = 1; k <= 2 && off + 4 * k + 4 <= end; k++) if (word(off + 4 * k) === ARM_BX_LR) { stub = true; break; }
+            if (!stub) continue;
+            out.push({
+                start: off, end: off + 4, cat: "patch", confidence: "high",
+                label: "Return-0 stub",
+                detail: "mov r0,#0; bx lr returns 0. Patch to mov r0,#1 to force it to return 1.",
+                patch: { at: off, from: leBytes(w), to: leBytes((w & 0xfffff000) | 1) },
+            });
+        }
+    }
+    return out;
+}
+
+const patchSites = {
+    id: "patchsites", label: "Patch sites", role: "patch", defaultOn: false,
+    build(ctx) {
+        if (!ctx.isPe) return [];
+        if (ctx.pe.machine === MACHINE_MIPS) return mipsPatchSites(ctx);
+        if (ctx.pe.machine === MACHINE_ARM) return armPatchSites(ctx);
+        return [];
+    },
+};
+
+export const ANNOTATORS = [peStructure, sectionBodies, strings, imports, relocations, patchSites];
 
 export function buildLayer(annotator, ctx) {
     const intervals = annotator.build(ctx);

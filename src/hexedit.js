@@ -5,7 +5,7 @@ import { ANNOTATORS, buildContext, buildLayer, hitsAt, hex } from "./hexannotate
 import { takeHandoff } from "./handoff.js";
 
 const ids = ["open", "file-input", "drop", "drop-title", "drop-hint", "view", "space", "rows",
-    "toggles", "goto", "find", "find-next", "inspector", "revert", "save", "status", "size", "edit-count"];
+    "toggles", "goto", "find", "find-next", "inspector", "apply-patch", "revert", "save", "status", "size", "edit-count"];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
 const BYTES_PER_ROW = 16;
@@ -177,30 +177,42 @@ function showInspector(offset) {
     }
     lines.push("");
     let any = false;
+    state.pendingPatch = null;
     for (const layer of activeLayers()) {
         const hits = hitsAt(layer.intervals, offset);
         for (const hit of hits) {
             any = true;
             lines.push(`[${layer.label}] ${hit.label}`);
             if (hit.detail) lines.push(`    ${hit.detail}`);
+            if (hit.patch && !state.pendingPatch) state.pendingPatch = hit.patch;
         }
     }
     if (!any) lines.push("(no annotations here)");
     el.inspector.textContent = lines.join("\n");
+    const patch = state.pendingPatch;
+    el["apply-patch"].hidden = !patch;
+    if (patch) {
+        const show = (bytes) => bytes.map((b) => hex(b, 2)).join(" ");
+        el["apply-patch"].textContent = `Apply patch at ${hex(patch.at)}: ${show(patch.from)} -> ${show(patch.to)}`;
+    }
 }
 
 // -- editing ---------------------------------------------------------------
 
+function setByte(offset, value) {
+    if (!state.edits.has(offset)) state.edits.set(offset, state.data[offset]);
+    state.data[offset] = value & 0xff;
+}
+
 function writeNibble(digit) {
     const offset = state.selection;
     if (offset === null) return;
-    if (!state.edits.has(offset)) state.edits.set(offset, state.data[offset]);
     const current = state.data[offset];
     if (state.nibble === 0) {
-        state.data[offset] = (digit << 4) | (current & 0x0f);
+        setByte(offset, (digit << 4) | (current & 0x0f));
         state.nibble = 1;
     } else {
-        state.data[offset] = (current & 0xf0) | digit;
+        setByte(offset, (current & 0xf0) | digit);
         state.nibble = 0;
         if (offset + 1 < state.data.length) state.selection = offset + 1;
     }
@@ -208,6 +220,20 @@ function writeNibble(digit) {
     renderWindow();
     showInspector(state.selection);
     updateEditState();
+}
+
+function applyPatch() {
+    const patch = state.pendingPatch;
+    if (!patch) return;
+    for (let i = 0; i < patch.to.length; i++) setByte(patch.at + i, patch.to[i]);
+    state.selection = patch.at;
+    state.nibble = 0;
+    state.layerCache.delete("patchsites");   // the site changed; rebuild so it re-evaluates
+    ensureVisible(patch.at);
+    renderWindow();
+    showInspector(patch.at);
+    updateEditState();
+    setStatus(`Applied patch at ${hex(patch.at)}.`);
 }
 
 function revertAll() {
@@ -313,6 +339,7 @@ function setup() {
     el["find-next"].addEventListener("click", findNext);
     el.find.addEventListener("keydown", (event) => { if (event.key === "Enter") findNext(); });
     el.goto.addEventListener("keydown", (event) => { if (event.key === "Enter") gotoOffset(); });
+    el["apply-patch"].addEventListener("click", applyPatch);
     el.revert.addEventListener("click", revertAll);
     el.save.addEventListener("click", savePatched);
     window.addEventListener("resize", () => requestAnimationFrame(renderWindow));

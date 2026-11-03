@@ -38,6 +38,9 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
 .c-string { background: #fff0c2; }
 .c-import { background: #ead9ff; }
 .c-reloc { background: #ffdada; }
+.c-patch { background: #ffd27f; outline: 1px solid #c87000; outline-offset: -1px; }
+
+#apply-patch { margin-top: 6px; white-space: normal; text-align: left; font-family: "Courier New", monospace; font-size: 12px; }
 
 .b.sel, .ascii span.sel { background: #000080; color: #fff; }
 .b.edited, .ascii span.edited { color: #c00000; font-weight: bold; }
@@ -87,8 +90,10 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
                     <span><i class="c-string"></i>string</span>
                     <span><i class="c-import"></i>import</span>
                     <span><i class="c-reloc"></i>reloc</span>
+                    <span><i class="c-patch"></i>patch site</span>
                 </div>
                 <pre id="inspector">Open a file.</pre>
+                <button type="button" id="apply-patch" class="raised" hidden></button>
             </aside>
         </div>
         <input class="visually-hidden" type="file" id="file-input" aria-label="Open an executable">
@@ -132,7 +137,11 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
             <li>Open a .exe, .dll or any binary - or send a module straight from ROM Explorer
                 with its "Open in Hex" button, no saving first.</li>
             <li>Turn annotation layers on and off for the job at hand: PE structure, section
-                bodies, strings, imports, relocations. Each colours the bytes it understands.</li>
+                bodies, strings, imports, relocations, and patch sites. Each colours the bytes
+                it understands.</li>
+            <li>Patch sites flags likely "make this check pass" edits (MIPS boolean-return
+                tails, ARM return stubs) and offers a ready one-click patch to try. It surfaces
+                candidates to test, not guaranteed cracks.</li>
             <li>Click a byte to inspect it: every enabled layer that covers it is listed, so you
                 see at once that a word is, say, inside .text, part of a string, and a relocation.</li>
             <li>Type hex digits over a selected byte to edit it; arrow keys move. Changed bytes
@@ -142,8 +151,9 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
         </ul>
         <h2>Where it's going</h2>
         <ul>
-            <li>More layers plug into the same interface: a disassembler and probable-instruction
-                pool, and patch-site heuristics for the preservation toolkit.</li>
+            <li>More layers plug into the same interface: a fuller disassembler, and more
+                patch-site heuristics anchored by strings and imports (to pinpoint gate-style
+                checks a blind scan can't).</li>
             <li>A future export will turn a patch into a small on-device .exe that finds and
                 patches a compatible file in place.</li>
         </ul>
