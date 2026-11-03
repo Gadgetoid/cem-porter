@@ -5,28 +5,37 @@ import { ANNOTATORS, buildContext, buildLayer, hitsAt, hex } from "./hexannotate
 import { takeHandoff } from "./handoff.js";
 
 const ids = ["open", "file-input", "drop", "drop-title", "drop-hint", "view", "space", "rows",
-    "toggles", "goto", "find", "find-next", "inspector", "apply-patch", "revert", "save", "status", "size", "edit-count"];
+    "toggles", "nav-prev", "nav-next", "nav-pos", "goto", "find", "find-next", "inspector", "apply-patch",
+    "revert", "save", "status", "size", "edit-count"];
 const el = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
 
 const BYTES_PER_ROW = 16;
 const state = {
     data: null, name: "file.bin", ctx: null,
     layerCache: new Map(), enabled: new Set(ANNOTATORS.filter((a) => a.defaultOn).map((a) => a.id)),
-    edits: new Map(), selection: null, nibble: 0, rowHeight: 18,
+    edits: new Map(), selection: null, nibble: 0, rowHeight: 18, navLayer: "patchsites",
 };
 
 function setStatus(text) {
     el.status.textContent = text;
 }
 
-function activeLayers() {
-    const layers = [];
-    for (const annotator of ANNOTATORS) {
-        if (!state.enabled.has(annotator.id)) continue;
-        if (!state.layerCache.has(annotator.id)) state.layerCache.set(annotator.id, buildLayer(annotator, state.ctx));
-        layers.push(state.layerCache.get(annotator.id));
+function ensureLayer(id) {
+    if (!state.layerCache.has(id)) {
+        const annotator = ANNOTATORS.find((a) => a.id === id);
+        let layer;
+        try {
+            layer = buildLayer(annotator, state.ctx);
+        } catch {
+            layer = { id, label: annotator.label, intervals: [] };
+        }
+        state.layerCache.set(id, layer);
     }
-    return layers;
+    return state.layerCache.get(id);
+}
+
+function activeLayers() {
+    return ANNOTATORS.filter((a) => state.enabled.has(a.id)).map((a) => ensureLayer(a.id));
 }
 
 function narrowestAt(offset, layers) {
@@ -71,7 +80,14 @@ function loadBytes(data, name) {
 
 function renderToggles() {
     el.toggles.replaceChildren();
+    if (ensureLayer(state.navLayer).intervals.length === 0) {
+        const alt = ANNOTATORS.find((a) => ensureLayer(a.id).intervals.length > 0);
+        if (alt) state.navLayer = alt.id;
+    }
     for (const annotator of ANNOTATORS) {
+        const count = ensureLayer(annotator.id).intervals.length;
+        const wrap = document.createElement("span");
+        wrap.className = "layer";
         const label = document.createElement("label");
         const box = document.createElement("input");
         box.type = "checkbox";
@@ -83,8 +99,53 @@ function renderToggles() {
         });
         label.append(box, " ", annotator.label);
         label.title = annotator.role;
-        el.toggles.append(label);
+        const countButton = document.createElement("button");
+        countButton.type = "button";
+        countButton.className = "count" + (state.navLayer === annotator.id ? " active" : "");
+        countButton.dataset.id = annotator.id;
+        countButton.textContent = String(count);
+        countButton.title = `Step through ${annotator.label} (${count})`;
+        countButton.disabled = count === 0;
+        countButton.addEventListener("click", () => setNavLayer(annotator.id));
+        wrap.append(label, countButton);
+        el.toggles.append(wrap);
     }
+    updateNav();
+}
+
+function setNavLayer(id) {
+    state.navLayer = id;
+    for (const button of el.toggles.querySelectorAll(".count")) button.classList.toggle("active", button.dataset.id === id);
+    updateNav();
+}
+
+function updateNav() {
+    if (!state.data) return;
+    const layer = ensureLayer(state.navLayer);
+    const total = layer.intervals.length;
+    let position = 0;
+    if (state.selection !== null) {
+        const index = layer.intervals.findIndex((it) => state.selection >= it.start && state.selection < it.end);
+        if (index >= 0) position = index + 1;
+    }
+    el["nav-pos"].textContent = `${layer.label}: ${position}/${total}`;
+    el["nav-prev"].disabled = total === 0;
+    el["nav-next"].disabled = total === 0;
+}
+
+function navStep(direction) {
+    const layer = ensureLayer(state.navLayer);
+    const intervals = layer.intervals;
+    if (!intervals.length) return;
+    const current = state.selection ?? -1;
+    let target;
+    if (direction > 0) {
+        target = intervals.find((it) => it.start > current) ?? intervals[0];
+    } else {
+        for (let i = intervals.length - 1; i >= 0; i--) if (intervals[i].start < current) { target = intervals[i]; break; }
+        target = target ?? intervals[intervals.length - 1];
+    }
+    select(target.start);
 }
 
 // -- render ----------------------------------------------------------------
@@ -157,6 +218,7 @@ function select(offset) {
     ensureVisible(offset);
     renderWindow();
     showInspector(offset);
+    updateNav();
 }
 
 function ensureVisible(offset) {
@@ -188,13 +250,14 @@ function showInspector(offset) {
         }
     }
     if (!any) lines.push("(no annotations here)");
-    el.inspector.textContent = lines.join("\n");
     const patch = state.pendingPatch;
-    el["apply-patch"].hidden = !patch;
     if (patch) {
         const show = (bytes) => bytes.map((b) => hex(b, 2)).join(" ");
-        el["apply-patch"].textContent = `Apply patch at ${hex(patch.at)}: ${show(patch.from)} -> ${show(patch.to)}`;
+        lines.push("", `Suggested patch @ ${hex(patch.at)}`, `  ${show(patch.from)} -> ${show(patch.to)}`);
     }
+    el.inspector.textContent = lines.join("\n");
+    el["apply-patch"].hidden = !patch;
+    el["apply-patch"].textContent = "Apply suggested patch";
 }
 
 // -- editing ---------------------------------------------------------------
@@ -340,6 +403,8 @@ function setup() {
     el.find.addEventListener("keydown", (event) => { if (event.key === "Enter") findNext(); });
     el.goto.addEventListener("keydown", (event) => { if (event.key === "Enter") gotoOffset(); });
     el["apply-patch"].addEventListener("click", applyPatch);
+    el["nav-prev"].addEventListener("click", () => navStep(-1));
+    el["nav-next"].addEventListener("click", () => navStep(1));
     el.revert.addEventListener("click", revertAll);
     el.save.addEventListener("click", savePatched);
     window.addEventListener("resize", () => requestAnimationFrame(renderWindow));

@@ -17,6 +17,12 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
 .layer-bar strong { font-weight: bold; margin-right: 2px; }
 .layer-bar label { white-space: nowrap; }
 #toggles { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+.layer { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.layer .count { font-size: 11px; min-width: 2.5ch; padding: 1px 5px; cursor: pointer; }
+.layer .count.active { font-weight: bold; }
+.nav-group { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.nav-group button { min-width: 3ch; }
+#nav-pos { font-size: 12px; min-width: 12ch; }
 
 .hex-main { flex: 1 1 auto; min-height: 0; display: flex; gap: 4px; }
 .hex-main .drop { flex: 1 1 auto; }
@@ -42,7 +48,7 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
 .c-reloc { background: #ffdada; }
 .c-patch { background: #ffd27f; outline: 1px solid #c87000; outline-offset: -1px; }
 
-#apply-patch { margin-top: 6px; white-space: normal; text-align: left; font-family: "Courier New", monospace; font-size: 12px; }
+#apply-patch { margin-top: 8px; align-self: flex-start; }
 
 .b.sel, .ascii span.sel { background: #000080; color: #fff; }
 .b.edited, .ascii span.edited { color: #c00000; font-weight: bold; }
@@ -74,7 +80,14 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
             <button type="button" id="save" disabled>Save patched</button>
             <span id="edit-count">No changes</span>
         </div>
-        <div class="layer-bar raised"><strong>Layers:</strong><span id="toggles"></span></div>
+        <div class="layer-bar raised">
+            <strong>Layers:</strong><span id="toggles"></span>
+            <span class="nav-group">
+                <button type="button" id="nav-prev" title="Previous site" disabled>&#9664;</button>
+                <button type="button" id="nav-next" title="Next site" disabled>&#9654;</button>
+                <span id="nav-pos"></span>
+            </span>
+        </div>
         <div class="hex-main">
             <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
                 <strong id="drop-title">Drop an executable here</strong>
