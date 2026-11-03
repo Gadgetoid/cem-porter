@@ -19,9 +19,10 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
 
 .hex-main { flex: 1 1 auto; min-height: 0; display: flex; gap: 4px; }
 .hex-main .drop { flex: 1 1 auto; }
+.hex-main .drop[hidden], .hex-main .view[hidden] { display: none; }
 
-.view { position: relative; overflow: auto; flex: 1 1 auto; min-width: 0; background: #fff;
-    font-family: "Courier New", monospace; font-size: 13px; outline: none; }
+.hex-main .view { position: relative; overflow: auto; flex: 1 1 auto; min-width: 0; height: auto;
+    background: #fff; font-family: "Courier New", monospace; font-size: 13px; outline: none; }
 #space { width: 1px; }
 #rows { position: absolute; top: 0; left: 0; padding: 2px 6px; }
 .hexrow { height: 18px; line-height: 18px; white-space: nowrap; }
