@@ -72,7 +72,8 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Regions chained together (CE 4.2's kernel and XIP regions share a ROM extensions block) are shown as one ROM
 - Modules are rebuilt as PE files; data directories pointing at sections romimage stripped are cleared
 - Folders and shortcut copies come from the ROM's `initobj.dat`; shortcuts show their target's icon
-- Icons and version information are read from each module's resources; bitmaps, including 2 bpp `.2bp` files, text and sounds can be previewed
+- Icons and version information are read from each module's resources; an Icons tab shows every icon image a program or DLL holds
+- Previews: bitmaps (including 2 bpp `.2bp` files), text, sounds, TrueType fonts and collections, bitmap fonts (`.fnt`, and `.fon` files including CE 1.01's paged ones), buzzer tunes (`.buz`) with playback, and registry files (REGEDIT4 scripts, CE 1.x RGDB hives and binary registry backups such as the BE-300's `Safe.reg`) as a key tree
 - Properties show the ROM's CE version, CPU (from the ROM header, or from the kernel's code when it's not set), address ranges, build dates and copy entries, and for each module its sections, imports (named from the exporting DLL in the same ROM), exports and version
 - Files holding several ROM images (boot loader and OS, for example) list each one
 - Check app checks a program, DLL, CAB or installer against the open ROM: CPU family, CE version, and each imported DLL and function. Ordinal imports are named from the app's own SDK numbering, so functions the ROM numbers differently are reported as renumbered rather than missing; functions CEM Porter supplies (VELOCRT, CE1COMPAT, VELOSHIM, CE 1.0 renames) are marked as such. DLLs in the app's own package count as present
@@ -87,6 +88,7 @@ https://gadgetoid.github.io/cem-porter/state.html (`state.html`) lists the files
 - Reads states and snapshots from velo-emu (`VELO1 STATE v2`) and sh3emu (`SH3ODO01`), gzip-compressed or not
 - Finds the CE 1.0 to 2.12 object store in the saved DRAM (and the Velo's DRAM card) and rebuilds its folders and files, decompressing CE 1.0 LZW and CE 2.0 LZ chunks (1 KB or 4 KB blocks, detected per chunk)
 - Registry from the object store on CE 2.x, or from `\Windows\Pegreg.reg` or `CEreg.reg` on CE 1.x; browsed in its own window and saved as a REGEDIT4 `.reg`
+- Files get the same Properties and previews as in ROM Explorer
 - State details show the emulator, save time, ROM hash, object store sections, object counts by type and the state's records
 - Files in ROM aren't in a state, and databases are counted but not read
 

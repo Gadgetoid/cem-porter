@@ -4,7 +4,8 @@ import { findPath, pathOf, sortChildren, typeName } from "./romtree.js";
 import { artIcon } from "./romicons.js";
 import { raiseWindow, saveBytes, setupDesktop } from "./desktop.js";
 import { readState } from "./statefile.js";
-import { formatValue, keyPath, OBJECT_NAMES, openObjectStore, REGISTRY_TYPES, registryText } from "./objectstore.js";
+import { OBJECT_NAMES, openObjectStore } from "./objectstore.js";
+import { countRegistry, formatValue, keyPath, REGISTRY_TYPES, registryText } from "./regfile.js";
 import { attributeText, baseName, createBrowser, exactSize, facts, folderTotals, formatDate, formatSize, heading, pairs, rule, table } from "./browser.js";
 
 const elements = Object.fromEntries(["save-all", "registry-open", "drop-title", "drop-hint", "state-bar", "state-facts", "state-details", "registry", "registry-title", "registry-close", "registry-up", "registry-path", "registry-summary", "registry-list", "registry-rows", "registry-save", "registry-ok"].map((id) => [id, document.getElementById(id)]));
@@ -122,18 +123,6 @@ function renderStateBar() {
     ];
     elements["state-facts"].replaceChildren(...pairs(rows));
     elements["state-bar"].hidden = false;
-}
-
-function countRegistry(roots) {
-    let keys = 0;
-    let values = 0;
-    const walk = (key) => {
-        keys++;
-        values += key.values.length;
-        key.keys.forEach(walk);
-    };
-    roots.forEach(walk);
-    return { keys: keys - roots.length, values };
 }
 
 function keyRow(body, key) {

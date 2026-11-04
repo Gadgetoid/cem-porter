@@ -104,11 +104,12 @@ function groupIcons(image, leaves) {
     return groups.map((group) => {
         const data = leafData(image, group);
         const count = u16(data, 4);
-        return Array.from({ length: count }, (_, index) => {
+        const entries = Array.from({ length: count }, (_, index) => {
             const entry = 6 + 14 * index;
             return { width: data[entry] || 256, height: data[entry + 1] || 256, bits: u16(data, entry + 6), id: u16(data, entry + 12) };
         }).filter((entry) => icons.has(entry.id)).map((entry) => ({ ...entry, leaf: icons.get(entry.id) }));
-    }).filter((entries) => entries.length);
+        return { id: group.path[1], entries };
+    }).filter((group) => group.entries.length);
 }
 
 export function readIcon(data, size) {
@@ -117,7 +118,7 @@ export function readIcon(data, size) {
         const image = new Image(data);
         const groups = groupIcons(image, resourceLeaves(image));
         if (!groups.length) return null;
-        const entries = groups[0];
+        const entries = groups[0].entries;
         const exact = entries.filter((entry) => entry.width === size);
         const chosen = (exact.length ? exact : entries).sort((left, right) => right.bits - left.bits || Math.abs(left.width - size) - Math.abs(right.width - size))[0];
         return decodeDib(leafData(image, chosen.leaf), size);
@@ -126,11 +127,24 @@ export function readIcon(data, size) {
     }
 }
 
+export function readIcons(data) {
+    if (!isPe(data)) return [];
+    try {
+        const image = new Image(data);
+        return groupIcons(image, resourceLeaves(image)).map((group) => ({
+            id: group.id,
+            images: group.entries.map((entry) => ({ ...entry, bitmap: decodeDib(leafData(image, entry.leaf), entry.width) })),
+        }));
+    } catch {
+        return [];
+    }
+}
+
 export function iconSizes(data) {
     if (!isPe(data)) return [];
     try {
         const image = new Image(data);
-        return groupIcons(image, resourceLeaves(image)).map((entries) => entries.map((entry) => `${entry.width}x${entry.height} ${entry.bits}-bit`));
+        return groupIcons(image, resourceLeaves(image)).map((group) => group.entries.map((entry) => `${entry.width}x${entry.height} ${entry.bits}-bit`));
     } catch {
         return [];
     }

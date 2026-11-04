@@ -103,6 +103,50 @@
 
 .panel .preview-image { image-rendering: pixelated; max-width: 100%; justify-self: start; background: var(--window); }
 
+.icon-group { display: grid; gap: 4px; }
+
+.icon-images { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+
+.icon-images figure { margin: 0; display: grid; gap: 2px; justify-items: center; }
+
+.icon-images .preview-image { background: repeating-conic-gradient(var(--face) 0% 25%, var(--window) 0% 50%) 0 0 / 8px 8px; }
+
+.panel .font-line { overflow-x: auto; min-width: 0; }
+
+.panel .font-sample { display: block; }
+
+.panel .font-size { margin-bottom: -6px; color: var(--shadow); }
+
+.panel button.play { justify-self: start; }
+
+.reg-path { font-weight: bold; overflow-wrap: anywhere; }
+
+.regedit { display: grid; grid-template-columns: minmax(160px, 2fr) minmax(0, 3fr); gap: 6px; height: 320px; }
+
+.regedit .list { max-height: none; overflow: auto; }
+
+.reg-tree { margin: 0; padding: 2px; overflow: auto; list-style: none; background: var(--window); }
+
+.reg-tree ul { margin: 0; padding-left: 14px; list-style: none; }
+
+.reg-tree li:focus { outline: none; }
+
+.reg-row { display: flex; gap: 3px; align-items: center; white-space: nowrap; cursor: default; }
+
+.reg-row .toggle { width: 9px; text-align: center; font-family: "Courier New", monospace; cursor: pointer; flex: none; }
+
+.reg-row img { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
+
+.reg-tree li.selected > .reg-row .label { background: var(--selection); color: var(--selection-text); }
+
+.reg-tree li:focus-visible > .reg-row .label { outline: 1px dotted var(--text); }
+
+.regedit td.name { display: flex; gap: 4px; align-items: center; }
+
+.regedit td.name img { width: 16px; height: 16px; image-rendering: pixelated; flex: none; }
+
+.regedit td.data { white-space: normal; overflow-wrap: anywhere; font-family: "Courier New", monospace; }
+
 .panel hr { border: 0; height: 2px; margin: 0; box-shadow: inset 0 1px var(--shadow), inset 0 -1px var(--highlight); }
 
 .dialog .actions { padding: 8px 6px 4px; }
@@ -112,4 +156,5 @@
     .view { height: 60vh; }
     .facts { grid-template-columns: 1fr; gap: 0; }
     .facts dd { margin-bottom: 4px; }
+    .regedit { grid-template-columns: minmax(0, 1fr); grid-template-rows: 200px 220px; height: auto; }
 }

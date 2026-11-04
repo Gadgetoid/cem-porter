@@ -90,7 +90,7 @@ const ARROW = [
 
 const EXTENSION_ICONS = {
     exe: "application", dll: "library", cpl: "library", drv: "library", ocx: "library", txt: "text", ini: "settings", inf: "settings", reg: "settings",
-    htc: "help", htp: "help", htm: "text", html: "text", wav: "sound", mid: "sound", bmp: "image", "2bp": "image", gif: "image", jpg: "image", ico: "image",
+    htc: "help", htp: "help", htm: "text", html: "text", wav: "sound", mid: "sound", buz: "sound", bmp: "image", "2bp": "image", gif: "image", jpg: "image", ico: "image",
     ttf: "font", ttc: "font", fnt: "font", fon: "font", dat: "data", fdf: "data", nls: "data", db: "data", tlb: "data",
 };
 

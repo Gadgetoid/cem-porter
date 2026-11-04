@@ -8,7 +8,7 @@ export const TYPE_NAMES = {
     htm: "HTML Document", html: "HTML Document", txt: "Text Document", ini: "Configuration Settings", wav: "Sound", bmp: "Bitmap Image",
     "2bp": "Bitmap Image", gif: "GIF Image", jpg: "JPEG Image", ttf: "TrueType Font", fnt: "Font", fon: "Font", ttc: "TrueType Font",
     nls: "National Language Support", dat: "DAT File", fdf: "FDF File", drv: "Device Driver", ocx: "ActiveX Control", tlb: "Type Library",
-    cab: "Cabinet File", pwd: "Pocket Word Document", pxl: "Pocket Excel Workbook", mid: "MIDI Sequence", ico: "Icon", cur: "Cursor",
+    cab: "Cabinet File", pwd: "Pocket Word Document", pxl: "Pocket Excel Workbook", mid: "MIDI Sequence", ico: "Icon", cur: "Cursor", buz: "Buzzer Sound", reg: "Registry File",
 };
 
 export function extensionOf(name) {

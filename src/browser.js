@@ -2,13 +2,16 @@ import { zipSync } from "../vendor/fflate.js";
 import { isPe } from "./pe.js";
 import { ATTRIBUTE_NAMES, hex } from "./romimage.js";
 import { decodeText, extensionOf, findPath, pathOf, resolveShortcut, sortChildren, typeName } from "./romtree.js";
-import { readBitmapFile, readExports, readIcon, readVersion } from "./romres.js";
+import { iconSizes, readBitmapFile, readExports, readIcon, readVersion } from "./romres.js";
+import { buzzerPreview, fontPreview, iconsPreview, registryPreview } from "./previews.js";
 import { artIcon, bitmapIcon, iconKind } from "./romicons.js";
 import { raiseWindow, saveBytes } from "./desktop.js";
 
 const TEXT_EXTENSIONS = new Set(["txt", "ini", "inf", "htm", "html", "htc", "htp", "lnk", "reg", "bat", "xml", "log"]);
 const IMAGE_TYPES = { bmp: "image/bmp", "2bp": "image/bmp", gif: "image/gif", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", ico: "image/x-icon" };
 const SOUND_TYPES = { wav: "audio/wav" };
+const FONT_EXTENSIONS = new Set(["ttf", "ttc", "otf", "fnt", "fon"]);
+const BUZZER_EXTENSIONS = new Set(["buz"]);
 const ZIP_EARLIEST = new Date(1980, 0, 2);
 const ELEMENT_IDS = ["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok"];
 
@@ -474,6 +477,9 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
             audio.src = URL.createObjectURL(new Blob([data], { type: SOUND_TYPES[extension] }));
             return [audio];
         }
+        if (FONT_EXTENSIONS.has(extension)) return fontPreview(data);
+        const special = BUZZER_EXTENSIONS.has(extension) ? buzzerPreview(data) : extension === "reg" ? registryPreview(data) : null;
+        if (special) return special;
         const pre = document.createElement("pre");
         pre.textContent = decodeText(data.subarray(0, 65536));
         return [pre];
@@ -503,10 +509,11 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
             if (readExports(data).length) tabs.push(["Exports", () => exportsTab(node)]);
             const version = readVersion(data);
             if (version) tabs.push(["Version", () => versionTab(version)]);
+            if (iconSizes(data).length) tabs.push(["Icons", () => iconsPreview(data)]);
         }
         if (isShortcut(node)) tabs.push(["Shortcut", () => shortcutTab(node)]);
         const extension = extensionOf(node.name);
-        if (!isPe(data) && (TEXT_EXTENSIONS.has(extension) || IMAGE_TYPES[extension] || SOUND_TYPES[extension])) tabs.push(["Preview", () => previewTab(node)]);
+        if (FONT_EXTENSIONS.has(extension) || !isPe(data) && (TEXT_EXTENSIONS.has(extension) || IMAGE_TYPES[extension] || SOUND_TYPES[extension] || BUZZER_EXTENSIONS.has(extension))) tabs.push(["Preview", () => previewTab(node)]);
         return tabs;
     }
 

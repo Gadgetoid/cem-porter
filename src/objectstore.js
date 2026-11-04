@@ -1,6 +1,7 @@
 import { u16, u32 } from "./pe.js";
 import { filetimeDate } from "./romimage.js";
 import { lzDecode, lzwDecode } from "./romlz.js";
+import { readRgdb, ROOT_KEYS } from "./regfile.js";
 
 const LOG_ALIGN = 0x400;
 const LOG_SIGNATURE = "EKIMEKIM";
@@ -14,15 +15,8 @@ const LZ_BLOCK_SIZES = [1024, 4096];
 const LIST_MAX = 65536;
 const DEPTH_MAX = 64;
 const CE1_REGISTRY_FILES = ["Pegreg.reg", "CEreg.reg"];
-const CE1_BLOCK_SIZE = 0x1000;
-const CE1_BLOCK_HEADER = 0x18;
-const CE1_ROOT_MARKER = 0x08;
-const CE1_KEY = 4;
-const CE1_VALUE = 5;
 
 export const OBJECT_NAMES = { 2: "Handle blocks", 3: "File info", 4: "Folders", 5: "Files", 6: "File data chunks", 7: "Databases", 8: "Database records", 0xa: "Database lists", 0xb: "Registry roots", 0xc: "Registry keys", 0xd: "Registry values" };
-const ROOT_KEYS = ["HKEY_CLASSES_ROOT", "HKEY_CURRENT_USER", "HKEY_LOCAL_MACHINE", "HKEY_USERS"];
-export const REGISTRY_TYPES = { 0: "REG_NONE", 1: "REG_SZ", 2: "REG_EXPAND_SZ", 3: "REG_BINARY", 4: "REG_DWORD", 5: "REG_DWORD_BIG_ENDIAN", 6: "REG_LINK", 7: "REG_MULTI_SZ" };
 
 const utf16 = new TextDecoder("utf-16le");
 
@@ -285,57 +279,7 @@ class ObjectStore {
         const windows = tree.children.find((child) => child.kind === "folder" && child.name.toLowerCase() === "windows");
         const node = windows?.children.find((child) => child.kind === "file" && CE1_REGISTRY_FILES.some((name) => name.toLowerCase() === child.name.toLowerCase()));
         if (!node) return { source: null, roots: [] };
-        const file = this.fileData(node.item);
-        const record = (offset, type, minimum) => {
-            if (!offset || offset + 4 > file.length) return null;
-            const size = u16(file, offset);
-            if (file[offset + 2] !== type || size < minimum || offset + size > file.length) return null;
-            return { offset, size };
-        };
-        const fill = (key, firstChild, firstValue, depth) => {
-            let steps = 0;
-            for (let offset = firstValue; offset && steps < LIST_MAX; steps++) {
-                const value = record(offset, CE1_VALUE, 12);
-                if (!value || 12 + file[offset + 8] + u16(file, offset + 10) > value.size) {
-                    key.damaged = true;
-                    break;
-                }
-                const nameBytes = file[offset + 8];
-                const start = offset + 12 + nameBytes;
-                key.values.push({ name: text(file, offset + 12, nameBytes >> 1), type: file[offset + 9], data: file.slice(start, start + u16(file, offset + 10)) });
-                offset = u32(file, offset + 4);
-            }
-            if (depth > DEPTH_MAX) return;
-            steps = 0;
-            for (let offset = firstChild; offset && steps < LIST_MAX; steps++) {
-                const found = record(offset, CE1_KEY, 24);
-                if (!found) {
-                    key.damaged = true;
-                    break;
-                }
-                const nameBytes = Math.min(file[offset + 20], found.size - 24);
-                const classBytes = Math.min(file[offset + 21], found.size - 24 - nameBytes);
-                const child = { name: text(file, offset + 24, nameBytes >> 1), className: text(file, offset + 24 + nameBytes, classBytes >> 1), parent: key, keys: [], values: [] };
-                key.keys.push(child);
-                fill(child, u32(file, offset + 4), u32(file, offset + 12), depth + 1);
-                offset = u32(file, offset + 8);
-            }
-        };
-        const roots = [];
-        ROOT_KEYS.forEach((name, index) => {
-            for (let offset = CE1_BLOCK_HEADER; offset + 4 <= Math.min(CE1_BLOCK_SIZE, file.length); ) {
-                const size = u16(file, offset);
-                if (!size) break;
-                if (record(offset, CE1_KEY, 24) && file[offset + 19] === CE1_ROOT_MARKER && file[offset + 16] === index) {
-                    const key = { name, className: "", parent: null, keys: [], values: [] };
-                    fill(key, u32(file, offset + 4), u32(file, offset + 12), 0);
-                    roots.push(key);
-                    break;
-                }
-                offset += size;
-            }
-        });
-        return { source: `\\Windows\\${node.name}`, roots };
+        return { source: `\\Windows\\${node.name}`, roots: readRgdb(this.fileData(node.item)) };
     }
 }
 
@@ -343,47 +287,4 @@ export function openObjectStore(state) {
     const log = findLog(state.regions);
     if (!log) throw new Error("no Windows CE object store in this state's memory; it may not have booted far enough to make one");
     return new ObjectStore(state, log);
-}
-
-export function formatValue(value) {
-    const { type, data } = value;
-    if ((type === 4 || type === 5) && data.length >= 4) {
-        const number = type === 4 ? u32(data, 0) : new DataView(data.buffer, data.byteOffset).getUint32(0, false);
-        return `0x${number.toString(16).padStart(8, "0")} (${number})`;
-    }
-    if (type === 1 || type === 2) return text(data, 0, data.length >> 1);
-    if (type === 7) return utf16.decode(data.subarray(0, data.length & ~1)).replace(/\0+$/, "").split("\0").join(" | ");
-    return [...data.subarray(0, 256)].map((byte) => byte.toString(16).padStart(2, "0")).join(" ") + (data.length > 256 ? " ..." : "");
-}
-
-function regString(value) {
-    return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
-
-function regHex(data) {
-    return [...data].map((byte) => byte.toString(16).padStart(2, "0")).join(",");
-}
-
-function regValue(value) {
-    const name = value.name ? `"${regString(value.name)}"` : "@";
-    if (value.type === 1) return `${name}="${regString(text(value.data, 0, value.data.length >> 1))}"`;
-    if (value.type === 4 && value.data.length === 4) return `${name}=dword:${u32(value.data, 0).toString(16).padStart(8, "0")}`;
-    if (value.type === 3) return `${name}=hex:${regHex(value.data)}`;
-    return `${name}=hex(${value.type.toString(16)}):${regHex(value.data)}`;
-}
-
-export function keyPath(key) {
-    const parts = [];
-    for (let current = key; current; current = current.parent) parts.unshift(current.name);
-    return parts.join("\\");
-}
-
-export function registryText(roots) {
-    const lines = ["REGEDIT4", ""];
-    const walk = (key) => {
-        lines.push(`[${keyPath(key)}]`, ...key.values.map(regValue), "");
-        key.keys.forEach(walk);
-    };
-    roots.forEach(walk);
-    return lines.join("\r\n");
 }
