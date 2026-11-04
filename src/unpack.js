@@ -1,5 +1,6 @@
 import { blast } from "./blast.js";
 import { readCabinet } from "./cabread.js";
+import { isCbea, readCbea } from "./cbea.js";
 import { cpkName, expandCpk, isCpk } from "./cpk.js";
 import { inflateRaw } from "./inflate.js";
 import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
@@ -388,6 +389,10 @@ export function membersOf(name, data, siblings = []) {
     if (isIs5(data)) {
         const members = readIs5(name, data, siblings);
         if (members) return { members, method: "InstallShield cabinet" };
+    }
+    if (isCbea(data)) {
+        const members = readCbea(data);
+        if (members.length) return { members, method: "CASIO .cbea" };
     }
     if (isCpk(data)) {
         try {
