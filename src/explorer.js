@@ -24,6 +24,12 @@ const browser = createBrowser({
         run: (node, data) => putHandoff(node.name, data)
             .then(() => { window.location.href = "hex.html"; })
             .catch((error) => browser.setStatus(`Couldn't open in Hex: ${error.message}`)),
+    }, {
+        label: "Open in Icon Lab",
+        show: (node) => node.kind === "module" || node.kind === "file" && ["exe", "dll", "cpl"].includes(node.name.split(".").pop().toLowerCase()),
+        run: (node, data) => putHandoff(node.name, data, "icons")
+            .then(() => { window.location.href = "icons.html"; })
+            .catch((error) => browser.setStatus(`Couldn't open in Icon Lab: ${error.message}`)),
     }],
 });
 const view = browser.state;

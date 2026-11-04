@@ -13,7 +13,7 @@ function leafData(image, leaf) {
     return image.data.subarray(offset, offset + size);
 }
 
-function decodeDib(data, wantedWidth) {
+export function decodeDib(data, wantedWidth) {
     const headerSize = u32(data, 0);
     const width = u32(data, 4) | 0;
     const height = (u32(data, 8) | 0) >> 1;

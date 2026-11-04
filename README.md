@@ -93,6 +93,17 @@ https://gadgetoid.github.io/cem-porter/state.html (`state.html`) lists the files
 - State details show the emulator, save time, ROM hash, object store sections, object counts by type and the state's records
 - Files in ROM aren't in a state, and databases are counted but not read
 
+## Icon Lab
+
+https://gadgetoid.github.io/cem-porter/icons.html (`icons.html`) replaces, adds or removes the icons in a Windows CE program.
+
+- Opens an .exe, .dll or .cpl, or a CAB, zip or installer holding one; ROM Explorer's Open in Icon Lab sends a ROM module straight here
+- New icons come from a .png, .gif, .jpg or .bmp, an .ico (including PNG-compressed images), or an icon in another program
+- Builds 32x32 and 16x16 images in 4 greys (CE 1.0), 16 colours (Windows palette) or 256 colours (palette made from the picture), with an optional dither; pixels under half opaque become transparent. The source's own images are kept where they match a size and depth
+- Previews each image on white, the CE desktop and grey
+- Rebuilds the resource section with the new icons: in place when it fits or is the last section, otherwise as a new section at the end of the file (making room in the headers for it if needed)
+- Saves the program, or the new icon as an .ico
+
 ## Font Converter
 
 https://gadgetoid.github.io/cem-porter/fonts.html (`fonts.html`) converts a desktop font into a TrueType or bitmap font for Windows CE 1.0 and 2.0.

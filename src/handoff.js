@@ -15,12 +15,12 @@ function openDb() {
     });
 }
 
-export async function putHandoff(name, data) {
+export async function putHandoff(name, data, target = "hex") {
     const db = await openDb();
     try {
         await new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, "readwrite");
-            tx.objectStore(STORE).put({ name, data, at: Date.now() }, SLOT);
+            tx.objectStore(STORE).put({ name, data, target, at: Date.now() }, SLOT);
             tx.oncomplete = resolve;
             tx.onerror = () => reject(tx.error);
         });
@@ -29,7 +29,7 @@ export async function putHandoff(name, data) {
     }
 }
 
-export async function takeHandoff() {
+export async function takeHandoff(target = "hex") {
     const db = await openDb();
     try {
         return await new Promise((resolve, reject) => {
@@ -37,8 +37,12 @@ export async function takeHandoff() {
             const store = tx.objectStore(STORE);
             const get = store.get(SLOT);
             get.onsuccess = () => {
+                if (!get.result || (get.result.target ?? "hex") !== target) {
+                    resolve(null);
+                    return;
+                }
                 store.delete(SLOT);
-                resolve(get.result ?? null);
+                resolve(get.result);
             };
             get.onerror = () => reject(get.error);
         });

@@ -39,7 +39,7 @@ export function findTrapCalls(data) {
     return sites;
 }
 
-export function appendSection(data, contents, virtualAddress, name = SECTION_NAME) {
+export function appendSection(data, contents, virtualAddress, name = SECTION_NAME, characteristics = SECTION_CHARACTERISTICS) {
     const image = new Image(data);
     const tableEnd = image.sectionTable + 40 * image.sectionCount;
     const rawOffsets = image.sections.map((section) => section.rawOffset).filter(Boolean);
@@ -55,7 +55,7 @@ export function appendSection(data, contents, virtualAddress, name = SECTION_NAM
     setU32(output, tableEnd + 12, virtualAddress);
     setU32(output, tableEnd + 16, rawSize);
     setU32(output, tableEnd + 20, rawOffset);
-    setU32(output, tableEnd + 36, SECTION_CHARACTERISTICS);
+    setU32(output, tableEnd + 36, characteristics);
     setU16(output, image.pe + 6, image.sectionCount + 1);
     setU32(output, image.optional + 56, align(virtualAddress + contents.length, image.sectionAlignment));
     return output;
