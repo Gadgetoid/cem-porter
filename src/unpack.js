@@ -85,12 +85,12 @@ class FileTree {
         return joinPath(directory, parts[parts.length - 1]);
     }
 
-    write(path, data) {
+    write(path, data, origin = {}) {
         const resolved = this.resolve(path);
         const key = folderKey(resolved);
         const existing = this.files.get(key);
-        if (existing) existing.data = data;
-        else this.files.set(key, { path: resolved, data });
+        if (existing) Object.assign(existing, { data, ...origin });
+        else this.files.set(key, { path: resolved, data, ...origin });
     }
 
     list() {
@@ -418,20 +418,21 @@ export function membersOf(name, data, siblings = []) {
     return { members: null, method: null };
 }
 
-function unpackInto(name, data, directory, tree, log, depth, siblings = []) {
+function unpackInto(name, data, directory, tree, log, depth, siblings = [], container = null) {
     const { members, method } = depth > MAX_DEPTH ? { members: null, method: null } : membersOf(name, data, siblings);
     if (members === null) {
-        tree.write(joinPath(directory, safeName(name)), data);
+        tree.write(joinPath(directory, safeName(name)), data, { container, storedName: name });
         return;
     }
     const folder = joinPath(directory, safeName(name) + ".d");
-    log.push({ container: folder, method, members: members.length });
-    for (const member of members) unpackInto(member.name, member.data, folder, tree, log, depth + 1, members);
+    const entry = { container: folder, method, members: members.length, parent: container, name, data };
+    log.push(entry);
+    for (const member of members) unpackInto(member.name, member.data, folder, tree, log, depth + 1, members, entry);
 }
 
-export function unpack(name, data) {
+export function unpack(name, data, siblings = []) {
     const tree = new FileTree();
     const log = [];
-    unpackInto(name, asBytes(data), "", tree, log, 0);
+    unpackInto(name, asBytes(data), "", tree, log, 0, siblings.map((sibling) => ({ name: sibling.name, data: asBytes(sibling.data) })));
     return { files: tree.list(), log };
 }

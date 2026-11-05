@@ -150,11 +150,21 @@ function bitmapPreview(bitmap) {
     return [canvas, note];
 }
 
+export function digestText(data) {
+    const element = document.createElement("span");
+    element.className = "digest";
+    element.textContent = "Working...";
+    crypto.subtle.digest("SHA-256", data)
+        .then((digest) => { element.textContent = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join(""); })
+        .catch(() => { element.textContent = "Unavailable"; });
+    return element;
+}
+
 function versionTab(version) {
     return [facts([["File version", version.fileVersion], ["Product version", version.productVersion], ...Object.entries(version.strings)])];
 }
 
-export function createBrowser({ title, viewKey, readData, generalFacts, extraTabs = () => [], summaryTabs, openFile, shortcutPlace = "In this ROM", nodeActions = [] }) {
+export function createBrowser({ title, viewKey, readData, generalFacts, extraTabs = () => [], folderTabs = () => [], summaryTabs, openFile, shortcutPlace = "In this ROM", nodeActions = [] }) {
     const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
     const state = { source: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new WeakMap(), iconJob: 0, dialogNode: undefined };
 
@@ -494,16 +504,15 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
     function nodeTabs(node) {
         if (node.kind === "folder") {
             const totals = folderTotals(node);
-            return [["General", () => [heading(artIcon("folder", 32), node.name || "\\"), rule(), facts([["Type", "File Folder"], ["Location", node.parent ? pathOf(node.parent) : ""], ["Contains", `${totals.files} files, ${totals.folders} folders`], ["Size", exactSize(totals.bytes)]])]]];
+            return [["General", () => [heading(artIcon("folder", 32), node.name || "\\"), rule(), facts([["Type", "File Folder"], ["Location", node.parent ? pathOf(node.parent) : ""], ["Contains", `${totals.files} files, ${totals.folders} folders`], ["Size", exactSize(totals.bytes)]])]], ...folderTabs(node)];
         }
-        const tabs = [["General", () => [heading(realIcon(node, 32), node.name), rule(), facts(generalFacts(node))]]];
         let data = null;
         try {
             data = readData(node);
         } catch (error) {
-            tabs.push(["Problem", () => [facts([["Couldn't extract", error.message]])]]);
-            return tabs;
+            return [["General", () => [heading(realIcon(node, 32), node.name), rule(), facts(generalFacts(node))]], ["Problem", () => [facts([["Couldn't extract", error.message]])]]];
         }
+        const tabs = [["General", () => [heading(realIcon(node, 32), node.name), rule(), facts([...generalFacts(node), ["SHA-256", digestText(data)]])]]];
         tabs.push(...extraTabs(node, data));
         if (isPe(data)) {
             if (readExports(data).length) tabs.push(["Exports", () => exportsTab(node)]);
@@ -606,7 +615,7 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
         }
     });
     elements["file-input"].addEventListener("change", () => {
-        if (elements["file-input"].files[0]) openFile(elements["file-input"].files[0]);
+        if (elements["file-input"].files[0]) openFile(elements["file-input"].files[0], [...elements["file-input"].files]);
         elements["file-input"].value = "";
     });
     for (const target of [elements.view, document.body]) {
@@ -619,7 +628,7 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
     document.body.addEventListener("drop", (event) => {
         event.preventDefault();
         elements.drop.classList.remove("over");
-        if (event.dataTransfer.files[0]) openFile(event.dataTransfer.files[0]);
+        if (event.dataTransfer.files[0]) openFile(event.dataTransfer.files[0], [...event.dataTransfer.files]);
     });
     elements.folder.addEventListener("change", () => {
         const folder = findPath(state.tree, elements.folder.value);

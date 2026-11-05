@@ -74,6 +74,7 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Modules are rebuilt as PE files; data directories pointing at sections romimage stripped are cleared
 - Folders and shortcut copies come from the ROM's `initobj.dat`; shortcuts show their target's icon
 - Icons and version information are read from each module's resources; an Icons tab shows every icon image a program or DLL holds
+- Each file's Properties shows its SHA-256
 - Previews: bitmaps (including 2 bpp `.2bp` files), text, sounds, TrueType fonts and collections, bitmap fonts (`.fnt`, and `.fon` files including CE 1.01's paged ones), buzzer tunes (`.buz`) with playback, and registry files (REGEDIT4 scripts, CE 1.x RGDB hives and binary registry backups such as the BE-300's `Safe.reg`) as a key tree
 - Properties show the ROM's CE version, CPU (from the ROM header, or from the kernel's code when it's not set), address ranges, build dates and copy entries, and for each module its sections, imports (named from the exporting DLL in the same ROM), exports and version
 - Files holding several ROM images (boot loader and OS, for example) list each one
@@ -92,6 +93,16 @@ https://gadgetoid.github.io/cem-porter/state.html (`state.html`) lists the files
 - Files get the same Properties and previews as in ROM Explorer
 - State details show the emulator, save time, ROM hash, object store sections, object counts by type and the state's records
 - Files in ROM aren't in a state, and databases are counted but not read
+
+## Package Explorer
+
+https://gadgetoid.github.io/cem-porter/package.html (`package.html`) shows everything inside an installer or archive and saves files exactly as stored.
+
+- Opens anything CEM Porter unpacks, including installers inside installers; open `data1.cab` with `data1.hdr` and further volumes together
+- Each container is a folder; Properties names its format, the container it came from and its SHA-256, and Save container saves it as stored
+- CE CABs: files are named as they install, with the stored name (`FOO~1.001`) and install path in Properties. The CAB's folder and its `.000` setup file show the program, its files, the registry entries wceload writes and its shortcuts
+- Files get the same Properties and previews as in ROM Explorer, with Open in Hex and Open in Icon Lab
+- Saves a file, a folder as a zip, or everything as a zip
 
 ## Icon Lab
 

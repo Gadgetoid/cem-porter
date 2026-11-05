@@ -95,6 +95,8 @@
 
 .facts dd { margin: 0; overflow-wrap: anywhere; }
 
+.facts .digest { font-family: "Courier New", monospace; word-break: break-all; }
+
 .panel table { font-size: 11px; }
 
 .panel td { white-space: nowrap; }
