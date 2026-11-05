@@ -4,6 +4,7 @@ import { mergePlans, planFromCabSetup, planFromFiles, planFromLoadScript, PROGRA
 
 const CAB_ARCHITECTURES = { 4000: "mips", 10003: "sh3", 10004: "sh3" };
 const CPU_OF_MACHINE = { [MACHINE_MIPS]: "mips", [MACHINE_SH3]: "sh3" };
+const SUBSYSTEM_WINDOWS_CE = 9;
 const CPU_FOLDER = /^(mips|mip|r4000|r3000|sh3|sh-3|sh 3|hitachi|(mips|sh3)[ _-]?ce ?[12](\.\d+)?|ce ?[12](\.\d+)?(\.x)?|ce1\.0-2\.0|wce ?[12]0?|for all cpus|hpc|h_pc|en)$/i;
 const CPU_SUFFIXES = { mips: [".aur", ".r39", ".mips", ".mip", ".mps", ".r4000"], sh3: [".sh3", ".sh"] };
 const LOAD_SCRIPT = /\.load(?:\.([a-z]+))?$/i;
@@ -23,7 +24,8 @@ function binaryInfo(data) {
     if (!parsed) return null;
     const [major, minor] = parsed.subsystemVersion.split(".").map(Number);
     const ce = major === 4 && minor === 0 ? 1 : major + minor / 100;
-    return { cpu: CPU_OF_MACHINE[parsed.machine] ?? null, machine: MACHINE_NAMES[parsed.machine] ?? `0x${parsed.machine.toString(16)}`, ce, dll: parsed.dll, alignment: parsed.sectionAlignment, imports: parsed.imports };
+    const machine = MACHINE_NAMES[parsed.machine] ?? `0x${parsed.machine.toString(16)}`;
+    return { cpu: CPU_OF_MACHINE[parsed.machine] ?? (parsed.subsystem === SUBSYSTEM_WINDOWS_CE ? machine : null), machine, ce, dll: parsed.dll, alignment: parsed.sectionAlignment, imports: parsed.imports };
 }
 
 function ceLabel(version) {
@@ -60,8 +62,11 @@ export function findBuilds(inputName, files) {
         const setupPath = paths.find((path) => /\.000$/.test(path) && readSetup(byPath.get(path)));
         if (!setupPath) continue;
         const setup = readSetup(byPath.get(setupPath));
+        const hasMembers = (list) => list.some((path) => /\.\d{3}$/.test(path) && !/\.000$/.test(path));
+        const container = containerOf(setupPath);
+        const memberFolder = !hasMembers(paths) && container !== folder && hasMembers(folders.get(container) ?? []) ? container : folder;
         const members = {};
-        for (const path of paths) {
+        for (const path of [...paths, ...(memberFolder === folder ? [] : folders.get(memberFolder))]) {
             const number = /\.(\d{3})$/.exec(path);
             if (number && Number(number[1]) > 0) members[Number(number[1])] = path;
             used.add(path);
@@ -70,8 +75,8 @@ export function findBuilds(inputName, files) {
         const described = describeBuild(infos);
         builds.push({
             kind: "cab",
-            title: setup.app || leafOf(folder),
-            source: folder || inputName,
+            title: setup.app || leafOf(memberFolder),
+            source: memberFolder || inputName,
             cpu: CAB_ARCHITECTURES[setup.architecture] ?? described.cpu,
             ce: described.ce,
             ceLabel: described.ceLabel,

@@ -4,7 +4,7 @@ import { redirect, shim, SHIM_DLL, RENAMES, SHIMMED } from "./shim.js";
 import { CE1_RENAMES, coredllOrdinalNames, markCe1, moveImports, ordinalsToNames, renameImports } from "./ce1.js";
 import { CRT_DLL, portToCe2 } from "./port.js";
 import { SH3_CE2_LABEL, SH3_CE212_LABEL, VELO_LABEL, MIPS_LABEL, importEntries, sh3Tables } from "./ordinals.js";
-import { ARCHITECTURE_MIPS, ARCHITECTURE_SH3, Package } from "./cabwrite.js";
+import { ARCHITECTURE_ANY, ARCHITECTURE_MIPS, ARCHITECTURE_SH3, ARCHITECTURE_SH4, ARCHITECTURE_STRONGARM, Package } from "./cabwrite.js";
 import { selfInstaller } from "./selfinstall.js";
 import { reduceColourBitmaps } from "./bitmaps.js";
 import { findTrapCalls, patchSh3TrapCalls, redirectTrapCalls } from "./traps.js";
@@ -20,6 +20,7 @@ export const DEVICES = {
 };
 
 const MACHINES = { mips: MACHINE_MIPS, sh3: MACHINE_SH3 };
+const CAB_PROCESSORS = { mips: ARCHITECTURE_MIPS, sh3: ARCHITECTURE_SH3, SH4: ARCHITECTURE_SH4, ARM: ARCHITECTURE_STRONGARM };
 const COMPAT_DLL = "CE1COMPAT.DLL";
 const SUPPORT_TITLES = { [CRT_DLL]: "C runtime for programs built with later CE 2.x SDKs", [SHIM_DLL]: "CE 1.01 functions for CE 1.0", [COMPAT_DLL]: "CE 2.0 functions for CE 1.0" };
 
@@ -293,7 +294,7 @@ export function planOnCard(plan, cardRoot) {
 }
 
 export function buildCab(plan, ported, settings) {
-    const cab = new Package(plan.title, plan.provider || "", { architecture: settings.cpu === "sh3" ? ARCHITECTURE_SH3 : ARCHITECTURE_MIPS });
+    const cab = new Package(plan.title, plan.provider || "", { architecture: CAB_PROCESSORS[settings.cpu] ?? ARCHITECTURE_ANY });
     const installed = plan.operations.find((operation) => operation.kind === "file" && !onWindows(operation.path));
     if (installed) cab.setup.wholeDirectory(cabDirectory(installed.path));
     const identifiers = new Map();

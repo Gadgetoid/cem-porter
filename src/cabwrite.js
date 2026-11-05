@@ -3,6 +3,8 @@ import { setU16, setU32, u32 } from "./pe.js";
 export const ARCHITECTURE_ANY = 0;
 export const ARCHITECTURE_MIPS = 4000;
 export const ARCHITECTURE_SH3 = 10003;
+export const ARCHITECTURE_SH4 = 10005;
+export const ARCHITECTURE_STRONGARM = 2577;
 
 export const HIVES = { HKCR: 1, HKCU: 2, HKLM: 3, HKU: 4 };
 export const REG_SZ = 0x00000000;

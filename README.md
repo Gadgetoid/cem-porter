@@ -96,6 +96,16 @@ https://gadgetoid.github.io/cem-porter/state.html (`state.html`) lists the files
 - State details show the emulator, save time, ROM hash, object store sections, object counts by type and the state's records
 - Files in ROM aren't in a state, and databases are counted but not read
 
+## CAB Maker
+
+https://gadgetoid.github.io/cem-porter/cabs.html (`cabs.html`) gets the CAB you copy to the device out of a desktop installer, for any CPU and Windows CE version. Nothing is ported.
+
+- Opens anything CEM Porter unpacks, including CD images and installers inside installers
+- CE CABs are saved exactly as shipped, Authenticode signature included
+- Programs that come as an H/PC Explorer `.load` script or loose files get a CAB built for their own CPU: MIPS, SH3, SH4 or StrongARM
+- Built MIPS, SH3 and ARM programs also get a self-installing Setup .exe, which CE 1.0 needs
+- Save one file or all of them as a zip
+
 ## Package Explorer
 
 https://gadgetoid.github.io/cem-porter/package.html (`package.html`) shows everything inside an installer or archive and saves files exactly as stored.
