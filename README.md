@@ -31,6 +31,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - Loose programs, grouped by CPU and folder
 - Packages with a CAB per program are also offered merged, one build per CPU, CE version and variant ("(Color)", "(B&W)"), with any shared-files CAB included
 - Each build's files can be picked or left out before porting
+- A build that came as a CE CAB, including ones inside desktop installers, can be saved as shipped (Save original CAB), for any CPU and CE version
 
 ### CE 2.11 to 2.0
 

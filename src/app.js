@@ -7,8 +7,8 @@ import { DEVICES, deviceSettings, portPlan, buildCab, buildSelfInstaller, planOn
 import { safeFolderName } from "./installplan.js";
 import { saveBytes, setupDesktop } from "./desktop.js";
 
-const elements = Object.fromEntries(["drop", "drop-title", "drop-hint", "file-input", "builds", "contents", "select-all", "select-none", "on-card", "output", "ce-version", "device", "four-kb", "port", "save", "report", "status", "size"].map((id) => [id, document.getElementById(id)]));
-const state = { assets: null, input: null, files: [], builds: [], selected: -1, output: null, plan: null, excluded: new Set() };
+const elements = Object.fromEntries(["drop", "drop-title", "drop-hint", "file-input", "builds", "contents", "select-all", "select-none", "on-card", "output", "ce-version", "device", "four-kb", "port", "save", "save-original", "report", "status", "size"].map((id) => [id, document.getElementById(id)]));
+const state = { assets: null, input: null, files: [], containers: new Map(), builds: [], selected: -1, output: null, plan: null, excluded: new Set() };
 const KIND_LABELS = { cab: "CE CAB", load: "H/PC Explorer", files: "Program files" };
 
 function setStatus(text) {
@@ -172,7 +172,21 @@ function chosenPlan() {
     return Object.assign(Object.create(Object.getPrototypeOf(plan)), plan, { operations });
 }
 
+function originalCab() {
+    const build = state.builds[state.selected];
+    return build?.kind === "cab" ? state.containers.get(build.source.toLowerCase()) ?? null : null;
+}
+
+function saveOriginalCab() {
+    const build = state.builds[state.selected];
+    const container = originalCab();
+    const name = container.name.split(/[\\/]/).pop();
+    saveBytes(container.data, name);
+    setStatus(`Saved ${name} as shipped: ${[String(build.cpu).toUpperCase(), build.ceLabel].filter(Boolean).join(", ")}.`);
+}
+
 function updateButtons() {
+    elements["save-original"].disabled = !originalCab();
     elements.port.disabled = !state.assets || state.selected < 0 || !state.plan || planFiles().length === state.excluded.size;
     elements.save.disabled = !state.output;
 }
@@ -219,6 +233,7 @@ async function openFile(file) {
         if (isPe(data) && !files.some((entry) => entry.data === data)) files.push({ path: file.name, data });
         state.input = { name: file.name, data };
         state.files = files;
+        state.containers = new Map(unpacked.log.map((entry) => [entry.container.toLowerCase(), entry]));
         state.builds = findBuilds(file.name, files);
         state.selected = -1;
         sortBuilds();
@@ -326,6 +341,7 @@ function setup() {
         }
     });
     elements.save.addEventListener("click", save);
+    elements["save-original"].addEventListener("click", saveOriginalCab);
     elements["select-all"].addEventListener("click", () => setAll(true));
     elements["select-none"].addEventListener("click", () => setAll(false));
     setupDesktop({ readmeKey: "ce-porter-readme" });
