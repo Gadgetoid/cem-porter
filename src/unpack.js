@@ -4,6 +4,7 @@ import { isCbea, readCbea } from "./cbea.js";
 import { cpkName, expandCpk, isCpk } from "./cpk.js";
 import { inflateRaw } from "./inflate.js";
 import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
+import { isIso, isRawCd, rawCdToIso, readIso } from "./iso.js";
 import { extractIs5, isIs5 } from "./is5.js";
 import { isLzh, scanLzh } from "./lzh.js";
 import { isPe, readSections, u16, u32 } from "./pe.js";
@@ -215,6 +216,15 @@ function readIs5(name, data, siblings) {
     }
 }
 
+function tryReadIso(data, method) {
+    try {
+        const { members, joliet } = readIso(data);
+        return { members, method: joliet ? `${method} (Joliet)` : method };
+    } catch {
+        return null;
+    }
+}
+
 function readSevenZip(data) {
     try {
         return extractLikeBsdtar(extractSevenZip(data).map((member) => ({ name: member.name.replaceAll("\\", "/"), data: member.data })), false);
@@ -378,6 +388,14 @@ export function membersOf(name, data, siblings = []) {
     }
     if (startsWith(data, CAB_SIGNATURE.slice(0, 4))) return { members: readCabinetLikeBsdtar(data), method: "cab" };
     if (isLzh(data)) return { members: readLzhLikeBsdtar(data), method: "lzh" };
+    if (isRawCd(data)) {
+        const disc = tryReadIso(rawCdToIso(data), "raw CD image, ISO 9660");
+        if (disc) return disc;
+    }
+    if (isIso(data)) {
+        const disc = tryReadIso(data, "ISO 9660");
+        if (disc) return disc;
+    }
     if (isIs3(data)) {
         const members = tryReadIs3(data);
         return { members, method: members ? "InstallShield 3 archive" : null };

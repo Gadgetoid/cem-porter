@@ -18,7 +18,7 @@
             <legend>1. Package</legend>
             <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
                 <strong id="drop-title">Drop an installer, CAB or program here</strong>
-                <span id="drop-hint">.exe, .cab, .zip, .7z, .lzh or .dll. Or tap to open one.</span>
+                <span id="drop-hint">.exe, .cab, .zip, .7z, .lzh, .iso or .dll. Or tap to open one.</span>
             </div>
             <input class="visually-hidden" type="file" id="file-input" aria-label="Open a package">
         </fieldset>
@@ -120,7 +120,7 @@
         <p>Ports Windows CE 2.11 and 2.0 programs and their installers back to CE 2.0 and 1.0 for MIPS and SH3 handhelds.</p>
         <h2>Using it</h2>
         <ul>
-            <li>Open a desktop installer, CE CAB, zip, 7z, LZH or program.</li>
+            <li>Open a desktop installer, CE CAB, zip, 7z, LZH, CD image or program.</li>
             <li>Pick a build, untick any files you don't want, and choose the device.</li>
             <li>Port, read the report, and save a CAB (CE 2.0), a self-installing .exe (CE 1.0 and 2.0) or the files.</li>
             <li>Run a self-installing .exe again to remove what it installed.</li>
@@ -137,7 +137,6 @@
             <li>Programs needing MFC 2.11 or Visual Basic need those runtimes installed separately.</li>
             <li>On CE 1.0, programs built on CE 2.0 components (command bands, OLE storage, IMGDECMP, CE 2.0 Office) won't run. The report lists missing DLLs and functions.</li>
             <li>A CAB holds one setup DLL, so a merged build keeps only the first.</li>
-            <li>Disc images (.iso) can't be opened yet.</li>
             <li>A clean report doesn't guarantee a program runs. Please report what you find.</li>
         </ul>
     </div>
