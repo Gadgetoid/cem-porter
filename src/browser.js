@@ -1,11 +1,11 @@
-import { zipSync } from "../vendor/fflate.js";
 import { isPe } from "./pe.js";
 import { ATTRIBUTE_NAMES, hex } from "./romimage.js";
 import { decodeText, extensionOf, findPath, pathOf, resolveShortcut, sortChildren, typeName } from "./romtree.js";
 import { iconSizes, readBitmapFile, readExports, readIcon, readVersion } from "./romres.js";
 import { buzzerPreview, fontPreview, iconsPreview, registryPreview } from "./previews.js";
 import { artIcon, bitmapIcon, iconKind } from "./romicons.js";
-import { raiseWindow, saveBytes } from "./desktop.js";
+import { raiseWindow, saveBlob, saveBytes } from "./desktop.js";
+import { zipWriter } from "./zipstream.js";
 
 const TEXT_EXTENSIONS = new Set(["txt", "ini", "inf", "htm", "html", "htc", "htp", "lnk", "reg", "bat", "xml", "log"]);
 const IMAGE_TYPES = { bmp: "image/bmp", "2bp": "image/bmp", gif: "image/gif", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", ico: "image/x-icon" };
@@ -164,7 +164,7 @@ function versionTab(version) {
     return [facts([["File version", version.fileVersion], ["Product version", version.productVersion], ...Object.entries(version.strings)])];
 }
 
-export function createBrowser({ title, viewKey, readData, generalFacts, extraTabs = () => [], folderTabs = () => [], summaryTabs, openFile, shortcutPlace = "In this ROM", nodeActions = [] }) {
+export function createBrowser({ title, viewKey, readData, loadData = readData, generalFacts, extraTabs = () => [], folderTabs = () => [], summaryTabs, openFile, shortcutPlace = "In this ROM", nodeActions = [] }) {
     const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
     const state = { source: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new WeakMap(), iconJob: 0, dialogNode: undefined };
 
@@ -442,35 +442,51 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
         return entries;
     }
 
-    function saveNodes(nodes) {
+    async function saveZip(nodes, name) {
+        setStatus("Making a zip...");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const writer = zipWriter();
+        const add = async (node, path) => {
+            if (node.kind === "folder") {
+                for (const child of node.children) await add(child, `${path}${child.name}${child.kind === "folder" ? "/" : ""}`);
+                return;
+            }
+            const time = node.item.time && node.item.time > ZIP_EARLIEST ? node.item.time : ZIP_EARLIEST;
+            try {
+                writer.add(path, await loadData(node), time);
+            } catch (error) {
+                writer.add(`${path}.unreadable.txt`, new TextEncoder().encode(`${node.name} couldn't be extracted: ${error.message}\n`), ZIP_EARLIEST);
+            }
+        };
+        for (const node of nodes) await add(node, `${node.name}${node.kind === "folder" ? "/" : ""}`);
+        const blob = writer.finish();
+        saveBlob(blob, `${name}.zip`);
+        setStatus(`Saved ${name}.zip (${formatSize(blob.size)}).`);
+    }
+
+    async function saveNodes(nodes) {
         if (nodes.length === 1 && nodes[0].kind !== "folder") {
             try {
-                saveBytes(readData(nodes[0]), nodes[0].name);
+                saveBytes(await loadData(nodes[0]), nodes[0].name);
                 setStatus(`Saved ${nodes[0].name}.`);
             } catch (error) {
                 setStatus(`Couldn't extract ${nodes[0].name}: ${error.message}`);
             }
             return;
         }
-        setStatus("Making a zip...");
-        setTimeout(() => {
-            const name = nodes.length === 1 ? nodes[0].name : state.folder.parent ? state.folder.name : baseName(state.source.name);
-            const data = zipSync(zipEntries(nodes), { level: 6 });
-            saveBytes(data, `${name}.zip`);
-            setStatus(`Saved ${name}.zip (${formatSize(data.length)}).`);
-        }, 0);
+        const name = nodes.length === 1 ? nodes[0].name : state.folder.parent ? state.folder.name : baseName(state.source.name);
+        await saveZip(nodes, name);
     }
 
-    function exportsTab(node) {
-        const exports = readExports(readData(node));
+    function exportsTab(data) {
+        const exports = readExports(data);
         const named = exports.filter((entry) => entry.name);
         const note = document.createElement("p");
         note.textContent = `${exports.length} ordinals, ${named.length} with names.`;
         return [note, table(["Ordinal", "Name"], exports.map((entry) => [String(entry.ordinal), entry.name ?? ""]))];
     }
 
-    function previewTab(node) {
-        const data = readData(node);
+    function previewTab(node, data) {
         const extension = extensionOf(node.name);
         const bitmap = readBitmapFile(data);
         if (bitmap) return bitmapPreview(bitmap);
@@ -501,35 +517,40 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
         return [facts([["Target", shortcut.target], ["Arguments", shortcut.arguments], ["Command", shortcut.command], [shortcutPlace, shortcut.node ? pathOf(shortcut.node) : "No"]])];
     }
 
-    function nodeTabs(node) {
+    function nodeTabs(node, data, problem) {
         if (node.kind === "folder") {
             const totals = folderTotals(node);
             return [["General", () => [heading(artIcon("folder", 32), node.name || "\\"), rule(), facts([["Type", "File Folder"], ["Location", node.parent ? pathOf(node.parent) : ""], ["Contains", `${totals.files} files, ${totals.folders} folders`], ["Size", exactSize(totals.bytes)]])]], ...folderTabs(node)];
         }
-        let data = null;
-        try {
-            data = readData(node);
-        } catch (error) {
-            return [["General", () => [heading(realIcon(node, 32), node.name), rule(), facts(generalFacts(node))]], ["Problem", () => [facts([["Couldn't extract", error.message]])]]];
-        }
+        if (problem) return [["General", () => [heading(realIcon(node, 32), node.name), rule(), facts(generalFacts(node))]], ["Problem", () => [facts([["Couldn't extract", problem.message]])]]];
         const tabs = [["General", () => [heading(realIcon(node, 32), node.name), rule(), facts([...generalFacts(node), ["SHA-256", digestText(data)]])]]];
         tabs.push(...extraTabs(node, data));
         if (isPe(data)) {
-            if (readExports(data).length) tabs.push(["Exports", () => exportsTab(node)]);
+            if (readExports(data).length) tabs.push(["Exports", () => exportsTab(data)]);
             const version = readVersion(data);
             if (version) tabs.push(["Version", () => versionTab(version)]);
             if (iconSizes(data).length) tabs.push(["Icons", () => iconsPreview(data)]);
         }
         if (isShortcut(node)) tabs.push(["Shortcut", () => shortcutTab(node)]);
         const extension = extensionOf(node.name);
-        if (FONT_EXTENSIONS.has(extension) || !isPe(data) && (TEXT_EXTENSIONS.has(extension) || IMAGE_TYPES[extension] || SOUND_TYPES[extension] || BUZZER_EXTENSIONS.has(extension))) tabs.push(["Preview", () => previewTab(node)]);
+        if (FONT_EXTENSIONS.has(extension) || !isPe(data) && (TEXT_EXTENSIONS.has(extension) || IMAGE_TYPES[extension] || SOUND_TYPES[extension] || BUZZER_EXTENSIONS.has(extension))) tabs.push(["Preview", () => previewTab(node, data)]);
         return tabs;
     }
 
-    function showProperties(node = null) {
+    async function showProperties(node = null) {
         if (!state.tree) return;
         state.dialogNode = node;
-        const tabs = node ? nodeTabs(node) : summaryTabs();
+        let data = null;
+        let problem = null;
+        if (node && node.kind !== "folder") {
+            try {
+                data = await loadData(node);
+            } catch (error) {
+                problem = error;
+            }
+            if (state.dialogNode !== node) return;
+        }
+        const tabs = node ? nodeTabs(node, data, problem) : summaryTabs();
         elements["dialog-title"].textContent = `${node ? node.name || "\\" : state.source.name} Properties`;
         elements["dialog-save"].hidden = !node;
         elements["dialog-save"].textContent = node?.kind === "folder" ? "Save as .zip" : "Save file";
@@ -541,9 +562,9 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
                 button.type = "button";
                 button.className = "node-action";
                 button.textContent = action.label;
-                button.addEventListener("click", () => {
+                button.addEventListener("click", async () => {
                     try {
-                        action.run(node, readData(node));
+                        action.run(node, action.needsData === false ? null : await loadData(node));
                     } catch (error) {
                         setStatus(`Couldn't ${action.label.toLowerCase()}: ${error.message}`);
                     }
@@ -673,5 +694,5 @@ export function createBrowser({ title, viewKey, readData, generalFacts, extraTab
         if (event.key === "Escape" && !elements.dialog.hidden) closeDialog();
     });
 
-    return { state, elements, setStatus, show, openFolder, showProperties, closeDialog, zipEntries, realIcon };
+    return { state, elements, setStatus, show, openFolder, showProperties, closeDialog, zipEntries, saveZip, realIcon };
 }

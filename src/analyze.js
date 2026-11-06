@@ -1,6 +1,7 @@
 import { MACHINE_MIPS, MACHINE_SH3, MACHINE_NAMES, isPe, latin1Decode, parsePe } from "./pe.js";
 import { readSetup } from "./cesetup.js";
 import { mergePlans, planFromCabSetup, planFromFiles, planFromLoadScript, PROGRAM_FILES, safeFolderName } from "./installplan.js";
+import { fileData } from "./unpack.js";
 
 const CAB_ARCHITECTURES = { 4000: "mips", 10003: "sh3", 10004: "sh3" };
 const CPU_OF_MACHINE = { [MACHINE_MIPS]: "mips", [MACHINE_SH3]: "sh3" };
@@ -48,7 +49,18 @@ function stripCpuSuffix(name, cpu) {
     return name.replace(/\.(mips|sh3)\.\d+$/i, "");
 }
 
-export function findBuilds(inputName, files) {
+export async function loadPlanSources(plan, files) {
+    const byPath = new Map(files.map((file) => [file.path, file]));
+    const paths = new Set([...plan.operations.filter((operation) => operation.kind === "file").map((operation) => operation.source), ...(plan.setupDlls ?? []).map((setupDll) => setupDll.source)]);
+    const sources = new Map();
+    for (const path of paths) {
+        if (byPath.has(path)) sources.set(path, await fileData(byPath.get(path)));
+    }
+    return sources;
+}
+
+export function findBuilds(inputName, unpackedFiles) {
+    const files = unpackedFiles.map((file) => (file.data ? file : { ...file, data: new Uint8Array(0) }));
     const byPath = new Map(files.map((file) => [file.path, file.data]));
     const used = new Set();
     const builds = [];

@@ -17,6 +17,10 @@ function platformName(data) {
     return text;
 }
 
+export function looksLikeCbea(data) {
+    return data.length >= HEADER_SIZE && /^Casio /.test(platformName(data));
+}
+
 export function isCbea(data) {
     if (data.length < HEADER_SIZE + MINIMUM_ENTRY) return false;
     if (!/^Casio /.test(platformName(data))) return false;

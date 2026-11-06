@@ -1,6 +1,6 @@
 import { zipSync } from "../vendor/fflate.js";
-import { unpack } from "./unpack.js";
-import { findBuilds } from "./analyze.js";
+import { unpackFiles } from "./unpack.js";
+import { findBuilds, loadPlanSources } from "./analyze.js";
 import { buildCab, buildSelfInstaller } from "./convert.js";
 import { fetchBytes } from "./assets.js";
 import { safeFolderName } from "./installplan.js";
@@ -58,23 +58,25 @@ function shippedRow(build, container) {
     return { build, notes: [], outputs: [output(leafName(container.name), () => container.data, container.data.length)] };
 }
 
-function builtRow(build, sources) {
+function builtRow(build, files) {
     const plan = build.plan();
-    const { ported, missing } = unported(plan, sources);
+    const paths = new Set(files.map((file) => file.path));
+    const missing = plan.operations.filter((operation) => operation.kind === "file" && !paths.has(operation.source)).map((operation) => leafName(operation.path));
+    let loading = null;
+    const ported = () => (loading ??= loadPlanSources(plan, files).then((sources) => unported(plan, sources).ported));
     const notes = [...plan.warnings, ...missing.map((name) => `${name} missing from the package`)];
     const stubCpu = String(build.cpu).toLowerCase();
     const hasStub = STUB_CPUS.includes(stubCpu);
     if (build.ce < 2) notes.push(hasStub ? "CE 1.0 has no CAB installer; use Setup" : "CE 1.0 has no CAB installer");
     if (plan.setupDlls?.length > 1) notes.push(`a CAB holds one setup DLL: ${plan.setupDlls[0].app}'s runs`);
     const base = safeFolderName(build.title.replace(/\.d\b/g, ""));
-    const outputs = [output(`${base}.${cpuLabel(build)}.CAB`, () => buildCab(plan, ported, { cpu: build.cpu }))];
-    if (hasStub) outputs.push(output(`${base} Setup.${cpuLabel(build)}.exe`, async () => buildSelfInstaller(plan, ported, { cpu: stubCpu }, { stub: { [stubCpu]: await stubFor(stubCpu) } })));
+    const outputs = [output(`${base}.${cpuLabel(build)}.CAB`, async () => buildCab(plan, await ported(), { cpu: build.cpu }))];
+    if (hasStub) outputs.push(output(`${base} Setup.${cpuLabel(build)}.exe`, async () => buildSelfInstaller(plan, await ported(), { cpu: stubCpu }, { stub: { [stubCpu]: await stubFor(stubCpu) } })));
     return { build, notes, outputs };
 }
 
 function rowsFor(name, unpacked) {
-    const files = unpacked.files.map((file) => ({ path: file.path, data: file.data }));
-    const sources = new Map(files.map((file) => [file.path, file.data]));
+    const files = unpacked.files;
     const containers = new Map(unpacked.log.map((entry) => [entry.container.toLowerCase(), entry]));
     const rows = [];
     const problems = [];
@@ -82,7 +84,7 @@ function rowsFor(name, unpacked) {
         if (build.merged) continue;
         try {
             const container = build.kind === "cab" ? containers.get(build.source.toLowerCase()) : null;
-            rows.push(container ? shippedRow(build, container) : builtRow(build, sources));
+            rows.push(container ? shippedRow(build, container) : builtRow(build, files));
         } catch (error) {
             problems.push(`${build.title}: ${error.message}`);
         }
@@ -202,11 +204,11 @@ async function openFiles(files) {
     elements.size.textContent = " ";
     await new Promise((resolve) => setTimeout(resolve, 0));
     try {
-        const inputs = await Promise.all(files.map(async (file) => ({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) })));
+        const results = await unpackFiles(files);
         const rows = [];
         const problems = [];
-        for (const input of inputs) {
-            const found = rowsFor(input.name, unpack(input.name, input.data, inputs.filter((other) => other !== input)));
+        for (const [index, result] of results.entries()) {
+            const found = rowsFor(files[index].name, result);
             rows.push(...found.rows);
             problems.push(...found.problems);
         }

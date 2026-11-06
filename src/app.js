@@ -1,8 +1,8 @@
 import { zipSync } from "../vendor/fflate.js";
 import { loadAssets, fetchBytes } from "./assets.js";
-import { unpack } from "./unpack.js";
+import { unpackFiles } from "./unpack.js";
 import { isPe } from "./pe.js";
-import { findBuilds, matchScore } from "./analyze.js";
+import { findBuilds, loadPlanSources, matchScore } from "./analyze.js";
 import { DEVICES, deviceSettings, portPlan, buildCab, buildSelfInstaller, planOnCard } from "./convert.js";
 import { safeFolderName } from "./installplan.js";
 import { saveBytes, setupDesktop } from "./desktop.js";
@@ -134,7 +134,7 @@ function renderContents() {
         emptyRow(body, 3, state.plan ? "This build installs no files." : "Pick a build to see its files.");
         return;
     }
-    const sources = new Map(state.files.map((entry) => [entry.path, entry.data]));
+    const sizes = new Map(state.files.map((entry) => [entry.path, entry.size ?? entry.data.length]));
     body.replaceChildren();
     for (const operation of files) {
         const row = body.insertRow();
@@ -151,8 +151,8 @@ function renderContents() {
         });
         check.append(box);
         cell(row, operation.path, "path");
-        const data = sources.get(operation.source);
-        cell(row, data ? formatSize(data.length) : "missing", "size");
+        const size = sizes.get(operation.source);
+        cell(row, size === undefined ? "missing" : formatSize(size), "size");
     }
 }
 
@@ -227,10 +227,10 @@ async function openFile(file) {
     elements["drop-hint"].textContent = formatSize(file.size);
     await new Promise((resolve) => setTimeout(resolve, 0));
     try {
-        const data = new Uint8Array(await file.arrayBuffer());
-        const unpacked = unpack(file.name, data);
-        const files = unpacked.files.map((entry) => ({ path: entry.path, data: entry.data }));
-        if (isPe(data) && !files.some((entry) => entry.data === data)) files.push({ path: file.name, data });
+        const [unpacked] = await unpackFiles([file]);
+        const data = unpacked.data;
+        const files = unpacked.files.map((entry) => ({ path: entry.path, data: entry.data, size: entry.size, read: entry.read }));
+        if (data && isPe(data) && !files.some((entry) => entry.data === data)) files.push({ path: file.name, data });
         state.input = { name: file.name, data };
         state.files = files;
         state.containers = new Map(unpacked.log.map((entry) => [entry.container.toLowerCase(), entry]));
@@ -249,13 +249,13 @@ async function openFile(file) {
     updateButtons();
 }
 
-function portSelected() {
+async function portSelected() {
     const build = state.builds[state.selected];
     const settings = { ...deviceSettings(device(), state.assets), fourKbPages: elements["four-kb"].checked };
     const kind = outputKind();
     const chosen = chosenPlan();
     const plan = elements["on-card"].checked && kind !== "zip" ? planOnCard(chosen, kind === "cab" ? "\\Storage Card" : "%CARD%") : chosen;
-    const sources = new Map(state.files.map((entry) => [entry.path, entry.data]));
+    const sources = await loadPlanSources(plan, state.files);
     const ported = portPlan(plan, sources, settings, state.assets);
     ported.warnings = [...plan.warnings];
     if (outputKind() === "cab" && ported.setupDlls.length > 1) ported.warnings.push(`A CAB holds one setup DLL: ${ported.setupDlls[0].app}'s runs, not ${ported.setupDlls.slice(1).map((setupDll) => setupDll.app).join(", ")}'s`);
@@ -333,9 +333,9 @@ function setup() {
         elements.drop.classList.remove("over");
         if (event.dataTransfer.files[0]) openFile(event.dataTransfer.files[0]);
     });
-    elements.port.addEventListener("click", () => {
+    elements.port.addEventListener("click", async () => {
         try {
-            portSelected();
+            await portSelected();
         } catch (error) {
             setStatus(`Couldn't port: ${error.message}`);
         }

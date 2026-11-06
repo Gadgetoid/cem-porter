@@ -1,12 +1,11 @@
-import { zipSync } from "../vendor/fflate.js";
-import { unpack } from "./unpack.js";
+import { fileData, unpackFiles } from "./unpack.js";
 import { readSetup } from "./cesetup.js";
 import { planFromCabSetup } from "./installplan.js";
 import { encodeLatin1 } from "./cabwrite.js";
 import { extensionOf, pathOf, sortChildren, typeName } from "./romtree.js";
 import { artIcon } from "./romicons.js";
 import { registryPreview } from "./previews.js";
-import { saveBytes, setupDesktop } from "./desktop.js";
+import { saveBlob, saveBytes, setupDesktop } from "./desktop.js";
 import { putHandoff } from "./handoff.js";
 import { baseName, createBrowser, digestText, exactSize, facts, folderTotals, formatSize, heading, pairs, rule, table } from "./browser.js";
 
@@ -15,13 +14,16 @@ const state = { inputs: [], log: [], containers: new Map(), setups: [] };
 const CAB_ARCHITECTURES = { 0: "Any", 2577: "StrongARM", 4000: "MIPS R4000", 10003: "SH3", 10004: "SH3E", 10005: "SH4", 70001: "ARM720" };
 const PROGRAM_EXTENSIONS = new Set(["exe", "dll", "cpl"]);
 const browser = createBrowser({
-    title: "Package Explorer", viewKey: "package-explorer-view", readData: nodeData, generalFacts, extraTabs, folderTabs, summaryTabs: packageTabs, openFile, shortcutPlace: "In this package",
+    title: "Package Explorer", viewKey: "package-explorer-view", readData: nodeData, loadData: loadNodeData, generalFacts, extraTabs, folderTabs, summaryTabs: packageTabs, openFile, shortcutPlace: "In this package",
     nodeActions: [{
         label: "Save container",
         show: (node) => Boolean(node.container),
-        run: (node, data) => {
-            const name = node.container.name.split(/[\\/]/).pop();
-            saveBytes(data, name);
+        needsData: false,
+        run: async (node) => {
+            const container = node.container;
+            const name = container.name.split(/[\\/]/).pop();
+            if (container.blob) saveBlob(container.blob, name);
+            else saveBytes(await fileData(container), name);
             browser.setStatus(`Saved ${name}.`);
         },
     }, {
@@ -42,7 +44,11 @@ const view = browser.state;
 const setStatus = browser.setStatus;
 
 function nodeData(node) {
-    return node.container ? node.container.data : node.item.data;
+    return (node.container ? node.container.data : node.item.data) ?? new Uint8Array(0);
+}
+
+function loadNodeData(node) {
+    return fileData(node.container ?? node.item);
 }
 
 function pathKey(path) {
@@ -92,7 +98,7 @@ function buildTree(files, log) {
         const slash = file.path.lastIndexOf("/");
         const parent = slash < 0 ? root : ensureFolder(root, folders, file.path.slice(0, slash));
         const name = file.path.slice(slash + 1);
-        parent.children.push({ kind: "file", name, parent, item: { name, size: file.data.length, time: null, data: file.data, storedName: file.storedName, container: file.container } });
+        parent.children.push({ kind: "file", name, parent, item: { name, size: file.size ?? file.data.length, time: null, data: file.data, read: file.read, storedName: file.storedName, container: file.container } });
     }
     for (const folder of containers.values()) folder.name = uniqueName(folder.parent, folder, folder.name.replace(/\.d$/, ""));
     return { root, containers };
@@ -102,7 +108,7 @@ function readCabSetups(containers) {
     const setups = [];
     for (const folder of containers.values()) {
         const files = folder.children.filter((child) => child.kind === "file");
-        const setupNode = files.find((child) => /\.000$/.test(child.name) && readSetup(child.item.data));
+        const setupNode = files.find((child) => /\.000$/.test(child.name) && child.item.data && readSetup(child.item.data));
         if (!setupNode) continue;
         const setup = readSetup(setupNode.item.data);
         const members = {};
@@ -209,8 +215,8 @@ function extraTabs(node) {
 function folderTabs(folder) {
     const tabs = [];
     if (folder.container) {
-        const { method, members, parent, name, data } = folder.container;
-        tabs.push(["Container", () => [facts([["Format", method], ["Stored as", name], ["Size", exactSize(data.length)], ["Members", String(members)], ["Inside", parent ? containerPath(parent) : "Opened directly"], ["SHA-256", digestText(data)]])]]);
+        const { method, members, parent, name, data, size } = folder.container;
+        tabs.push(["Container", () => [facts([["Format", method], ["Stored as", name], ["Size", exactSize(size ?? data.length)], ["Members", String(members)], ["Inside", parent ? containerPath(parent) : "Opened directly"], ["SHA-256", data ? digestText(data) : ""]])]]);
     }
     if (folder.cab) tabs.push(...cabTabs(folder.cab));
     return tabs;
@@ -261,13 +267,7 @@ function renderPackageBar() {
 }
 
 function saveAll() {
-    setStatus("Making a zip of the whole package...");
-    setTimeout(() => {
-        const name = baseName(state.inputs[0].name);
-        const data = zipSync(browser.zipEntries(sortChildren(view.tree.children)), { level: 6 });
-        saveBytes(data, `${name}.zip`);
-        setStatus(`Saved ${name}.zip (${formatSize(data.length)}).`);
-    }, 0);
+    browser.saveZip(sortChildren(view.tree.children), baseName(state.inputs[0].name));
 }
 
 async function openFile(file, files = [file]) {
@@ -281,11 +281,10 @@ async function openFile(file, files = [file]) {
     let log;
     let unpacked;
     try {
-        const inputs = await Promise.all(files.map(async (input) => ({ name: input.name, size: input.size, data: new Uint8Array(await input.arrayBuffer()) })));
+        const inputs = files.map((input) => ({ name: input.name, size: input.size }));
         unpacked = [];
         log = [];
-        for (const input of inputs) {
-            const result = unpack(input.name, input.data, inputs.filter((other) => other !== input));
+        for (const result of await unpackFiles(files)) {
             unpacked.push(...result.files);
             log.push(...result.log);
         }

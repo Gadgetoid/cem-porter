@@ -1,10 +1,10 @@
 import { blast } from "./blast.js";
 import { readCabinet } from "./cabread.js";
-import { isCbea, readCbea } from "./cbea.js";
+import { isCbea, looksLikeCbea, readCbea } from "./cbea.js";
 import { cpkName, expandCpk, isCpk } from "./cpk.js";
 import { inflateRaw } from "./inflate.js";
 import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
-import { isIso, isRawCd, rawCdToIso, readIso } from "./iso.js";
+import { isIso, isRawCd, readIso, readIsoFile } from "./iso.js";
 import { extractIs5, isIs5 } from "./is5.js";
 import { isLzh, scanLzh } from "./lzh.js";
 import { isPe, readSections, u16, u32 } from "./pe.js";
@@ -23,6 +23,8 @@ const SZDD_WINDOW_SIZE = 4096;
 const MINIMUM_BLAST_OUTPUT = 64;
 const CARVE_PROBE_SIZE = 256;
 const CARVE_TAIL = 64;
+const READ_ON_OPEN_SIZE = 1024 * 1024;
+const SNIFF_SIZE = 65536;
 
 const utf8 = new TextDecoder("utf-8", { fatal: true });
 
@@ -216,10 +218,15 @@ function readIs5(name, data, siblings) {
     }
 }
 
-function tryReadIso(data, method) {
+function discMethod(raw, joliet) {
+    const method = raw ? "raw CD image, ISO 9660" : "ISO 9660";
+    return joliet ? `${method} (Joliet)` : method;
+}
+
+function tryReadIso(data) {
     try {
-        const { members, joliet } = readIso(data);
-        return { members, method: joliet ? `${method} (Joliet)` : method };
+        const { members, joliet, raw } = readIso(data);
+        return { members, method: discMethod(raw, joliet) };
     } catch {
         return null;
     }
@@ -388,12 +395,8 @@ export function membersOf(name, data, siblings = []) {
     }
     if (startsWith(data, CAB_SIGNATURE.slice(0, 4))) return { members: readCabinetLikeBsdtar(data), method: "cab" };
     if (isLzh(data)) return { members: readLzhLikeBsdtar(data), method: "lzh" };
-    if (isRawCd(data)) {
-        const disc = tryReadIso(rawCdToIso(data), "raw CD image, ISO 9660");
-        if (disc) return disc;
-    }
-    if (isIso(data)) {
-        const disc = tryReadIso(data, "ISO 9660");
+    if (isRawCd(data) || isIso(data)) {
+        const disc = tryReadIso(data);
         if (disc) return disc;
     }
     if (isIs3(data)) {
@@ -436,6 +439,13 @@ export function membersOf(name, data, siblings = []) {
     return { members: null, method: null };
 }
 
+function worthReading(name, head) {
+    const lower = name.toLowerCase();
+    return startsWith(head, ZIP_LOCAL_SIGNATURE) || lower.endsWith(".zip") || startsWith(head, CAB_SIGNATURE.slice(0, 4)) || isLzh(head) ||
+        isRawCd(head, Infinity) || isIso(head, Infinity) || isIs3(head) || isSevenZip(head) || isIs5(head) || looksLikeCbea(head) || isCpk(head) ||
+        startsWith(head, SZDD_SIGNATURE) || lower.endsWith("_") || lower.endsWith("$") || isPe(head);
+}
+
 function unpackInto(name, data, directory, tree, log, depth, siblings = [], container = null) {
     const { members, method } = depth > MAX_DEPTH ? { members: null, method: null } : membersOf(name, data, siblings);
     if (members === null) {
@@ -453,4 +463,39 @@ export function unpack(name, data, siblings = []) {
     const log = [];
     unpackInto(name, asBytes(data), "", tree, log, 0, siblings.map((sibling) => ({ name: sibling.name, data: asBytes(sibling.data) })));
     return { files: tree.list(), log };
+}
+
+async function unpackDisc(file, disc) {
+    const tree = new FileTree();
+    const folder = safeName(file.name) + ".d";
+    const entry = { container: folder, method: discMethod(disc.raw, disc.joliet), members: disc.members.length, parent: null, name: file.name, data: null, size: file.size, read: async () => new Uint8Array(await file.arrayBuffer()), blob: file };
+    const log = [entry];
+    const loaded = [];
+    for (const member of disc.members) {
+        const read = member.size <= READ_ON_OPEN_SIZE || worthReading(member.name, await member.read(0, SNIFF_SIZE));
+        if (read) loaded.push({ name: member.name, data: await member.read() });
+    }
+    const loadedByName = new Map(loaded.map((member) => [member.name, member]));
+    for (const member of disc.members) {
+        const read = loadedByName.get(member.name);
+        if (read) unpackInto(read.name, read.data, folder, tree, log, 1, loaded, entry);
+        else tree.write(joinPath(folder, safeName(member.name)), null, { container: entry, storedName: member.name, size: member.size, read: () => member.read() });
+    }
+    return { files: tree.list(), log };
+}
+
+export async function fileData(file) {
+    return file.data ?? (file.read ? await file.read() : null);
+}
+
+export async function unpackFiles(files) {
+    const discs = await Promise.all(files.map((file) => readIsoFile(file).catch(() => null)));
+    const others = await Promise.all(files.map(async (file, index) => (discs[index] ? null : { name: file.name, data: new Uint8Array(await file.arrayBuffer()) })));
+    const siblings = others.filter(Boolean);
+    const results = [];
+    for (const [index, file] of files.entries()) {
+        if (discs[index]) results.push({ ...(await unpackDisc(file, discs[index])), data: null });
+        else results.push({ ...unpack(file.name, others[index].data, siblings.filter((sibling) => sibling !== others[index])), data: others[index].data });
+    }
+    return results;
 }

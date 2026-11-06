@@ -19,7 +19,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - MS CAB: stored, MSZIP and LZX (not Quantum)
 - InstallShield 5 and 6 cabinets (`data1.cab`, with `data1.hdr` and further volumes when present)
 - 7z: LZMA, LZMA2, Deflate and Copy, with BCJ, BCJ2, ARM and Delta filters (not PPMd, BZip2 or encrypted archives)
-- CD images: ISO 9660 with Joliet names (`.iso`), and raw 2352-byte sector images (`.bin`, `.mdf`) in Mode 1 or Mode 2 Form 1
+- CD images: ISO 9660 with Joliet names (`.iso`), and raw 2352-byte sector images (`.bin`, `.mdf`) in Mode 1 or Mode 2 Form 1. Opened discs stay on disk: programs, archives and files up to 1 MB are read and unpacked, anything else only when a build installs it, or it's viewed or saved
 - Installers with any of these embedded, recursively
 
 ### Finds builds

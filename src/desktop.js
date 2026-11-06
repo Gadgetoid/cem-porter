@@ -1,5 +1,8 @@
 export function saveBytes(data, name) {
-    const blob = new Blob([data], { type: "application/octet-stream" });
+    saveBlob(new Blob([data], { type: "application/octet-stream" }), name);
+}
+
+export function saveBlob(blob, name) {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
     link.download = name;
