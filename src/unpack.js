@@ -9,6 +9,7 @@ import { extractIs5, isIs5 } from "./is5.js";
 import { isLzh, scanLzh } from "./lzh.js";
 import { isPe, readSections, u16, u32 } from "./pe.js";
 import { extractSevenZip, isSevenZip } from "./sevenzip.js";
+import { isVise, readVise } from "./vise.js";
 import { findBytes, hasEndRecordNearEnd, readLocalEntries, readZip, readZipLeniently, tryDecodeCp932 } from "./zip.js";
 
 export const MAX_DEPTH = 6;
@@ -377,6 +378,14 @@ function peMachine(data) {
     return u16(data, u32(data, 0x3c) + 4);
 }
 
+function tryReadVise(data) {
+    try {
+        return readVise(data);
+    } catch {
+        return null;
+    }
+}
+
 function tryReadZip(data) {
     try {
         return readZip(data);
@@ -430,6 +439,10 @@ export function membersOf(name, data, siblings = []) {
     if ((lower.endsWith("_") || lower.endsWith("$")) && !isPe(data)) {
         const expanded = tryBlast(data);
         if (expanded) return { members: [{ name: baseName(name.slice(0, -1) + "?"), data: expanded }], method: "PKWARE DCL" };
+    }
+    if (isVise(data)) {
+        const members = tryReadVise(data);
+        if (members?.length) return { members, method: "Installer VISE" };
     }
     if (isPe(data) && peMachine(data) === MACHINE_X86 && data.length > EMBEDDED_SEARCH_MINIMUM_SIZE) {
         const start = overlayStart(data);

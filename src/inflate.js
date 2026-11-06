@@ -63,8 +63,10 @@ function buildFixedTables() {
 let fixedTables = null;
 
 class Inflater {
-    constructor(data, start, end, maxOutput) {
+    constructor(data, start, end, maxOutput, wordAligned) {
         this.data = data;
+        this.start = start;
+        this.wordAligned = wordAligned;
         this.position = start;
         this.end = end;
         this.bitBuffer = 0;
@@ -117,6 +119,7 @@ class Inflater {
     stored() {
         this.bitBuffer = 0;
         this.bitCount = 0;
+        if (this.wordAligned && (this.position - this.start) % 2) this.position++;
         if (this.position + 4 > this.end) throw OUT_OF_INPUT;
         const length = this.data[this.position] | (this.data[this.position + 1] << 8);
         const complement = this.data[this.position + 2] | (this.data[this.position + 3] << 8);
@@ -129,6 +132,7 @@ class Inflater {
         this.length += copied;
         this.position += copied;
         if (copied < length) throw copied < available ? OUTPUT_FULL : OUT_OF_INPUT;
+        if (this.wordAligned && length % 2) this.position++;
     }
 
     codes(lengthCode, distanceCode) {
@@ -220,6 +224,6 @@ class Inflater {
     }
 }
 
-export function inflateRaw(data, { start = 0, end = data.length, maxOutput = Infinity } = {}) {
-    return new Inflater(data, start, Math.min(end, data.length), maxOutput).run();
+export function inflateRaw(data, { start = 0, end = data.length, maxOutput = Infinity, wordAligned = false } = {}) {
+    return new Inflater(data, start, Math.min(end, data.length), maxOutput, wordAligned).run();
 }
