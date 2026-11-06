@@ -12,6 +12,9 @@ const IMAGE_TYPES = { bmp: "image/bmp", "2bp": "image/bmp", gif: "image/gif", jp
 const SOUND_TYPES = { wav: "audio/wav" };
 const FONT_EXTENSIONS = new Set(["ttf", "ttc", "otf", "fnt", "fon"]);
 const BUZZER_EXTENSIONS = new Set(["buz"]);
+const HTML_EXTENSIONS = new Set(["htm", "html", "htp"]);
+const HTML_IMAGE_ATTRIBUTES = [["img", "src"], ["input", "src"], ["body", "background"], ["table", "background"], ["td", "background"], ["th", "background"]];
+const HTML_POLICY = "default-src 'none'; img-src data:; style-src 'unsafe-inline'";
 const ZIP_EARLIEST = new Date(1980, 0, 2);
 const ELEMENT_IDS = ["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok"];
 
@@ -136,6 +139,25 @@ export function folderTotals(folder) {
     };
     walk(folder);
     return { files, folders, bytes };
+}
+
+function base64(data) {
+    let binary = "";
+    for (let offset = 0; offset < data.length; offset += 32768) binary += String.fromCharCode(...data.subarray(offset, offset + 32768));
+    return btoa(binary);
+}
+
+function imageDataUrl(name, data) {
+    const bitmap = readBitmapFile(data);
+    if (bitmap) {
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        canvas.getContext("2d").putImageData(new ImageData(bitmap.rgba, bitmap.width, bitmap.height), 0, 0);
+        return canvas.toDataURL("image/png");
+    }
+    const type = IMAGE_TYPES[extensionOf(name)];
+    return type ? `data:${type};base64,${base64(data)}` : null;
 }
 
 function bitmapPreview(bitmap) {
@@ -511,6 +533,66 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         return [pre];
     }
 
+    function linkedNode(page, reference) {
+        const path = reference.trim().split(/[?#]/)[0].replace(/^file:\/*/i, "");
+        if (!path || /^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith("//")) return null;
+        let parts;
+        try {
+            parts = decodeURIComponent(path).split(/[\\/]/);
+        } catch {
+            parts = path.split(/[\\/]/);
+        }
+        let current = /^[\\/]/.test(path) ? state.tree : page.parent;
+        for (const part of parts) {
+            if (!part || part === ".") continue;
+            current = part === ".." ? current?.parent ?? current : current?.kind === "folder" ? findPath(current, part) : null;
+            if (!current) return null;
+        }
+        return current?.kind === "file" ? current : null;
+    }
+
+    async function renderHtml(node, data, frame) {
+        const page = new DOMParser().parseFromString(decodeText(data), "text/html");
+        for (const [tag, attribute] of HTML_IMAGE_ATTRIBUTES) {
+            for (const element of page.querySelectorAll(`${tag}[${attribute}]`)) {
+                const target = linkedNode(node, element.getAttribute(attribute));
+                let url = null;
+                if (target) {
+                    try {
+                        url = imageDataUrl(target.name, await loadData(target));
+                    } catch {
+                        url = null;
+                    }
+                }
+                if (url) element.setAttribute(attribute, url);
+                else element.removeAttribute(attribute);
+            }
+        }
+        for (const element of page.querySelectorAll("base, meta[http-equiv]")) {
+            if (element.tagName === "BASE" || /refresh/i.test(element.getAttribute("http-equiv"))) element.remove();
+        }
+        for (const element of page.querySelectorAll("[href]")) {
+            if (!element.getAttribute("href").trim().startsWith("#")) element.removeAttribute("href");
+        }
+        const base = page.createElement("base");
+        base.setAttribute("href", "about:srcdoc");
+        page.head.prepend(base);
+        const policy = page.createElement("meta");
+        policy.setAttribute("http-equiv", "Content-Security-Policy");
+        policy.setAttribute("content", HTML_POLICY);
+        page.head.prepend(policy);
+        frame.srcdoc = `<!doctype html>${page.documentElement.outerHTML}`;
+    }
+
+    function htmlTab(node, data) {
+        const frame = document.createElement("iframe");
+        frame.className = "preview-html sunken";
+        frame.title = node.name;
+        frame.setAttribute("sandbox", "");
+        renderHtml(node, data, frame).catch((error) => { frame.srcdoc = ""; setStatus(`Couldn't render ${node.name}: ${error.message}`); });
+        return [frame];
+    }
+
     function shortcutTab(node) {
         const shortcut = resolveShortcut(state.tree, node, readData);
         if (!shortcut) return [facts([["Target", "Not a readable shortcut"]])];
@@ -533,7 +615,8 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         }
         if (isShortcut(node)) tabs.push(["Shortcut", () => shortcutTab(node)]);
         const extension = extensionOf(node.name);
-        if (FONT_EXTENSIONS.has(extension) || !isPe(data) && (TEXT_EXTENSIONS.has(extension) || IMAGE_TYPES[extension] || SOUND_TYPES[extension] || BUZZER_EXTENSIONS.has(extension))) tabs.push(["Preview", () => previewTab(node, data)]);
+        if (HTML_EXTENSIONS.has(extension) && !isPe(data)) tabs.push(["Preview", () => htmlTab(node, data)], ["Text", () => previewTab(node, data)]);
+        else if (FONT_EXTENSIONS.has(extension) || !isPe(data) && (TEXT_EXTENSIONS.has(extension) || IMAGE_TYPES[extension] || SOUND_TYPES[extension] || BUZZER_EXTENSIONS.has(extension))) tabs.push(["Preview", () => previewTab(node, data)]);
         return tabs;
     }
 

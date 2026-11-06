@@ -104,6 +104,7 @@
 .panel pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 11px/1.35 "Courier New", monospace; max-height: 320px; overflow: auto; }
 
 .panel .preview-image { image-rendering: pixelated; max-width: 100%; justify-self: start; background: var(--window); }
+.panel .preview-html { width: 100%; height: 360px; border: 0; padding: 2px; box-sizing: border-box; }
 
 .icon-group { display: grid; gap: 4px; }
 
