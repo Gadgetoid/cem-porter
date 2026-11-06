@@ -36,6 +36,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 ### CE 2.11 to 2.0
 
 - System calls imported by ordinal are renumbered from H/PC Pro, Palm-size PC and HPC2000 numbering to H/PC 2.0's
+- MIPS Palm-size PCs (Compaq Aero, Philips Nino) keep the CE 2.01 numbering later versions share, checked against the Nino 300's COREDLL; only functions it names or numbers differently are changed
 - C runtime functions only later COREDLLs export come from `VELOCRT.DLL` (MIPS `__dp*`, `__ll_*`; SH3 `_divls`, `_addd`, `_*i64` and others)
 
 ### CE 2.0 or 1.01 to 1.0

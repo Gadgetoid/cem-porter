@@ -3,6 +3,7 @@ import { u16, u32, setU32, cString, rvaToOffset } from "./pe.js";
 export const VELO_LABEL = "H/PC 2.0 (Velo 1)";
 export const CE211_LABEL = "H/PC Pro 2.11 (Cassiopeia E-55)";
 export const MIPS_LABEL = "HPC2000 3.0 (MobilePro 790)";
+export const PSPC_LABEL = "Palm-size PC 2.0 (Nino 300)";
 export const SH3_CE2_LABEL = "H/PC 2.0 SH3 (HP 320LX)";
 export const SH3_CE212_LABEL = "CE 2.12 SH3 (Odo)";
 export const CPU_HELPERS = 2000;
@@ -149,11 +150,13 @@ function compareChanged([nameA, ordinalA], [nameB, ordinalB]) {
     return ordinalA - ordinalB;
 }
 
-export function remap(data, tables, dllTables, targetLabel = VELO_LABEL, helpersLabel = MIPS_LABEL) {
-    const { label, scores } = detect(data, tables, targetLabel);
-    const renumber = Boolean(label) && label !== targetLabel && scores[label] > scores[targetLabel];
+export function remap(data, tables, dllTables, targetLabel = VELO_LABEL, helpersLabel = MIPS_LABEL, { resolveAll = false } = {}) {
+    const sources = resolveAll ? Object.fromEntries(Object.entries(tables).filter(([sourceLabel]) => sourceLabel !== targetLabel)) : tables;
+    const { label, scores } = detect(data, sources, resolveAll ? VELO_LABEL : targetLabel);
+    const renumber = Boolean(label) && (resolveAll || (label !== targetLabel && scores[label] > scores[targetLabel]));
     const source = renumber ? sourceNames(tables, label, helpersLabel) : new Map();
     const target = tables[targetLabel];
+    const dllTargetLabel = Object.values(dllTables).some((tablesForDll) => tablesForDll[targetLabel]) ? targetLabel : VELO_LABEL;
     const output = new Uint8Array(data);
     const changed = new Map();
     const missing = new Set();
@@ -166,6 +169,7 @@ export function remap(data, tables, dllTables, targetLabel = VELO_LABEL, helpers
             const sourceName = source.get(ordinal) ?? null;
             const resolved = veloName(sourceName, target);
             if (resolved) {
+                if (target[resolved] === ordinal) continue;
                 writeOrdinal(output, entry, target[resolved]);
                 changed.set(`${ordinal}`, [sourceName, target[resolved]]);
                 continue;
@@ -179,9 +183,10 @@ export function remap(data, tables, dllTables, targetLabel = VELO_LABEL, helpers
     }
 
     for (const [dll, tablesForDll] of Object.entries(dllTables)) {
-        const velo = tablesForDll[VELO_LABEL];
+        const dllTarget = tablesForDll[dllTargetLabel];
+        if (!dllTarget) continue;
         for (const entry of importEntries(data, dll)) {
-            if (entry.name && !has(velo, entry.name)) unresolved.push({ iatRva: entry.iatRva, name: entry.name, dll });
+            if (entry.name && !has(dllTarget, entry.name)) unresolved.push({ iatRva: entry.iatRva, name: entry.name, dll });
         }
     }
 
@@ -191,14 +196,16 @@ export function remap(data, tables, dllTables, targetLabel = VELO_LABEL, helpers
             for (const fallback of [MIPS_LABEL, CE211_LABEL, label]) {
                 for (const [name, ordinal] of Object.entries(tablesForDll[fallback] ?? {})) names.set(ordinal, name);
             }
-            const velo = tablesForDll[VELO_LABEL];
+            const dllTarget = tablesForDll[dllTargetLabel];
+            if (!dllTarget) continue;
             for (const entry of importEntries(data, dll)) {
                 if (!(entry.value & 0x80000000)) continue;
                 const ordinal = entry.value & 0xffff;
                 const name = names.get(ordinal) ?? null;
-                if (has(velo, name)) {
-                    writeOrdinal(output, entry, velo[name]);
-                    changed.set(`${dll}\u0000${ordinal}`, [name, velo[name]]);
+                if (has(dllTarget, name)) {
+                    if (dllTarget[name] === ordinal) continue;
+                    writeOrdinal(output, entry, dllTarget[name]);
+                    changed.set(`${dll}\u0000${ordinal}`, [name, dllTarget[name]]);
                 } else {
                     missing.add(`${dll} ${name || `#${ordinal}`}`);
                 }
@@ -207,7 +214,7 @@ export function remap(data, tables, dllTables, targetLabel = VELO_LABEL, helpers
     }
 
     return {
-        data: renumber ? output : null,
+        data: renumber && changed.size ? output : null,
         label,
         changed: [...changed.values()].sort(compareChanged),
         missing: [...missing].sort(),

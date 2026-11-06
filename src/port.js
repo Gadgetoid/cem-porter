@@ -3,10 +3,10 @@ import { redirect } from "./shim.js";
 
 export const CRT_DLL = "VELOCRT.DLL";
 
-export function portToCe2(data, { tables, dllTables, targetLabel = VELO_LABEL, helpersLabel = MIPS_LABEL, crtExports, deviceName }) {
+export function portToCe2(data, { tables, dllTables, targetLabel = VELO_LABEL, helpersLabel = MIPS_LABEL, resolveAll = false, crtExports, deviceName }) {
     const notes = [];
     const crtNames = new Set(crtExports);
-    const remapped = remap(data, tables, dllTables, targetLabel, helpersLabel);
+    const remapped = remap(data, tables, dllTables, targetLabel, helpersLabel, { resolveAll });
     if (remapped.data) {
         data = remapped.data;
         const sourceName = remapped.label.split(" (")[0];
