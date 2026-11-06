@@ -5,11 +5,11 @@ import { encodeLatin1 } from "./cabwrite.js";
 import { extensionOf, pathOf, sortChildren, typeName } from "./romtree.js";
 import { artIcon } from "./romicons.js";
 import { registryPreview } from "./previews.js";
-import { saveBlob, saveBytes, setupDesktop } from "./desktop.js";
+import { raiseWindow, saveBlob, saveBytes, setupDesktop } from "./desktop.js";
 import { putHandoff } from "./handoff.js";
 import { baseName, createBrowser, digestText, exactSize, facts, folderTotals, formatSize, heading, pairs, rule, table } from "./browser.js";
 
-const elements = Object.fromEntries(["save-all", "drop-title", "drop-hint", "package-bar", "package-facts", "package-details"].map((id) => [id, document.getElementById(id)]));
+const elements = Object.fromEntries(["save-all", "save-choice", "save-folder-label", "save-choice-close", "save-choice-save", "save-choice-cancel", "drop-title", "drop-hint", "package-bar", "package-facts", "package-details"].map((id) => [id, document.getElementById(id)]));
 const state = { inputs: [], log: [], containers: new Map(), setups: [] };
 const CAB_ARCHITECTURES = { 0: "Any", 2577: "StrongARM", 4000: "MIPS R4000", 10003: "SH3", 10004: "SH3E", 10005: "SH4", 70001: "ARM720" };
 const PROGRAM_EXTENSIONS = new Set(["exe", "dll", "cpl"]);
@@ -266,8 +266,31 @@ function renderPackageBar() {
     elements["package-bar"].hidden = false;
 }
 
+function openFolderName() {
+    return view.folder && view.folder !== view.tree ? view.folder.name : packageName();
+}
+
+function showSaveChoice() {
+    elements["save-folder-label"].textContent = `"${openFolderName()}", with packages in it kept whole`;
+    elements["save-choice"].hidden = false;
+    raiseWindow(elements["save-choice"]);
+    elements["save-choice-save"].focus();
+}
+
+function closeSaveChoice() {
+    elements["save-choice"].hidden = true;
+    browser.elements.view.focus({ preventScroll: true });
+}
+
 function saveAll() {
-    browser.saveZip(sortChildren(view.tree.children), baseName(state.inputs[0].name));
+    const scope = elements["save-choice"].querySelector("input[name=save-scope]:checked").value;
+    closeSaveChoice();
+    if (scope === "folder") {
+        const folder = view.folder ?? view.tree;
+        browser.saveZip(sortChildren(folder.children), baseName(openFolderName()), { keepWhole: (node) => Boolean(node.container) });
+    } else {
+        browser.saveZip(sortChildren(view.tree.children), baseName(state.inputs[0].name));
+    }
 }
 
 async function openFile(file, files = [file]) {
@@ -304,7 +327,13 @@ async function openFile(file, files = [file]) {
 }
 
 function setup() {
-    elements["save-all"].addEventListener("click", saveAll);
+    elements["save-all"].addEventListener("click", showSaveChoice);
+    elements["save-choice-save"].addEventListener("click", saveAll);
+    elements["save-choice-cancel"].addEventListener("click", closeSaveChoice);
+    elements["save-choice-close"].addEventListener("click", closeSaveChoice);
+    elements["save-choice"].addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeSaveChoice();
+    });
     elements["package-details"].addEventListener("click", () => browser.showProperties(null));
     setupDesktop({ readmeKey: "package-explorer-readme" });
 }

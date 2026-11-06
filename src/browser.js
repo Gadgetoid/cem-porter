@@ -464,23 +464,23 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         return entries;
     }
 
-    async function saveZip(nodes, name) {
+    async function saveZip(nodes, name, { keepWhole = () => false } = {}) {
         setStatus("Making a zip...");
         await new Promise((resolve) => setTimeout(resolve, 0));
         const writer = zipWriter();
         const add = async (node, path) => {
-            if (node.kind === "folder") {
-                for (const child of node.children) await add(child, `${path}${child.name}${child.kind === "folder" ? "/" : ""}`);
+            if (node.kind === "folder" && !keepWhole(node)) {
+                for (const child of node.children) await add(child, `${path}${child.name}${child.kind === "folder" && !keepWhole(child) ? "/" : ""}`);
                 return;
             }
-            const time = node.item.time && node.item.time > ZIP_EARLIEST ? node.item.time : ZIP_EARLIEST;
+            const time = node.item?.time && node.item.time > ZIP_EARLIEST ? node.item.time : ZIP_EARLIEST;
             try {
                 writer.add(path, await loadData(node), time);
             } catch (error) {
                 writer.add(`${path}.unreadable.txt`, new TextEncoder().encode(`${node.name} couldn't be extracted: ${error.message}\n`), ZIP_EARLIEST);
             }
         };
-        for (const node of nodes) await add(node, `${node.name}${node.kind === "folder" ? "/" : ""}`);
+        for (const node of nodes) await add(node, `${node.name}${node.kind === "folder" && !keepWhole(node) ? "/" : ""}`);
         const blob = writer.finish();
         saveBlob(blob, `${name}.zip`);
         setStatus(`Saved ${name}.zip (${formatSize(blob.size)}).`);

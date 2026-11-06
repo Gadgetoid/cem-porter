@@ -116,7 +116,7 @@ https://gadgetoid.github.io/cem-porter/package.html (`package.html`) shows every
 - Each container is a folder; Properties names its format, the container it came from and its SHA-256, and Save container saves it as stored
 - CE CABs: files are named as they install, with the stored name (`FOO~1.001`) and install path in Properties. The CAB's folder and its `.000` setup file show the program, its files, the registry entries wceload writes and its shortcuts
 - Files get the same Properties and previews as in ROM Explorer, with Open in Hex and Open in Icon Lab
-- Saves a file, a folder as a zip, or everything as a zip
+- Saves a file, a folder as a zip, or everything as a zip: either every package unpacked, or the open folder with the packages in it kept whole
 
 ## Icon Lab
 

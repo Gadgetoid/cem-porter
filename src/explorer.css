@@ -72,6 +72,8 @@
 
 .dialog[hidden] { display: none; }
 
+.dialog.save-choice { width: min(400px, calc(100% - 32px)); }
+
 .tabs { display: flex; flex-wrap: wrap; gap: 0; padding: 6px 6px 0; }
 
 .tabs button {

@@ -54,6 +54,20 @@
         <button type="button" id="dialog-ok">OK</button>
     </div>
 </section>
+<section class="dialog save-choice raised" id="save-choice" hidden aria-labelledby="save-choice-title" role="dialog">
+    <div class="title-bar">
+        <span class="title" id="save-choice-title">Save all</span>
+        <button class="raised" id="save-choice-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="panel sunken">
+        <label><input type="radio" name="save-scope" value="everything" checked> Everything, with every package unpacked</label>
+        <label><input type="radio" name="save-scope" value="folder"> <span id="save-folder-label">This folder, with packages in it kept whole</span></label>
+    </div>
+    <div class="actions">
+        <button type="button" id="save-choice-save">Save</button>
+        <button type="button" id="save-choice-cancel">Cancel</button>
+    </div>
+</section>
 <div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
     <div class="start-banner" aria-hidden="true">Package Explorer</div>
     <ul>
@@ -92,7 +106,7 @@
             <li>Open a package: CAB, InstallShield, Installer VISE, zip, 7z, LZH, SZDD, PKWARE DCL, CASIO .cpk or .cbea, a CD image (.iso, or raw .bin or .mdf), or an installer holding any of these. Open <code>data1.cab</code> together with <code>data1.hdr</code> and further volumes.</li>
             <li>Each container is a folder. Double-click a file to see its properties and preview it.</li>
             <li>In a CE CAB, files are named as they install; Properties shows the stored name and install path. The CAB's folder and its <code>.000</code> setup file show the program, files, registry entries and shortcuts.</li>
-            <li>Save a file, a folder as a zip, or everything as a zip. Save container in a container's Properties saves it whole. Files are saved exactly as stored.</li>
+            <li>Save a file, a folder as a zip, or everything as a zip. Save all asks whether to unpack every package, or save the open folder with the packages in it kept whole. Save container in a container's Properties saves it whole. Files are saved exactly as stored.</li>
         </ul>
         <h2>Limitations</h2>
         <ul>
