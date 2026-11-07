@@ -400,7 +400,8 @@ function renderListing(entries) {
         const row = document.createElement("tr");
         row.tabIndex = 0;
         const name = document.createElement("td");
-        name.textContent = entry.directory ? `[${entry.name}]` : entry.name;
+        name.className = entry.directory ? "name folder" : "name file";
+        name.textContent = entry.name;
         const size = document.createElement("td");
         size.className = "right";
         size.textContent = entry.directory ? "" : formatSize(entry.size);

@@ -408,6 +408,21 @@ body.busy, body.busy button, body.busy .drop { cursor: wait; }
 .dialog .list.filer { height: 260px; max-height: none; }
 .path { padding: 3px 6px; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 th.right, td.right { text-align: right; }
+
+td.name {
+    padding-left: 22px;
+    background-repeat: no-repeat;
+    background-position: 3px center;
+    background-size: 14px 14px;
+}
+
+td.name.folder {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 3h5l1.5 2H15v8H1z" fill="%23ffd54a" stroke="%23000" stroke-width="1"/></svg>');
+}
+
+td.name.file {
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3.5 1.5h6L13 5v9.5H3.5z" fill="%23fff" stroke="%23000" stroke-width="1"/><path d="M9.5 1.5V5H13" fill="none" stroke="%23000" stroke-width="1"/></svg>');
+}
 .browser-row { cursor: default; }
 .browser-row .kind { color: var(--disabled); }
 tr.selected .kind { color: var(--selection-text); }
