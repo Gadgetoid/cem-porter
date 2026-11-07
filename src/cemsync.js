@@ -23,7 +23,7 @@ function targetFor(device) {
 }
 
 const elements = Object.fromEntries([
-    "connect", "disconnect", "status", "size", "target",
+    "connect", "disconnect", "status", "size",
     "drop", "drop-title", "drop-hint", "file-input",
     "info", "members", "install", "progress", "progress-box", "log", "log-panel",
     "connect-panel", "device-panel", "package-panel", "device-legend", "supported",
