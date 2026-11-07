@@ -509,10 +509,10 @@ export class BeLink {
             joinBytes([u32be(1), wstr(appName), wstr(commandLine)]));
     }
 
-    async installPackage(bytes, { card = false, cardDir = "" } = {}) {
+    async installPackage(bytes, { card = false, cardDir = "", onProgress = null } = {}) {
         const target = "\\Temp\\install.cbea";
         this.log(`staging package at ${target}`);
-        await this.sendFile(target, bytes, null);
+        await this.sendFile(target, bytes, onProgress);
         const commandLine = card
             ? `_C \\${cardDir}\\install.cbea`
             : `_M ${target}`;

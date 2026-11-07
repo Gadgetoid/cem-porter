@@ -332,8 +332,13 @@ async function install() {
     try {
         elements.install.disabled = true;
         setStatus("Staging package...");
-        setProgress(10);
-        const reply = await state.link.installPackage(state.file.bytes);
+        setProgress(0);
+        const reply = await state.link.installPackage(state.file.bytes, {
+            onProgress: (sent, total) => {
+                setProgress((sent / total) * 100);
+                setStatus(`Staging ${formatSize(sent)} of ${formatSize(total)}`);
+            },
+        });
         setProgress(100);
         log(`CoInstall.exe dispatched (ret=0x${reply.ret.toString(16)})`);
         setStatus("CoInstall is running on the device; follow the prompts there");

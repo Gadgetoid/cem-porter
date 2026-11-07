@@ -23,9 +23,20 @@ function writeU32(target, offset, value) {
     target[offset + 3] = (value >>> 24) & 0xff;
 }
 
-export function cbeaHeader(platform, template) {
+const ARCHIVE_INFO = [[0, 393472], [136, 4], [140, 15], [148, 3221225472], [152, 276], [156, 3], [164, 126], [168, 3], [180, 1], [184, 4096], [188, 65536], [192, 2147483647], [196, 1], [200, 1], [204, 4000], [208, 65536], [212, 209715204], [220, 3]];
+
+const DESTINATION_OFFSET = 0xdc;
+export const PLACE_MAIN_ONLY = 1;
+export const PLACE_ALTERNATIVE = 3;
+
+export function cbeaHeader(platform, template, place = PLACE_ALTERNATIVE) {
     const header = new Uint8Array(HEADER_SIZE);
-    if (template && template.length >= HEADER_SIZE) header.set(template.subarray(0, HEADER_SIZE));
+    if (template && template.length >= HEADER_SIZE) {
+        header.set(template.subarray(0, HEADER_SIZE));
+    } else {
+        for (const [offset, value] of ARCHIVE_INFO) writeU32(header, offset, value);
+        writeU32(header, DESTINATION_OFFSET, place);
+    }
     for (let offset = PLATFORM_OFFSET; offset < PLATFORM_LIMIT; offset++) header[offset] = 0;
     let offset = PLATFORM_OFFSET;
     for (const character of platform) {
@@ -55,8 +66,8 @@ export function encodeMember(name, data, type) {
     return entry;
 }
 
-export function writeCbea({ platform, template, members }) {
-    const header = cbeaHeader(platform || "Casio Jx740 CE3.00", template);
+export function writeCbea({ platform, template, members, place }) {
+    const header = cbeaHeader(platform || "Casio Jx740 CE3.00", template, place);
     const encoded = members.map((member) =>
         encodeMember(member.name, member.data, member.type));
     let total = HEADER_SIZE + 1;
