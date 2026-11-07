@@ -55,6 +55,16 @@ function setProgress(percent) {
     elements["progress-box"].setAttribute("aria-valuenow", String(value));
 }
 
+function setBusy(busy) {
+    document.body.classList.toggle("busy", busy);
+    elements.drop.classList.toggle("busy", busy);
+}
+
+function settle() {
+    return new Promise((resolve) =>
+        requestAnimationFrame(() => setTimeout(resolve, 0)));
+}
+
 function showTools(open) {
     elements["tools-menu"].hidden = !open;
     elements["tools-button"].setAttribute("aria-expanded", String(open));
@@ -174,13 +184,29 @@ async function addPackage(name, bytes) {
 async function loadFiles(files) {
     state.packages = [];
     state.file = null;
-    setStatus(`Opening ${files.length === 1 ? files[0].name : `${files.length} files`}...`);
+    renderPackages();
+
+    const list = [...files];
+    const total = list.reduce((sum, file) => sum + file.size, 0);
+    const label = list.length === 1 ? list[0].name : `${list.length} files`;
+    elements["drop-title"].textContent = `Reading ${label}...`;
+    elements["drop-hint"].textContent = total > 4 * 1048576
+        ? `${formatSize(total)} - this can take a moment`
+        : formatSize(total);
+    setStatus(`Reading ${label}...`);
+    setProgress(5);
+    setBusy(true);
+    await settle();
+
     try {
-        const results = await unpackFiles([...files]);
-        for (const [index, result] of results.entries()) {
-            const direct = new Uint8Array(await files[index].arrayBuffer());
+        for (const [index, file] of list.entries()) {
+            setStatus(`Opening ${file.name} (${index + 1} of ${list.length})...`);
+            setProgress(5 + (index / list.length) * 80);
+            await settle();
+            const [result] = await unpackFiles([file]);
+            const direct = new Uint8Array(await file.arrayBuffer());
             if (looksLikeCbea(direct)) {
-                await addPackage(files[index].name, direct);
+                await addPackage(file.name, direct);
                 continue;
             }
             for (const entry of result.log || []) {
@@ -193,11 +219,18 @@ async function loadFiles(files) {
     } catch (error) {
         log(`could not open: ${error.message}`);
     }
+
+    setBusy(false);
+    setProgress(100);
+    elements["drop-title"].textContent = label;
     if (!state.packages.length) {
-        log("no .cbea packages found in that file");
+        elements["drop-hint"].textContent = "No .cbea packages inside";
+        log(`no .cbea packages found in ${label}`);
         setStatus("No packages found");
     } else {
-        log(`found ${state.packages.length} package(s)`);
+        elements["drop-hint"].textContent =
+            `${state.packages.length} package${state.packages.length === 1 ? "" : "s"} found`;
+        log(`found ${state.packages.length} package(s) in ${label}`);
         setStatus(`${state.packages.length} package(s) found`);
         select(0);
     }
