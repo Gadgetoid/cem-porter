@@ -192,6 +192,9 @@ tr.selected .problem, tr.selected .note { color: var(--selection-text); }
 
 .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 
+.list + .actions, .drop + .actions, .gauge + .actions, p + .actions { margin-top: 10px; }
+.actions + .list, .actions + .drop { margin-top: 10px; }
+
 .status-bar { display: flex; gap: 2px; margin-top: 2px; }
 
 .status-bar span {
