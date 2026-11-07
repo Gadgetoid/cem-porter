@@ -18,7 +18,7 @@
             <button class="menu-item" type="button" id="tools-button" aria-haspopup="menu" aria-expanded="false" aria-controls="tools-menu"><u>T</u>ools</button>
             <div class="dropdown raised" id="tools-menu" role="menu" aria-label="Tools" hidden>
                 <ul>
-                    <li><button type="button" role="menuitem" id="tool-send" disabled><u>S</u>end a File...</button></li>
+                    <li><button type="button" role="menuitem" id="tool-files" disabled><u>F</u>ile Manager...</button></li>
                     <li><button type="button" role="menuitem" id="tool-backup" disabled><u>B</u>ack Up Flash...</button></li>
                     <li class="separator" role="separator"></li>
                     <li><button type="button" role="menuitem" id="tool-reset" disabled><u>R</u>eset Device</button></li>
@@ -113,24 +113,28 @@
 </div>
 <section class="dialog raised" id="browser" hidden aria-labelledby="browser-title">
     <div class="title-bar">
-        <span class="title" id="browser-title">Choose Folder</span>
+        <span class="title" id="browser-title">File Manager</span>
         <button class="raised" id="browser-close" type="button" aria-label="Close">X</button>
     </div>
     <div class="body">
         <fieldset>
-            <legend id="browser-path">\</legend>
-            <div class="list sunken">
+            <legend>Look in</legend>
+            <div class="path sunken" id="browser-path">\</div>
+            <div class="list sunken filer">
                 <table>
+                    <thead><tr><th>Name</th><th class="right">Size</th></tr></thead>
                     <tbody id="browser-list"></tbody>
                 </table>
             </div>
             <div class="actions">
                 <button type="button" id="browser-up">Up One Level</button>
-                <button type="button" id="browser-ok">Save Here</button>
-                <button type="button" id="browser-cancel">Cancel</button>
+                <button type="button" id="browser-refresh">Refresh</button>
+                <button type="button" id="browser-upload">Upload File Here...</button>
+                <button type="button" id="browser-download" disabled>Download</button>
             </div>
         </fieldset>
     </div>
+    <div class="status-bar"><span id="browser-status" role="status">&nbsp;</span></div>
 </section>
 <section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
     <div class="title-bar">

@@ -461,6 +461,45 @@ export class BeLink {
         return entries;
     }
 
+    async receiveFile(path, size, onProgress) {
+        const opened = await this.call(CMD.createFile, joinBytes([
+            wstr(path),
+            u32be(GENERIC_READ),
+            u32be(1),
+            u32be(OPEN_EXISTING),
+            u32be(FILE_ATTRIBUTE_NORMAL),
+        ]));
+        const handle = opened.ret;
+        if (!handle || handle === 0xffffffff) {
+            throw new Error(`could not open ${path} (err ${opened.err})`);
+        }
+        const parts = [];
+        let total = 0;
+        try {
+            for (let guard = 0; guard < 100000; guard++) {
+                const reply = await this.call(CMD.readFile,
+                    joinBytes([u32be(handle), u32be(this.chunkSize)]));
+                if (!reply.ret) break;
+                const view = new DataView(reply.data.buffer, reply.data.byteOffset, reply.data.byteLength);
+                const read = reply.data.length >= 4 ? view.getUint32(0, false) : 0;
+                if (!read) break;
+                parts.push(reply.data.subarray(4, 4 + read));
+                total += read;
+                if (onProgress) onProgress(total, size || 0);
+                if (read < this.chunkSize) break;
+            }
+        } finally {
+            await this.call(CMD.closeHandle, u32be(handle));
+        }
+        const out = new Uint8Array(total);
+        let at = 0;
+        for (const part of parts) {
+            out.set(part, at);
+            at += part.length;
+        }
+        return out;
+    }
+
     async createDirectory(path) {
         return this.call(CMD.createDirectory, wstr(path));
     }

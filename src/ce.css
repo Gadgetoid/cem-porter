@@ -404,7 +404,10 @@ body.busy, body.busy button, body.busy .drop { cursor: wait; }
 }
 
 .dialog[hidden] { display: none; }
-.dialog .list { max-height: 240px; }
+.dialog { width: min(460px, calc(100% - 32px)); }
+.dialog .list.filer { height: 260px; max-height: none; }
+.path { padding: 3px 6px; margin-bottom: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+th.right, td.right { text-align: right; }
 .browser-row { cursor: default; }
 .browser-row .kind { color: var(--disabled); }
 tr.selected .kind { color: var(--selection-text); }

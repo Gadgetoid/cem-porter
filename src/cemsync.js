@@ -27,9 +27,10 @@ const elements = Object.fromEntries([
     "drop", "drop-title", "drop-hint", "file-input",
     "info", "members", "install", "progress", "progress-box", "log", "log-panel",
     "connect-panel", "device-panel", "package-panel", "device-legend", "supported",
-    "tools-button", "tools-menu", "tool-send", "tool-backup", "tool-reset", "tool-log",
+    "tools-button", "tools-menu", "tool-files", "tool-backup", "tool-reset", "tool-log",
     "connect", "disconnect", "drop", "drop-title", "drop-hint", "file-input", "status", "size",
-    "browser", "browser-title", "browser-path", "browser-list", "browser-up", "browser-ok", "browser-cancel", "browser-close",
+    "browser", "browser-title", "browser-path", "browser-list", "browser-up", "browser-close",
+    "browser-refresh", "browser-upload", "browser-download", "browser-status",
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = { link: null, target: null, file: null, packages: [] };
@@ -57,7 +58,7 @@ function setConnected(connected) {
     elements["device-panel"].hidden = !connected;
     elements["tool-backup"].disabled = !connected || !can.backup;
     elements["tool-reset"].disabled = !connected || !can.reset;
-    elements["tool-send"].disabled = !connected || !can.send;
+    elements["tool-files"].disabled = !connected || !can.send;
     elements["package-panel"].hidden = connected && !can.install;
     elements.install.disabled = !connected || !can.install || !state.file;
     elements["device-legend"].textContent = state.target ? state.target.name : "Device";
@@ -292,34 +293,6 @@ function select(index) {
     setConnected(!!state.link);
 }
 
-async function send() {
-    if (!state.link) return;
-    const [file] = await pickFile();
-    if (!file) return;
-    const folder = await showBrowser(state.target.installRoot);
-    if (folder === null) return;
-    const path = `${folder.replace(/\\+$/, "")}\\${file.name}`;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    state.file = { name: file.name, bytes };
-    log(`sending ${formatSize(state.file.bytes.length)} to ${path}`);
-    try {
-        elements["tool-send"].disabled = true;
-        setStatus(`Sending ${state.file.name}...`);
-        await state.link.sendFile(path, bytes, (sent, total) => {
-            setProgress((sent / total) * 100);
-            setStatus(`Sending ${formatSize(sent)} of ${formatSize(total)}`);
-        });
-        setProgress(100);
-        setStatus(`Sent to ${path}`);
-        log(`wrote ${path}`);
-    } catch (error) {
-        setStatus(error.message);
-        log(`error: ${error.message}`);
-    } finally {
-        elements["tool-send"].disabled = false;
-    }
-}
-
 async function backup() {
     if (!state.link) return;
     const link = state.link;
@@ -372,70 +345,140 @@ async function install() {
     }
 }
 
-let browserState = null;
+const listingCache = new Map();
+let browser = { path: "\\", selected: null };
 
-async function showBrowser(startPath) {
-    return new Promise((resolve) => {
-        browserState = { path: startPath, resolve };
-        elements.browser.hidden = false;
-        refreshBrowser();
-    });
+function browserStatus(text) {
+    elements["browser-status"].textContent = text || "\u00a0";
 }
 
-function closeBrowser(result) {
-    elements.browser.hidden = true;
-    const done = browserState;
-    browserState = null;
-    if (done) done.resolve(result);
+function openBrowser() {
+    elements.browser.hidden = false;
+    browser.path = state.target.installRoot;
+    showListing();
 }
 
-async function refreshBrowser() {
-    if (!browserState) return;
-    const path = browserState.path;
-    elements["browser-path"].textContent = path || "\\";
-    elements["browser-list"].innerHTML = "";
-    const waiting = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.className = "empty";
-    cell.textContent = "Reading...";
-    waiting.appendChild(cell);
-    elements["browser-list"].appendChild(waiting);
+async function showListing({ refresh = false } = {}) {
+    const path = browser.path || "\\";
+    elements["browser-path"].textContent = path;
+    elements["browser-up"].disabled = path === "\\";
+    browser.selected = null;
+    elements["browser-download"].disabled = true;
 
-    let entries = [];
-    try {
-        entries = await state.link.listDirectory(path || "\\");
-    } catch (error) {
-        log(`could not list ${path}: ${error.message}`);
+    if (refresh) listingCache.delete(path);
+    let entries = listingCache.get(path);
+    if (!entries) {
+        renderListing(null);
+        browserStatus("Reading...");
+        try {
+            entries = await state.link.listDirectory(path);
+            listingCache.set(path, entries);
+        } catch (error) {
+            browserStatus(error.message);
+            renderListing([]);
+            return;
+        }
     }
-    elements["browser-list"].innerHTML = "";
-    const folders = entries.filter((entry) => entry.directory);
-    if (!folders.length) {
-        const row = document.createElement("tr");
-        const empty = document.createElement("td");
-        empty.className = "empty";
-        empty.textContent = "No folders here";
-        row.appendChild(empty);
-        elements["browser-list"].appendChild(row);
+    renderListing(entries);
+    const files = entries.filter((entry) => !entry.directory).length;
+    const dirs = entries.length - files;
+    browserStatus(`${dirs} folder${dirs === 1 ? "" : "s"}, ${files} file${files === 1 ? "" : "s"}`);
+}
+
+function renderListing(entries) {
+    const body = elements["browser-list"];
+    body.innerHTML = "";
+    if (entries === null) {
+        body.appendChild(emptyRow("Reading..."));
+        return;
     }
-    for (const entry of folders) {
+    if (!entries.length) {
+        body.appendChild(emptyRow("Empty"));
+        return;
+    }
+    for (const entry of entries) {
         const row = document.createElement("tr");
-        row.className = "browser-row";
         row.tabIndex = 0;
         const name = document.createElement("td");
-        name.textContent = entry.name;
-        row.appendChild(name);
-        const open = () => {
-            browserState.path = `${path.replace(/\\+$/, "")}\\${entry.name}`;
-            refreshBrowser();
-        };
-        row.addEventListener("dblclick", open);
-        row.addEventListener("click", open);
-        row.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") { event.preventDefault(); open(); }
+        name.textContent = entry.directory ? `[${entry.name}]` : entry.name;
+        const size = document.createElement("td");
+        size.className = "right";
+        size.textContent = entry.directory ? "" : formatSize(entry.size);
+        row.append(name, size);
+        row.addEventListener("click", () => {
+            if (entry.directory) {
+                browser.path = join(browser.path, entry.name);
+                showListing();
+                return;
+            }
+            browser.selected = entry;
+            elements["browser-download"].disabled = false;
+            for (const other of body.children) other.classList.remove("selected");
+            row.classList.add("selected");
         });
-        elements["browser-list"].appendChild(row);
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") { event.preventDefault(); row.click(); }
+        });
+        body.appendChild(row);
     }
-    elements["browser-up"].disabled = !path || path === "\\";
+}
+
+function emptyRow(text) {
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.className = "empty";
+    cell.colSpan = 2;
+    cell.textContent = text;
+    row.appendChild(cell);
+    return row;
+}
+
+function join(base, name) {
+    return `${base.replace(/\\+$/, "")}\\${name}`;
+}
+
+async function uploadHere() {
+    const [file] = await pickFile();
+    if (!file) return;
+    const path = join(browser.path, file.name);
+    try {
+        elements["browser-upload"].disabled = true;
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        await state.link.sendFile(path, bytes, (sent, total) => {
+            browserStatus(`Sending ${formatSize(sent)} of ${formatSize(total)}`);
+            setProgress((sent / total) * 100);
+        });
+        browserStatus(`Sent ${file.name}`);
+        log(`uploaded ${path}`);
+        listingCache.delete(browser.path);
+        showListing();
+    } catch (error) {
+        browserStatus(error.message);
+        log(`error: ${error.message}`);
+    } finally {
+        elements["browser-upload"].disabled = false;
+    }
+}
+
+async function downloadSelected() {
+    if (!browser.selected) return;
+    const entry = browser.selected;
+    const path = join(browser.path, entry.name);
+    try {
+        elements["browser-download"].disabled = true;
+        const bytes = await state.link.receiveFile(path, entry.size, (got, total) => {
+            browserStatus(`Reading ${formatSize(got)}${total ? ` of ${formatSize(total)}` : ""}`);
+            if (total) setProgress((got / total) * 100);
+        });
+        saveBytes(bytes, entry.name);
+        browserStatus(`Saved ${entry.name}`);
+        log(`downloaded ${path} (${bytes.length} bytes)`);
+    } catch (error) {
+        browserStatus(error.message);
+        log(`error: ${error.message}`);
+    } finally {
+        elements["browser-download"].disabled = false;
+    }
 }
 
 function pickFile() {
@@ -484,16 +527,16 @@ elements.disconnect.addEventListener("click", disconnect);
 
 elements.install.addEventListener("click", install);
 elements["tools-button"].addEventListener("click", () => showTools(elements["tools-menu"].hidden));
-elements["browser-ok"].addEventListener("click", () => closeBrowser(browserState ? browserState.path : null));
-elements["browser-cancel"].addEventListener("click", () => closeBrowser(null));
-elements["browser-close"].addEventListener("click", () => closeBrowser(null));
+elements["browser-close"].addEventListener("click", () => { elements.browser.hidden = true; });
+elements["browser-refresh"].addEventListener("click", () => showListing({ refresh: true }));
+elements["browser-upload"].addEventListener("click", uploadHere);
+elements["browser-download"].addEventListener("click", downloadSelected);
 elements["browser-up"].addEventListener("click", () => {
-    if (!browserState) return;
-    const cut = browserState.path.replace(/\\+$/, "").lastIndexOf("\\");
-    browserState.path = cut > 0 ? browserState.path.slice(0, cut) : "\\";
-    refreshBrowser();
+    const cut = browser.path.replace(/\\+$/, "").lastIndexOf("\\");
+    browser.path = cut > 0 ? browser.path.slice(0, cut) : "\\";
+    showListing();
 });
-elements["tool-send"].addEventListener("click", () => { showTools(false); send(); });
+elements["tool-files"].addEventListener("click", () => { showTools(false); openBrowser(); });
 elements["tool-backup"].addEventListener("click", () => { showTools(false); backup(); });
 elements["tool-reset"].addEventListener("click", () => { showTools(false); softReset(); });
 elements["tool-log"].addEventListener("click", () => {
