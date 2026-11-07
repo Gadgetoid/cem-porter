@@ -325,3 +325,66 @@ a { color: var(--title); }
     .actions { justify-content: stretch; }
     .actions button { flex: 1; }
 }
+
+.menu-bar .menu-item {
+    background: none;
+    border: 0;
+    padding: 1px 6px;
+    font: inherit;
+    color: inherit;
+    cursor: default;
+}
+
+.menu-bar .menu-item[aria-expanded="true"] {
+    background: var(--selection);
+    color: var(--selection-text);
+}
+
+.flyout {
+    position: absolute;
+    z-index: 40;
+    min-width: 200px;
+    background: var(--face);
+    padding: 2px 0;
+}
+
+.flyout[hidden] { display: none; }
+.flyout ul { list-style: none; margin: 0; padding: 0; }
+
+.flyout li > button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    padding: 3px 18px;
+    font: inherit;
+    color: inherit;
+    cursor: default;
+}
+
+.flyout li > button:disabled { color: var(--disabled); }
+
+.flyout li > button:not(:disabled):hover,
+.flyout li > button:not(:disabled):focus-visible {
+    background: var(--selection);
+    color: var(--selection-text);
+    outline: none;
+}
+
+.flyout .separator { height: 0; margin: 3px 4px; box-shadow: 0 -1px var(--shadow), 0 1px var(--highlight); }
+
+.gauge {
+    height: 22px;
+    padding: 2px;
+    background: var(--window);
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.gauge-fill {
+    height: 100%;
+    width: 0;
+    background-image: repeating-linear-gradient(to right, var(--title) 0 12px, transparent 12px 15px);
+    transition: width 120ms linear;
+}

@@ -13,6 +13,19 @@
         <span class="title">CEMSync</span>
         <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
     </div>
+    <div class="menu-bar">
+        <button class="menu-item" type="button" id="tools-button" aria-haspopup="menu" aria-expanded="false" aria-controls="tools-menu"><u>T</u>ools</button>
+    </div>
+    <div class="flyout raised" id="tools-menu" role="menu" aria-label="Tools" hidden>
+        <ul>
+            <li><button type="button" role="menuitem" id="tool-send" disabled>Send a file to the device...</button></li>
+            <li><button type="button" role="menuitem" id="tool-backup" disabled>Back up flash (16 MB)...</button></li>
+            <li class="separator" role="separator"></li>
+            <li><button type="button" role="menuitem" id="tool-reset" disabled>Soft reset device</button></li>
+            <li class="separator" role="separator"></li>
+            <li><button type="button" role="menuitem" id="tool-log">Show log</button></li>
+        </ul>
+    </div>
     <div class="body">
         <fieldset>
             <legend>1. Device</legend>
@@ -31,32 +44,29 @@
         <fieldset>
             <legend>2. Package</legend>
             <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
-                <strong id="drop-title">Drop a .cbea here</strong>
-                <span id="drop-hint">Or any file to copy to the device. Tap to open one.</span>
+                <strong id="drop-title">Drop an installer, archive or .cbea here</strong>
+                <span id="drop-hint">.exe, .zip, .cab, .iso or .cbea, with any extra volumes. Or tap to open.</span>
             </div>
-            <input class="visually-hidden" type="file" id="file-input" aria-label="Open a package">
+            <input class="visually-hidden" type="file" id="file-input" multiple aria-label="Open a package">
             <div class="list sunken">
                 <table>
-                    <thead><tr><th>Inside the package</th><th>Size</th></tr></thead>
+                    <thead><tr><th>Package</th><th>Program</th><th class="hide-narrow">Version</th><th>Size</th></tr></thead>
                     <tbody id="members"></tbody>
                 </table>
             </div>
         </fieldset>
 
         <fieldset>
-            <legend>3. Send</legend>
-            <label for="dest">Destination folder</label>
-            <input type="text" id="dest" value="\Nand Disk">
+            <legend>3. Install</legend>
             <div class="actions">
-                <button type="button" id="send" disabled>Send file</button>
                 <button type="button" id="install" disabled>Install package</button>
-                <button type="button" id="backup" disabled>Back up flash (16 MB)</button>
-                <button type="button" id="reset" disabled>Soft reset</button>
             </div>
-            <progress id="progress" max="100" value="0"></progress>
+            <div class="gauge sunken" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-box">
+                <div class="gauge-fill" id="progress"></div>
+            </div>
         </fieldset>
 
-        <fieldset>
+        <fieldset id="log-panel" hidden>
             <legend>Log</legend>
             <div class="list sunken" id="log"></div>
         </fieldset>
