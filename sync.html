@@ -135,7 +135,7 @@
             <li>On Linux, a udev rule, or the kernel's <code>ipaq</code> driver will claim the device first.</li>
         </ul>
         <h2>How it works</h2>
-        <p>The BE-300 speaks Casio's own PC Connect protocol, not ActiveSync. The host asserts DTR and RTS, trades <code>0x55</code> twice, then sends framed commands. The device drops off the bus about 115 ms after connecting if nothing follows, so the first command goes out immediately.</p>
+        <p>The BE-300 speaks Casio's own PC Connect protocol rather than ActiveSync. The host asserts DTR and RTS, trades <code>0x55</code> twice, then sends framed commands. The device drops off the bus about 115 ms after connecting if nothing follows, so the first command goes out immediately.</p>
         <p>Flash reads below the file system use a negative sector offset: the driver maps the user volume at physical sector 7584 and only bounds checks the top of its window, so the OS partitions are readable through the ordinary call.</p>
     </div>
 </section>
