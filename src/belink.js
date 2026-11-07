@@ -16,6 +16,9 @@ export const CMD = {
     version: 0x0301,
     closeHandle: 0x0309,
     createDirectory: 0x030b,
+    findClose: 0x0310,
+    findFirstFile: 0x0311,
+    findNextFile: 0x0312,
     createFile: 0x030c,
     readFile: 0x0319,
     writeFile: 0x031f,
@@ -417,6 +420,45 @@ export class BeLink {
 
     async softReset() {
         return this.call(CMD.softReset, new Uint8Array(0));
+    }
+
+    static parseFindData(body) {
+        if (body.length < 44) return null;
+        const view = new DataView(body.buffer, body.byteOffset, body.byteLength);
+        const attributes = view.getUint32(0, false);
+        const size = view.getUint32(32, false);
+        const length = view.getUint16(40, false);
+        let name = "";
+        for (let offset = 42; offset + 1 < 42 + length; offset += 2) {
+            const code = (body[offset] << 8) | body[offset + 1];
+            if (!code) break;
+            name += String.fromCharCode(code);
+        }
+        return { name, size, attributes, directory: (attributes & 0x10) !== 0 };
+    }
+
+    async listDirectory(path) {
+        const pattern = `${path.replace(/\\+$/, "")}\\*`;
+        const first = await this.call(CMD.findFirstFile, wstr(pattern));
+        const handle = first.ret;
+        if (!handle || handle === 0xffffffff) return [];
+        const entries = [];
+        let reply = first;
+        try {
+            for (let guard = 0; guard < 2000; guard++) {
+                const entry = BeLink.parseFindData(reply.data);
+                if (entry && entry.name && entry.name !== "." && entry.name !== "..") {
+                    entries.push(entry);
+                }
+                reply = await this.call(CMD.findNextFile, u32be(handle));
+                if (!reply.ret) break;
+            }
+        } finally {
+            await this.call(CMD.findClose, u32be(handle));
+        }
+        entries.sort((a, b) =>
+            (b.directory - a.directory) || a.name.localeCompare(b.name));
+        return entries;
     }
 
     async createDirectory(path) {

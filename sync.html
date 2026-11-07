@@ -111,6 +111,27 @@
     <button class="task" type="button" id="notes-task" hidden>Readme</button>
     <span class="tray" id="clock"></span>
 </div>
+<section class="dialog raised" id="browser" hidden aria-labelledby="browser-title">
+    <div class="title-bar">
+        <span class="title" id="browser-title">Choose Folder</span>
+        <button class="raised" id="browser-close" type="button" aria-label="Close">X</button>
+    </div>
+    <div class="body">
+        <fieldset>
+            <legend id="browser-path">\</legend>
+            <div class="list sunken">
+                <table>
+                    <tbody id="browser-list"></tbody>
+                </table>
+            </div>
+            <div class="actions">
+                <button type="button" id="browser-up">Up One Level</button>
+                <button type="button" id="browser-ok">Save Here</button>
+                <button type="button" id="browser-cancel">Cancel</button>
+            </div>
+        </fieldset>
+    </div>
+</section>
 <section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
     <div class="title-bar">
         <span class="title" id="notes-title">Readme - Pocket Word</span>

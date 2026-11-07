@@ -29,6 +29,7 @@ const elements = Object.fromEntries([
     "connect-panel", "device-panel", "package-panel", "device-legend", "supported",
     "tools-button", "tools-menu", "tool-send", "tool-backup", "tool-reset", "tool-log",
     "connect", "disconnect", "drop", "drop-title", "drop-hint", "file-input", "status", "size",
+    "browser", "browser-title", "browser-path", "browser-list", "browser-up", "browser-ok", "browser-cancel", "browser-close",
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = { link: null, target: null, file: null, packages: [] };
@@ -295,14 +296,16 @@ async function send() {
     if (!state.link) return;
     const [file] = await pickFile();
     if (!file) return;
-    const folder = state.target.installRoot;
-    const path = `${folder}\\${file.name}`;
-    state.file = { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) };
+    const folder = await showBrowser(state.target.installRoot);
+    if (folder === null) return;
+    const path = `${folder.replace(/\\+$/, "")}\\${file.name}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    state.file = { name: file.name, bytes };
     log(`sending ${formatSize(state.file.bytes.length)} to ${path}`);
     try {
         elements["tool-send"].disabled = true;
         setStatus(`Sending ${state.file.name}...`);
-        await state.link.sendFile(path, state.file.bytes, (sent, total) => {
+        await state.link.sendFile(path, bytes, (sent, total) => {
             setProgress((sent / total) * 100);
             setStatus(`Sending ${formatSize(sent)} of ${formatSize(total)}`);
         });
@@ -369,6 +372,72 @@ async function install() {
     }
 }
 
+let browserState = null;
+
+async function showBrowser(startPath) {
+    return new Promise((resolve) => {
+        browserState = { path: startPath, resolve };
+        elements.browser.hidden = false;
+        refreshBrowser();
+    });
+}
+
+function closeBrowser(result) {
+    elements.browser.hidden = true;
+    const done = browserState;
+    browserState = null;
+    if (done) done.resolve(result);
+}
+
+async function refreshBrowser() {
+    if (!browserState) return;
+    const path = browserState.path;
+    elements["browser-path"].textContent = path || "\\";
+    elements["browser-list"].innerHTML = "";
+    const waiting = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.className = "empty";
+    cell.textContent = "Reading...";
+    waiting.appendChild(cell);
+    elements["browser-list"].appendChild(waiting);
+
+    let entries = [];
+    try {
+        entries = await state.link.listDirectory(path || "\\");
+    } catch (error) {
+        log(`could not list ${path}: ${error.message}`);
+    }
+    elements["browser-list"].innerHTML = "";
+    const folders = entries.filter((entry) => entry.directory);
+    if (!folders.length) {
+        const row = document.createElement("tr");
+        const empty = document.createElement("td");
+        empty.className = "empty";
+        empty.textContent = "No folders here";
+        row.appendChild(empty);
+        elements["browser-list"].appendChild(row);
+    }
+    for (const entry of folders) {
+        const row = document.createElement("tr");
+        row.className = "browser-row";
+        row.tabIndex = 0;
+        const name = document.createElement("td");
+        name.textContent = entry.name;
+        row.appendChild(name);
+        const open = () => {
+            browserState.path = `${path.replace(/\\+$/, "")}\\${entry.name}`;
+            refreshBrowser();
+        };
+        row.addEventListener("dblclick", open);
+        row.addEventListener("click", open);
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") { event.preventDefault(); open(); }
+        });
+        elements["browser-list"].appendChild(row);
+    }
+    elements["browser-up"].disabled = !path || path === "\\";
+}
+
 function pickFile() {
     return new Promise((resolve) => {
         const input = document.createElement("input");
@@ -415,6 +484,15 @@ elements.disconnect.addEventListener("click", disconnect);
 
 elements.install.addEventListener("click", install);
 elements["tools-button"].addEventListener("click", () => showTools(elements["tools-menu"].hidden));
+elements["browser-ok"].addEventListener("click", () => closeBrowser(browserState ? browserState.path : null));
+elements["browser-cancel"].addEventListener("click", () => closeBrowser(null));
+elements["browser-close"].addEventListener("click", () => closeBrowser(null));
+elements["browser-up"].addEventListener("click", () => {
+    if (!browserState) return;
+    const cut = browserState.path.replace(/\\+$/, "").lastIndexOf("\\");
+    browserState.path = cut > 0 ? browserState.path.slice(0, cut) : "\\";
+    refreshBrowser();
+});
 elements["tool-send"].addEventListener("click", () => { showTools(false); send(); });
 elements["tool-backup"].addEventListener("click", () => { showTools(false); backup(); });
 elements["tool-reset"].addEventListener("click", () => { showTools(false); softReset(); });

@@ -392,3 +392,19 @@ body.busy, body.busy button, body.busy .drop { cursor: wait; }
 
 .lead { margin: 0 0 8px; }
 #connect-panel[hidden], #device-panel[hidden] { display: none; }
+
+.dialog {
+    position: fixed;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(420px, calc(100% - 32px));
+    z-index: 60;
+    padding: 3px;
+}
+
+.dialog[hidden] { display: none; }
+.dialog .list { max-height: 240px; }
+.browser-row { cursor: default; }
+.browser-row .kind { color: var(--disabled); }
+tr.selected .kind { color: var(--selection-text); }
