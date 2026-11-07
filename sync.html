@@ -29,44 +29,56 @@
         </div>
     </div>
     <div class="body">
-        <fieldset>
-            <legend>1. Device</legend>
-            <div class="actions">
-                <button type="button" id="connect">Connect</button>
-                <button type="button" id="disconnect" disabled>Disconnect</button>
-                <span id="target">Casio BE-300</span>
-            </div>
-            <div class="list sunken">
-                <table>
-                    <tbody id="info"><tr><td class="empty" colspan="2">Connect to read the device.</td></tr></tbody>
-                </table>
-            </div>
-        </fieldset>
+        <section id="connect-panel">
+            <fieldset>
+                <legend>Connect</legend>
+                <p class="lead">Put the device in its cradle and press Connect, then choose it when the browser asks.</p>
+                <div class="actions">
+                    <button type="button" id="connect">Connect...</button>
+                </div>
+                <div class="list sunken">
+                    <table>
+                        <thead><tr><th>Supported device</th><th class="hide-narrow">Link</th></tr></thead>
+                        <tbody id="supported"></tbody>
+                    </table>
+                </div>
+            </fieldset>
+        </section>
 
-        <fieldset>
-            <legend>2. Package</legend>
-            <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
-                <strong id="drop-title">Drop an installer, archive or .cbea here</strong>
-                <span id="drop-hint">.exe, .zip, .cab, .iso or .cbea, with any extra volumes. Or tap to open.</span>
-            </div>
-            <input class="visually-hidden" type="file" id="file-input" multiple aria-label="Open a package">
-            <div class="list sunken">
-                <table>
-                    <thead><tr><th>Package</th><th>Program</th><th class="hide-narrow">Version</th><th>Size</th></tr></thead>
-                    <tbody id="members"></tbody>
-                </table>
-            </div>
-        </fieldset>
+        <section id="device-panel" hidden>
+            <fieldset>
+                <legend id="device-legend">Device</legend>
+                <div class="list sunken">
+                    <table>
+                        <tbody id="info"></tbody>
+                    </table>
+                </div>
+                <div class="actions">
+                    <button type="button" id="disconnect">Disconnect</button>
+                </div>
+            </fieldset>
 
-        <fieldset>
-            <legend>3. Install</legend>
-            <div class="actions">
-                <button type="button" id="install" disabled>Install package</button>
-            </div>
-            <div class="gauge sunken" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-box">
-                <div class="gauge-fill" id="progress"></div>
-            </div>
-        </fieldset>
+            <fieldset id="package-panel">
+                <legend>Package</legend>
+                <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+                    <strong id="drop-title">Drop an installer, archive or .cbea here</strong>
+                    <span id="drop-hint">.exe, .zip, .cab, .iso or .cbea, with any extra volumes. Or tap to open.</span>
+                </div>
+                <input class="visually-hidden" type="file" id="file-input" multiple aria-label="Open a package">
+                <div class="list sunken">
+                    <table>
+                        <thead><tr><th>Package</th><th>Program</th><th class="hide-narrow">Version</th><th>Size</th></tr></thead>
+                        <tbody id="members"></tbody>
+                    </table>
+                </div>
+                <div class="actions">
+                    <button type="button" id="install" disabled>Install Package</button>
+                </div>
+                <div class="gauge sunken" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-box">
+                    <div class="gauge-fill" id="progress"></div>
+                </div>
+            </fieldset>
+        </section>
 
         <fieldset id="log-panel" hidden>
             <legend>Log</legend>

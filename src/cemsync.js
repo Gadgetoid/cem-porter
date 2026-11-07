@@ -4,24 +4,34 @@ import { planInstall } from "./cbeainstall.js";
 import { unpackFiles, fileData } from "./unpack.js";
 import { saveBytes, setupDesktop } from "./desktop.js";
 
-const TARGETS = {
-    be300: {
+const TARGETS = [
+    {
+        id: "be300",
         name: "Casio BE-300",
+        link: "PC Connect over USB",
         vendor: 0x07cf,
         product: 0x2002,
         installRoot: "\\Nand Disk",
         nand: { base: NAND_BASE, total: NAND_TOTAL },
+        can: { install: true, send: true, backup: true, reset: true },
     },
-};
+];
+
+function targetFor(device) {
+    return TARGETS.find((entry) =>
+        entry.vendor === device.vendorId && entry.product === device.productId) || null;
+}
 
 const elements = Object.fromEntries([
     "connect", "disconnect", "status", "size", "target",
     "drop", "drop-title", "drop-hint", "file-input",
     "info", "members", "install", "progress", "progress-box", "log", "log-panel",
+    "connect-panel", "device-panel", "package-panel", "device-legend", "supported",
     "tools-button", "tools-menu", "tool-send", "tool-backup", "tool-reset", "tool-log",
+    "connect", "disconnect", "drop", "drop-title", "drop-hint", "file-input", "status", "size",
 ].map((id) => [id, document.getElementById(id)]));
 
-const state = { link: null, target: TARGETS.be300, file: null, packages: [] };
+const state = { link: null, target: null, file: null, packages: [] };
 
 function setStatus(text) {
     elements.status.textContent = text;
@@ -41,12 +51,29 @@ function formatSize(bytes) {
 }
 
 function setConnected(connected) {
-    elements.connect.disabled = connected;
-    elements.disconnect.disabled = !connected;
-    elements["tool-backup"].disabled = !connected;
-    elements["tool-reset"].disabled = !connected;
-    elements["tool-send"].disabled = !connected;
-    elements.install.disabled = !connected || !state.file;
+    const can = (state.target && state.target.can) || {};
+    elements["connect-panel"].hidden = connected;
+    elements["device-panel"].hidden = !connected;
+    elements["tool-backup"].disabled = !connected || !can.backup;
+    elements["tool-reset"].disabled = !connected || !can.reset;
+    elements["tool-send"].disabled = !connected || !can.send;
+    elements["package-panel"].hidden = connected && !can.install;
+    elements.install.disabled = !connected || !can.install || !state.file;
+    elements["device-legend"].textContent = state.target ? state.target.name : "Device";
+}
+
+function renderSupported() {
+    elements.supported.innerHTML = "";
+    for (const entry of TARGETS) {
+        const row = document.createElement("tr");
+        const name = document.createElement("td");
+        name.textContent = entry.name;
+        const link = document.createElement("td");
+        link.className = "hide-narrow";
+        link.textContent = entry.link;
+        row.append(name, link);
+        elements.supported.appendChild(row);
+    }
 }
 
 function setProgress(percent) {
@@ -72,7 +99,6 @@ function showTools(open) {
 
 function renderInfo(info) {
     const rows = [
-        ["Device", state.target.name],
         ["Unit ID", info.uuid || "unknown"],
         ["RAPI version", info.version === undefined ? "unknown" : `0x${info.version.toString(16)}`],
         ["System disk", info.systemDisk || "unknown"],
@@ -135,9 +161,13 @@ async function connect() {
     }
     const link = new BeLink();
     link.onLog = log;
+    link.filters = TARGETS.map((entry) => ({ vendorId: entry.vendor, productId: entry.product }));
     try {
         setStatus("Choose the device...");
-        await link.request();
+        const device = await link.request();
+        state.target = targetFor(device);
+        if (!state.target) throw new Error("that device is not one CEMSync knows");
+        log(`${state.target.name} chosen`);
         setStatus("Connecting...");
         await link.connect();
         state.link = link;
@@ -158,6 +188,7 @@ async function connect() {
         log(`error: ${error.message}`);
         await link.close();
         state.link = null;
+        state.target = null;
         setConnected(false);
     }
 }
@@ -165,6 +196,10 @@ async function connect() {
 async function disconnect() {
     if (state.link) await state.link.close();
     state.link = null;
+    state.target = null;
+    state.packages = [];
+    state.file = null;
+    renderPackages();
     setConnected(false);
     setStatus("Disconnected");
 }
@@ -408,8 +443,8 @@ elements["tools-button"].addEventListener("keydown", (event) => {
     }
 });
 
-elements.target.textContent = state.target.name;
 
 renderPackages();
+renderSupported();
 setConnected(false);
 setStatus(isSupported() ? "Ready. Connect the cradle and press Connect." : "No WebUSB: use Chrome or Edge.");

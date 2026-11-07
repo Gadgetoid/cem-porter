@@ -386,3 +386,6 @@ a { color: var(--title); }
 
 body.busy, body.busy button, body.busy .drop { cursor: wait; }
 .drop.busy { opacity: 0.7; }
+
+.lead { margin: 0 0 8px; }
+#connect-panel[hidden], #device-panel[hidden] { display: none; }

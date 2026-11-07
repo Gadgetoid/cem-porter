@@ -181,7 +181,9 @@ export class BeLink {
 
     async request() {
         this.device = await navigator.usb.requestDevice({
-            filters: [{ vendorId: VENDOR, productId: PRODUCT }],
+            filters: (this.filters && this.filters.length)
+                ? this.filters
+                : [{ vendorId: VENDOR, productId: PRODUCT }],
         });
         return this.device;
     }
