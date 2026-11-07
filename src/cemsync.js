@@ -386,13 +386,26 @@ elements["tool-reset"].addEventListener("click", () => { showTools(false); softR
 elements["tool-log"].addEventListener("click", () => {
     const shown = elements["log-panel"].hidden;
     elements["log-panel"].hidden = !shown;
-    elements["tool-log"].textContent = shown ? "Hide log" : "Show log";
+    elements["tool-log"].innerHTML = shown ? "Hide <u>L</u>og" : "<u>L</u>og";
     showTools(false);
 });
 document.addEventListener("click", (event) => {
     if (!elements["tools-menu"].hidden
         && !elements["tools-menu"].contains(event.target)
         && event.target !== elements["tools-button"]) showTools(false);
+});
+document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !elements["tools-menu"].hidden) {
+        showTools(false);
+        elements["tools-button"].focus();
+    }
+});
+elements["tools-button"].addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown") {
+        event.preventDefault();
+        showTools(true);
+        elements["tools-menu"].querySelector("button:not(:disabled)")?.focus();
+    }
 });
 
 elements.target.textContent = state.target.name;

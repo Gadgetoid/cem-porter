@@ -14,17 +14,19 @@
         <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
     </div>
     <div class="menu-bar">
-        <button class="menu-item" type="button" id="tools-button" aria-haspopup="menu" aria-expanded="false" aria-controls="tools-menu"><u>T</u>ools</button>
-    </div>
-    <div class="flyout raised" id="tools-menu" role="menu" aria-label="Tools" hidden>
-        <ul>
-            <li><button type="button" role="menuitem" id="tool-send" disabled>Send a file to the device...</button></li>
-            <li><button type="button" role="menuitem" id="tool-backup" disabled>Back up flash (16 MB)...</button></li>
-            <li class="separator" role="separator"></li>
-            <li><button type="button" role="menuitem" id="tool-reset" disabled>Soft reset device</button></li>
-            <li class="separator" role="separator"></li>
-            <li><button type="button" role="menuitem" id="tool-log">Show log</button></li>
-        </ul>
+        <div class="menu-root">
+            <button class="menu-item" type="button" id="tools-button" aria-haspopup="menu" aria-expanded="false" aria-controls="tools-menu"><u>T</u>ools</button>
+            <div class="dropdown raised" id="tools-menu" role="menu" aria-label="Tools" hidden>
+                <ul>
+                    <li><button type="button" role="menuitem" id="tool-send" disabled><u>S</u>end a File...</button></li>
+                    <li><button type="button" role="menuitem" id="tool-backup" disabled><u>B</u>ack Up Flash...</button></li>
+                    <li class="separator" role="separator"></li>
+                    <li><button type="button" role="menuitem" id="tool-reset" disabled><u>R</u>eset Device</button></li>
+                    <li class="separator" role="separator"></li>
+                    <li><button type="button" role="menuitem" id="tool-log"><u>L</u>og</button></li>
+                </ul>
+            </div>
+        </div>
     </div>
     <div class="body">
         <fieldset>
