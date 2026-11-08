@@ -90,6 +90,8 @@ dialog {
 
 dialog[open] { display: flex; flex-direction: column; }
 
+dialog > * { flex: none; }
+
 dialog > :not(header, nav, footer, article) { margin-inline: 6px; }
 
 :is(main, dialog) > header {
@@ -150,10 +152,11 @@ nav button[aria-haspopup] {
 
 nav button[aria-haspopup][aria-expanded="true"] { background: var(--selection); color: var(--selection-text); }
 
-#notes { width: min(560px, calc(100% - 32px)); z-index: 10; }
+#notes { width: min(560px, calc(100% - 32px)); height: min(520px, calc(100vh - 90px)); z-index: 10; }
 
 #notes > article {
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: auto;
     padding: 10px 14px;
     font: 12px/1.45 var(--font);
@@ -485,7 +488,7 @@ main > aside > button { flex: none; }
 
 [role="tab"][aria-selected="true"] { font-weight: bold; position: relative; top: 1px; }
 
-dialog > section { flex: 1; overflow: auto; padding: 8px; display: grid; gap: 8px; align-content: start; background: var(--window); box-shadow: var(--sunken); }
+dialog > section { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 8px; display: grid; gap: 8px; align-content: start; background: var(--window); box-shadow: var(--sunken); }
 
 dialog > section > h3 { display: flex; gap: 10px; align-items: center; font-size: 12px; }
 
