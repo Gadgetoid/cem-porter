@@ -387,6 +387,21 @@ a { color: var(--title); }
 
 .dropdown .separator { height: 0; margin: 3px 2px; box-shadow: 0 -1px var(--shadow), 0 1px var(--highlight); }
 
+.gauge {
+    height: 22px;
+    padding: 2px;
+    background: var(--window);
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.gauge-fill {
+    height: 100%;
+    width: 0;
+    background-image: repeating-linear-gradient(to right, var(--title) 0 12px, transparent 12px 15px);
+    transition: width 120ms linear;
+}
+
 body.busy, body.busy button, body.busy .drop { cursor: wait; }
 .drop.busy { opacity: 0.7; }
 
