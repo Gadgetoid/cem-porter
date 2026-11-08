@@ -284,11 +284,7 @@ export class ActiveSyncLink {
             await sleep(200);
             await this.rndis.close();
         } else if (this.device) {
-            try {
-                await this.device.close();
-            } catch {
-                // already gone
-            }
+            await this.device.close().catch(() => undefined);
         }
         this.rndis = null;
         this.stack = null;

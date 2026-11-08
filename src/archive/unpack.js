@@ -6,9 +6,10 @@ import { inflateRaw } from "./inflate.js";
 import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
 import { isIso, isRawCd, readIso, readIsoFile } from "./iso.js";
 import { extractIs5, isIs5 } from "./is5.js";
-import { readIsSetup } from "./issetup.js";
+import { readIsListed, readIsSetup } from "./issetup.js";
 import { isLzh, scanLzh } from "./lzh.js";
 import { isCompoundFile, readCompoundStreams } from "./msi.js";
+import { findNsis, readNsis } from "./nsis.js";
 import { isPe, readSections, u16, u32 } from "../pe/pe.js";
 import { extractSevenZip, isSevenZip } from "./sevenzip.js";
 import { isVise, readVise } from "./vise.js";
@@ -382,7 +383,17 @@ function peMachine(data) {
 
 function tryReadIsSetup(data) {
     try {
-        return readIsSetup(data, overlayStart(data));
+        const start = overlayStart(data);
+        return readIsSetup(data, start) || readIsListed(data, start);
+    } catch {
+        return null;
+    }
+}
+
+function tryReadNsis(data) {
+    try {
+        const offset = findNsis(data, overlayStart(data));
+        return offset < 0 ? null : readNsis(data, offset);
     } catch {
         return null;
     }
@@ -463,8 +474,10 @@ export function membersOf(name, data, siblings = []) {
         if (members) return { members, method: "MSI" };
     }
     if (isPe(data)) {
-        const members = tryReadIsSetup(data);
-        if (members) return { members, method: "InstallShield setup" };
+        const setup = tryReadIsSetup(data);
+        if (setup) return { members: setup, method: "InstallShield setup" };
+        const nsis = tryReadNsis(data);
+        if (nsis) return { members: nsis, method: "NSIS" };
     }
     if (isVise(data)) {
         const members = tryReadVise(data);

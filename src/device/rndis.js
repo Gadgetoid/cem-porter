@@ -70,18 +70,8 @@ export class RndisLink {
         if (this.keepAlive) clearInterval(this.keepAlive);
         this.keepAlive = null;
         if (!this.device) return;
-        for (const number of [1, 0]) {
-            try {
-                await this.device.releaseInterface(number);
-            } catch {
-                // already gone
-            }
-        }
-        try {
-            await this.device.close();
-        } catch {
-            // already gone
-        }
+        for (const number of [1, 0]) await this.device.releaseInterface(number).catch(() => undefined);
+        await this.device.close().catch(() => undefined);
         this.device = null;
     }
 

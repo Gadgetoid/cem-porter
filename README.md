@@ -19,7 +19,8 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - MS CAB: stored, MSZIP and LZX (not Quantum)
 - InstallShield 5 and 6 cabinets (`data1.cab`, with `data1.hdr` and further volumes when present)
 - Installer VISE for Windows (`setup.exe`): the files it installs, not its own runtime
-- InstallShield `setup.exe` file streams (InstallShield X era), decoded where obfuscated
+- InstallShield `setup.exe` file streams (InstallShield X era), decoded where obfuscated, and the older `setup.exe` that lists its disk files by name, path, version and size
+- NSIS installers compressed per file with Deflate (not solid, LZMA or bzip2)
 - Windows Installer `.msi` and `.mst` streams, including Windows CE CABs InstallShield stores as binary streams
 - 7z: LZMA, LZMA2, Deflate and Copy, with BCJ, BCJ2, ARM and Delta filters (not PPMd, BZip2 or encrypted archives)
 - CD images: ISO 9660 with Joliet names (`.iso`), and raw 2352-byte sector images (`.bin`, `.mdf`) in Mode 1 or Mode 2 Form 1. Opened discs stay on disk: programs, archives and files up to 1 MB are read and unpacked, anything else only when a build installs it, or it's viewed or saved
@@ -27,7 +28,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 
 ### Finds builds
 
-- CE CABs (any folder with a `.000` setup file)
+- CE CABs (any folder with a `.000` setup file, `MSCE` or `CE4+`)
 - H/PC Explorer `.load` scripts; scripts in sibling folders are merged into one build
 - `.load.full`, `.load.lite` and similar scripts are offered as separate builds
 - Files a script copies are found under per-CPU or per-variant names (`LE.exe.MIPS`, `ParaKey.dll.SH3.Full`) anywhere in the package; a `remoteExec` path sets the install folder

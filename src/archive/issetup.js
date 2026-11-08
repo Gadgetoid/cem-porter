@@ -50,3 +50,35 @@ export function readIsSetup(data, offset) {
     }
     return members;
 }
+
+const LISTED_FIELDS = 4;
+const LISTED_FIELD_LIMIT = 260;
+
+function listedField(data, offset) {
+    const end = data.indexOf(0, offset);
+    if (end < 0 || end - offset > LISTED_FIELD_LIMIT) return null;
+    for (let index = offset; index < end; index++) if (data[index] < 0x20 || data[index] > 0x7e) return null;
+    return { text: String.fromCharCode(...data.subarray(offset, end)), next: end + 1 };
+}
+
+export function readIsListed(data, offset) {
+    const members = [];
+    let position = offset;
+    while (position < data.length) {
+        const fields = [];
+        let next = position;
+        for (let index = 0; index < LISTED_FIELDS; index++) {
+            const field = listedField(data, next);
+            if (!field) return null;
+            fields.push(field.text);
+            next = field.next;
+        }
+        const [name, , , sizeText] = fields;
+        if (!name || !/^\d+$/.test(sizeText)) return null;
+        const size = Number(sizeText);
+        if (next + size > data.length) return null;
+        members.push({ name, data: data.slice(next, next + size) });
+        position = next + size;
+    }
+    return members.length ? members : null;
+}

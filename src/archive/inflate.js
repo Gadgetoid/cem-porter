@@ -63,10 +63,11 @@ function buildFixedTables() {
 let fixedTables = null;
 
 class Inflater {
-    constructor(data, start, end, maxOutput, wordAligned) {
+    constructor(data, start, end, maxOutput, wordAligned, nsisStored) {
         this.data = data;
         this.start = start;
         this.wordAligned = wordAligned;
+        this.nsisStored = nsisStored;
         this.position = start;
         this.end = end;
         this.bitBuffer = 0;
@@ -120,11 +121,14 @@ class Inflater {
         this.bitBuffer = 0;
         this.bitCount = 0;
         if (this.wordAligned && (this.position - this.start) % 2) this.position++;
-        if (this.position + 4 > this.end) throw OUT_OF_INPUT;
+        const headerSize = this.nsisStored ? 2 : 4;
+        if (this.position + headerSize > this.end) throw OUT_OF_INPUT;
         const length = this.data[this.position] | (this.data[this.position + 1] << 8);
-        const complement = this.data[this.position + 2] | (this.data[this.position + 3] << 8);
-        if (length !== (~complement & 0xffff)) throw new InflateFailure("invalid stored block lengths");
-        this.position += 4;
+        if (!this.nsisStored) {
+            const complement = this.data[this.position + 2] | (this.data[this.position + 3] << 8);
+            if (length !== (~complement & 0xffff)) throw new InflateFailure("invalid stored block lengths");
+        }
+        this.position += headerSize;
         const available = Math.min(length, this.end - this.position);
         const copied = Math.min(available, this.maxOutput - this.length);
         this.ensureCapacity(copied);
@@ -224,6 +228,6 @@ class Inflater {
     }
 }
 
-export function inflateRaw(data, { start = 0, end = data.length, maxOutput = Infinity, wordAligned = false } = {}) {
-    return new Inflater(data, start, Math.min(end, data.length), maxOutput, wordAligned).run();
+export function inflateRaw(data, { start = 0, end = data.length, maxOutput = Infinity, wordAligned = false, nsisStored = false } = {}) {
+    return new Inflater(data, start, Math.min(end, data.length), maxOutput, wordAligned, nsisStored).run();
 }

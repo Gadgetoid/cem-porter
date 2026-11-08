@@ -39,8 +39,11 @@ function dwords(data, offset, count) {
     return Array.from({ length: count }, (_, index) => u32(data, offset + 4 * index));
 }
 
+const SETUP_SIGNATURES = ["MSCE", "CE4+"];
+
 export function isSetup(data) {
-    return data.length >= 4 && data[0] === 0x4d && data[1] === 0x53 && data[2] === 0x43 && data[3] === 0x45;
+    return data.length >= 4 && SETUP_SIGNATURES.some((signature) =>
+        [...signature].every((character, index) => data[index] === character.charCodeAt(0)));
 }
 
 export function readSetup(data) {
