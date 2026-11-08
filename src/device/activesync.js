@@ -7,6 +7,9 @@ const HOST_IP = "169.254.2.2";
 const CONTROL_PORT = 990;
 const TRIGGER_PORT = 5679;
 const TRIGGER = 0x7f;
+const REUSE_WAIT_MS = 4000;
+const ADDRESS_WAIT_MS = 20000;
+const NO_NETWORK = "the device did not answer on the USB network; unplug it and plug it back in";
 
 const RAPI = {
     findAllFiles: 0x1a,
@@ -92,23 +95,18 @@ export class ActiveSyncLink {
         if (!this.device) throw new Error("no device chosen");
         await this.device.open();
         this.log("USB device opened");
-        if (this.device.configuration) {
-            this.log("device was left configured by an earlier session; resetting it");
+        const reused = Boolean(this.device.configuration);
+        await this.openNetwork();
+        if (!await this.addressAnswers(reused ? REUSE_WAIT_MS : ADDRESS_WAIT_MS)) {
+            if (!reused) throw new Error(NO_NETWORK);
+            this.log("the earlier session's network isn't answering; resetting the device");
+            this.rndis.stop();
             await this.device.reset();
             this.log("USB reset done");
             await sleep(1000);
+            await this.openNetwork();
+            if (!await this.addressAnswers(ADDRESS_WAIT_MS)) throw new Error(NO_NETWORK);
         }
-        this.rndis = new RndisLink(this.device);
-        this.rndis.onLog = (text) => this.log(text);
-        await this.rndis.open();
-        this.log("RNDIS up");
-        this.stack = new NetStack(this.rndis, { ip: HOST_IP });
-        this.stack.onLog = (text) => this.log(text);
-        this.stack.listen(CONTROL_PORT, (socket) => {
-            this.connections.push(socket);
-            if (this.connectionWaiter) this.connectionWaiter();
-        });
-        await this.waitForAddress();
         this.log("device network up; asking it to connect");
         this.control = await this.trigger();
         this.log("device connected");
@@ -119,17 +117,36 @@ export class ActiveSyncLink {
         this.log("RAPI connected");
     }
 
-    async waitForAddress(timeout = 20000) {
+    async openNetwork() {
+        this.lost = null;
+        this.connections = [];
+        this.rndis = new RndisLink(this.device);
+        this.rndis.onLog = (text) => this.log(text);
+        this.rndis.onClose = (error) => {
+            this.lost = error;
+            if (this.connectionWaiter) this.connectionWaiter();
+        };
+        await this.rndis.open();
+        this.log("RNDIS up");
+        this.stack = new NetStack(this.rndis, { ip: HOST_IP });
+        this.stack.onLog = (text) => this.log(text);
+        this.stack.listen(CONTROL_PORT, (socket) => {
+            this.connections.push(socket);
+            if (this.connectionWaiter) this.connectionWaiter();
+        });
+    }
+
+    async addressAnswers(timeout) {
         const deadline = Date.now() + timeout;
-        while (Date.now() < deadline) {
+        while (Date.now() < deadline && !this.lost) {
             try {
                 await this.stack.resolve(parseIp(DEVICE_IP));
-                return;
+                return true;
             } catch {
                 this.log("waiting for the device's network to come up");
             }
         }
-        throw new Error("the device did not answer on the USB network; unplug it and plug it back in");
+        return false;
     }
 
     nextConnection(timeout) {
@@ -139,6 +156,12 @@ export class ActiveSyncLink {
                 reject(new Error("the device did not connect"));
             }, timeout);
             const check = () => {
+                if (this.lost) {
+                    clearTimeout(timer);
+                    this.connectionWaiter = null;
+                    reject(new Error(`the USB link was lost: ${this.lost.message}`));
+                    return;
+                }
                 if (!this.connections.length) {
                     this.connectionWaiter = check;
                     return;

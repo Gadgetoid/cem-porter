@@ -105,7 +105,7 @@ const elements = Object.fromEntries([
     "browser-refresh", "browser-upload", "browser-download", "browser-delete", "browser-status",
 ].map((id) => [id, document.getElementById(id)]));
 
-const state = { link: null, target: null, device: null, file: null, packages: [] };
+const state = { link: null, target: null, device: null, file: null, packages: [], connecting: false };
 
 function setStatus(text) {
     elements.status.textContent = text;
@@ -268,6 +268,11 @@ async function connectSerial() {
 }
 
 async function start(target, attach) {
+    if (state.connecting || state.link) {
+        log(`${target.name}: already connecting`);
+        return;
+    }
+    state.connecting = true;
     let link = null;
     state.target = target;
     try {
@@ -304,6 +309,8 @@ async function start(target, attach) {
         state.device = null;
         setConnected(false);
         throw error;
+    } finally {
+        state.connecting = false;
     }
 }
 
@@ -665,7 +672,7 @@ elements.connect.addEventListener("click", connect);
 
 function connectRemembered(device) {
     const target = targetFor(device);
-    if (!target || !target.autoConnect || state.link) return;
+    if (!target || !target.autoConnect || state.link || state.connecting) return;
     log(`${target.name} found`);
     start(target, (link) => { link.device = device; }).catch((error) => {
         setStatus(error.message);
