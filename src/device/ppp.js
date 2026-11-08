@@ -2,6 +2,7 @@ const HDLC_FLAG = 0x7e;
 const HDLC_ESCAPE = 0x7d;
 const FCS_GOOD = 0xf0b8;
 const FRAME_MAX = 4096;
+const REQUEST_RETRY_MS = 2000;
 const HANDSHAKE = "CLIENT";
 const HANDSHAKE_REPLY = "CLIENTSERVER";
 
@@ -72,8 +73,10 @@ export class PppLink {
         this.transmitAccm = 0xffffffff;
         this.negotiatedAccm = 0xffffffff;
         this.nextId = 1;
-        this.lcp = { open: false, peerAcked: false, weAcked: false, requestId: 0 };
-        this.ipcp = { open: false, peerAcked: false, weAcked: false, requestId: 0 };
+        if (this.lcp) clearTimeout(this.lcp.retry);
+        if (this.ipcp) clearTimeout(this.ipcp.retry);
+        this.lcp = { open: false, peerAcked: false, weAcked: false, requestId: 0, retry: null };
+        this.ipcp = { open: false, peerAcked: false, weAcked: false, requestId: 0, retry: null };
     }
 
     get up() {
@@ -112,11 +115,20 @@ export class PppLink {
     sendLcpRequest() {
         this.lcp.requestId = this.nextId++;
         this.sendControl(PROTOCOL_LCP, CONFIGURE_REQUEST, this.lcp.requestId);
+        this.retryRequest(this.lcp, () => this.sendLcpRequest());
     }
 
     sendIpcpRequest() {
         this.ipcp.requestId = this.nextId++;
         this.sendControl(PROTOCOL_IPCP, CONFIGURE_REQUEST, this.ipcp.requestId, [IPCP_ADDRESS, 6, ...this.hostIp]);
+        this.retryRequest(this.ipcp, () => this.sendIpcpRequest());
+    }
+
+    retryRequest(state, resend) {
+        clearTimeout(state.retry);
+        state.retry = setTimeout(() => {
+            if (state.requestId && !state.peerAcked) resend();
+        }, REQUEST_RETRY_MS);
     }
 
     async send(packet) {
@@ -316,11 +328,13 @@ export class PppLink {
     }
 
     restartIpcp() {
-        this.ipcp = { open: false, peerAcked: false, weAcked: false, requestId: 0 };
+        clearTimeout(this.ipcp.retry);
+        this.ipcp = { open: false, peerAcked: false, weAcked: false, requestId: 0, retry: null };
     }
 
     restartLcp() {
-        this.lcp = { open: false, peerAcked: false, weAcked: false, requestId: 0 };
+        clearTimeout(this.lcp.retry);
+        this.lcp = { open: false, peerAcked: false, weAcked: false, requestId: 0, retry: null };
         this.transmitAccm = this.negotiatedAccm = 0xffffffff;
         this.restartIpcp();
     }

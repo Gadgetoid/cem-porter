@@ -6,6 +6,8 @@ export class WebSerial {
         this.port = port;
         this.baudRate = baudRate;
         this.reader = null;
+        this.writer = null;
+        this.writing = Promise.resolve();
         this.running = false;
         this.onData = null;
         this.onClose = null;
@@ -16,6 +18,7 @@ export class WebSerial {
         await this.port.setSignals({ dataTerminalReady: false, requestToSend: false });
         await new Promise((resolve) => setTimeout(resolve, SIGNAL_DROP_MS));
         await this.port.setSignals({ dataTerminalReady: true, requestToSend: true });
+        this.writer = this.port.writable.getWriter();
         this.running = true;
         this.readLoop();
     }
@@ -41,19 +44,21 @@ export class WebSerial {
         }
     }
 
-    async write(bytes) {
-        if (!this.running) throw new Error("link is closed");
-        const writer = this.port.writable.getWriter();
-        try {
-            await writer.write(bytes);
-        } finally {
-            writer.releaseLock();
-        }
+    write(bytes) {
+        if (!this.running) return Promise.reject(new Error("link is closed"));
+        const run = this.writing.then(() => this.writer.write(bytes));
+        this.writing = run.catch(() => undefined);
+        return run;
     }
 
     async close() {
         this.running = false;
         if (this.reader) await this.reader.cancel().catch(() => undefined);
+        if (this.writer) {
+            await this.writing;
+            this.writer.releaseLock();
+            this.writer = null;
+        }
         await this.port.setSignals({ dataTerminalReady: false, requestToSend: false }).catch(() => undefined);
         await this.port.close().catch(() => undefined);
     }

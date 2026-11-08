@@ -15,6 +15,7 @@ const RAPI_WAIT_MS = 20000;
 const RAPI_RETRY_MS = 500;
 const NUDGE_MS = 1500;
 const WRONG_BAUD_MS = 1500;
+const BAUD_KEY = "cemsync-serial-baud";
 const BAUD_SEARCH_MS = 90000;
 const HANDSHAKE = "CLIENT";
 
@@ -69,6 +70,23 @@ function optionalOut(writer, size) {
     return writer.u32(1).u32(size).u32(0);
 }
 
+function rememberedBaud() {
+    try {
+        const value = Number(localStorage.getItem(BAUD_KEY));
+        return BAUD_RATES.includes(value) ? value : null;
+    } catch {
+        return null;
+    }
+}
+
+function rememberBaud(baudRate) {
+    try {
+        localStorage.setItem(BAUD_KEY, String(baudRate));
+    } catch {
+        return;
+    }
+}
+
 export function parseDesktopInfo(bytes) {
     const view = new Reader(bytes).view;
     const string = (at) => {
@@ -116,8 +134,10 @@ export class PcLinkLink {
 
     async openSerial() {
         const deadline = Date.now() + BAUD_SEARCH_MS;
+        const remembered = rememberedBaud();
+        const rates = remembered ? [remembered, ...BAUD_RATES.filter((rate) => rate !== remembered)] : BAUD_RATES;
         for (let attempt = 0; Date.now() < deadline; attempt++) {
-            const baudRate = BAUD_RATES[attempt % BAUD_RATES.length];
+            const baudRate = rates[attempt % rates.length];
             const transport = new WebSerial(this.port, baudRate);
             const pending = [];
             let text = "";
@@ -132,6 +152,7 @@ export class PcLinkLink {
             for (;;) {
                 if (text.includes(HANDSHAKE)) {
                     this.baudRate = baudRate;
+                    rememberBaud(baudRate);
                     this.log(`PC Link heard at ${baudRate} baud`);
                     return { transport, pending };
                 }
