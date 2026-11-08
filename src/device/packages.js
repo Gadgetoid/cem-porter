@@ -66,6 +66,7 @@ function describeCab(bytes) {
 export const PACKAGE_KINDS = {
     cbea: {
         label: ".cbea",
+        extension: ".cbea",
         method: /cbea/i,
         detect: looksLikeCbea,
         describe: describeCbea,
@@ -76,6 +77,7 @@ export const PACKAGE_KINDS = {
     },
     cab: {
         label: "CE .cab",
+        extension: ".cab",
         method: /^cab$/i,
         detect: looksLikeCeCab,
         describe: describeCab,
@@ -106,7 +108,10 @@ export function recognise(kinds, name, bytes) {
     for (const kind of kinds) {
         const handler = PACKAGE_KINDS[kind];
         if (!handler.detect(bytes)) continue;
-        return { name, bytes, kind, ...handler.describe(bytes) };
+        const described = handler.describe(bytes);
+        const named = name.toLowerCase().endsWith(handler.extension) || !described.program;
+        const fileName = named ? name : `${described.program}${handler.extension}`;
+        return { name: fileName, bytes, kind, ...described };
     }
     return null;
 }

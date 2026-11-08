@@ -6,7 +6,9 @@ import { inflateRaw } from "./inflate.js";
 import { extractIs3, isIs3, IS3_SIGNATURE } from "./is3.js";
 import { isIso, isRawCd, readIso, readIsoFile } from "./iso.js";
 import { extractIs5, isIs5 } from "./is5.js";
+import { readIsSetup } from "./issetup.js";
 import { isLzh, scanLzh } from "./lzh.js";
+import { isCompoundFile, readCompoundStreams } from "./msi.js";
 import { isPe, readSections, u16, u32 } from "../pe/pe.js";
 import { extractSevenZip, isSevenZip } from "./sevenzip.js";
 import { isVise, readVise } from "./vise.js";
@@ -378,6 +380,22 @@ function peMachine(data) {
     return u16(data, u32(data, 0x3c) + 4);
 }
 
+function tryReadIsSetup(data) {
+    try {
+        return readIsSetup(data, overlayStart(data));
+    } catch {
+        return null;
+    }
+}
+
+function tryReadCompoundStreams(data) {
+    try {
+        return readCompoundStreams(data);
+    } catch {
+        return null;
+    }
+}
+
 function tryReadVise(data) {
     try {
         return readVise(data);
@@ -439,6 +457,14 @@ export function membersOf(name, data, siblings = []) {
     if ((lower.endsWith("_") || lower.endsWith("$")) && !isPe(data)) {
         const expanded = tryBlast(data);
         if (expanded) return { members: [{ name: baseName(name.slice(0, -1) + "?"), data: expanded }], method: "PKWARE DCL" };
+    }
+    if (isCompoundFile(data) && (lower.endsWith(".msi") || lower.endsWith(".mst"))) {
+        const members = tryReadCompoundStreams(data);
+        if (members) return { members, method: "MSI" };
+    }
+    if (isPe(data)) {
+        const members = tryReadIsSetup(data);
+        if (members) return { members, method: "InstallShield setup" };
     }
     if (isVise(data)) {
         const members = tryReadVise(data);
