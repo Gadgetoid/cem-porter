@@ -14,7 +14,7 @@ const INFO_MAX = 512;
 const RAPI_WAIT_MS = 20000;
 const RAPI_RETRY_MS = 500;
 const NUDGE_MS = 1500;
-const BAUD_LISTEN_MS = 3000;
+const WRONG_BAUD_MS = 1500;
 const BAUD_SEARCH_MS = 90000;
 const HANDSHAKE = "CLIENT";
 
@@ -121,21 +121,27 @@ export class PcLinkLink {
             const transport = new WebSerial(this.port, baudRate);
             const pending = [];
             let text = "";
+            let firstByteAt = 0;
             transport.onData = (bytes) => {
+                if (!firstByteAt) firstByteAt = Date.now();
                 pending.push(bytes);
                 text = (text + String.fromCharCode(...bytes)).slice(-64);
             };
             await transport.open();
-            const listenUntil = Date.now() + BAUD_LISTEN_MS;
-            while (Date.now() < listenUntil && !text.includes(HANDSHAKE)) await new Promise((resolve) => setTimeout(resolve, 50));
-            if (text.includes(HANDSHAKE)) {
-                this.baudRate = baudRate;
-                this.log(`PC Link heard at ${baudRate} baud`);
-                return { transport, pending };
+            this.log(`listening at ${baudRate} baud`);
+            for (;;) {
+                if (text.includes(HANDSHAKE)) {
+                    this.baudRate = baudRate;
+                    this.log(`PC Link heard at ${baudRate} baud`);
+                    return { transport, pending };
+                }
+                const now = Date.now();
+                if (now >= deadline || (firstByteAt && now - firstByteAt > WRONG_BAUD_MS)) break;
+                await new Promise((resolve) => setTimeout(resolve, 50));
             }
             await transport.close();
         }
-        throw new Error("no PC Link from the serial port; start PC Link on the device and try again");
+        throw new Error("no PC Link from the serial port; check the cable and the device's connection settings");
     }
 
     async connect() {
