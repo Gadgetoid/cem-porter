@@ -95,7 +95,7 @@ function targetFor(device) {
 }
 
 const elements = Object.fromEntries([
-    "connect", "connect-serial", "disconnect", "status", "size",
+    "connect", "connect-serial", "serial-baud", "disconnect", "status", "size",
     "drop", "drop-title", "drop-hint", "file-input",
     "info", "members", "install", "progress", "log", "log-panel",
     "connect-panel", "device-panel", "package-panel", "device-legend", "supported",
@@ -260,7 +260,11 @@ async function connectSerial() {
         setStatus("Choose the serial port...");
         const port = await navigator.serial.requestPort();
         setStatus("Start PC Link on the device...");
-        await start(TARGETS.find((entry) => entry.serial), (link) => { link.port = port; });
+        const fixedBaud = Number(elements["serial-baud"].value) || null;
+        await start(TARGETS.find((entry) => entry.serial), (link) => {
+            link.port = port;
+            link.fixedBaud = fixedBaud;
+        });
     } catch (error) {
         setStatus(error.message);
         log(`error: ${error.message}`);
@@ -687,6 +691,7 @@ if (navigator.usb) {
 }
 elements["connect-serial"].addEventListener("click", connectSerial);
 elements["connect-serial"].hidden = !navigator.serial;
+elements["serial-baud"].hidden = !navigator.serial;
 elements.disconnect.addEventListener("click", disconnect);
 
 

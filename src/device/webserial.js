@@ -1,4 +1,4 @@
-export const BAUD_RATES = [115200, 57600, 38400, 19200];
+export const BAUD_RATES = [115200, 57600, 38400, 19200, 9600];
 const SIGNAL_DROP_MS = 250;
 
 export class WebSerial {

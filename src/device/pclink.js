@@ -109,6 +109,7 @@ export class PcLinkLink {
         this.device = null;
         this.port = null;
         this.baudRate = null;
+        this.fixedBaud = null;
         this.filters = PC_LINK_TARGETS;
         this.transport = null;
         this.ppp = null;
@@ -136,7 +137,8 @@ export class PcLinkLink {
     async openSerial() {
         const deadline = Date.now() + BAUD_SEARCH_MS;
         const remembered = rememberedBaud();
-        const rates = remembered ? [remembered, ...BAUD_RATES.filter((rate) => rate !== remembered)] : BAUD_RATES;
+        const rates = this.fixedBaud ? [this.fixedBaud]
+            : remembered ? [remembered, ...BAUD_RATES.filter((rate) => rate !== remembered)] : BAUD_RATES;
         for (let attempt = 0; Date.now() < deadline; attempt++) {
             const baudRate = rates[attempt % rates.length];
             const transport = new WebSerial(this.port, baudRate);
