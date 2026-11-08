@@ -279,6 +279,7 @@ async function start(target, attach) {
         log(`${state.target.name} chosen`);
         link = state.target.createLink();
         link.onLog = log;
+        link.trace = new URLSearchParams(location.search).has("trace");
         attach(link);
         if (!state.target.serial) setStatus("Connecting...");
         await link.connect();

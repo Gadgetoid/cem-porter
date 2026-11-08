@@ -121,6 +121,7 @@ export class PcLinkLink {
         this.queue = Promise.resolve();
         this.onLog = null;
         this.chunkSize = CHUNK;
+        this.trace = false;
     }
 
     log(text) {
@@ -178,6 +179,7 @@ export class PcLinkLink {
         this.ppp.onLog = (text) => this.log(text);
         this.stack = new NetStack(this.ppp, { ip: HOST_IP });
         this.stack.onLog = (text) => this.log(text);
+        this.stack.trace = this.trace;
         const desktop = new Promise((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error("the device did not connect; start PC Link on it and try again")), 60000);
             this.desktopWaiter = (socket) => {
@@ -236,6 +238,7 @@ export class PcLinkLink {
     async readDesktopInfo(socket) {
         for (;;) {
             const header = new Reader(await socket.read(4, 30000)).u32();
+            if (this.trace) this.log(`desktop header 0x${header.toString(16)}`);
             if (header === 0 || header === PING) continue;
             if (header >= INFO_MAX) throw new Error("the device is password protected; remove the password to connect");
             return parseDesktopInfo(await socket.read(header, 30000));

@@ -253,6 +253,7 @@ export class NetStack {
         this.ipId = 1;
         this.nextPort = 49152 + Math.floor(Math.random() * 1000);
         this.onLog = null;
+        this.trace = false;
         if (link.pointToPoint) link.onPacket = (packet) => this.receiveIp(packet, null);
         else link.onFrame = (frame) => this.receiveFrame(frame);
     }
@@ -521,7 +522,15 @@ export class NetStack {
         });
     }
 
+    traceSegment(direction, localPort, remotePort, flags, sequence, ack, length) {
+        if (!this.trace) return;
+        const names = [[TCP_SYN, "SYN"], [TCP_ACK, "ACK"], [TCP_FIN, "FIN"], [TCP_RST, "RST"], [TCP_PSH, "PSH"]]
+            .filter(([bit]) => flags & bit).map(([, name]) => name).join(",");
+        this.log(`tcp ${direction} ${localPort}${direction === "out" ? ">" : "<"}${remotePort} ${names} seq ${sequence >>> 0} ack ${ack >>> 0} len ${length}`);
+    }
+
     sendTcp(socket, flags, sequence, payload) {
+        this.traceSegment("out", socket.localPort, socket.remotePort, flags, sequence, flags & TCP_ACK ? socket.receiveNext : 0, payload.length);
         const options = flags & TCP_SYN ? [2, 4, MSS >>> 8, MSS & 0xff] : [];
         const headerLength = 20 + options.length;
         const segment = new Uint8Array(headerLength + payload.length);
@@ -557,6 +566,7 @@ export class NetStack {
         const flags = segment[13];
         const window = view.getUint16(14);
         const payload = segment.slice(headerLength);
+        this.traceSegment("in", destinationPort, sourcePort, flags, sequence, ack, payload.length);
         const key = `${destinationPort}:${ipToString(source)}:${sourcePort}`;
         let socket = this.sockets.get(key);
 
