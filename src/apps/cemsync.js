@@ -1,7 +1,7 @@
 import { BeLink, isSupported, NAND_BASE, NAND_TOTAL, SECTOR } from "../device/belink.js";
 import { ActiveSyncLink } from "../device/activesync.js";
 import { RNDIS_TARGETS } from "../device/rndis.js";
-import { PACKAGE_KINDS, compatibility, recognise } from "../device/packages.js";
+import { PACKAGE_KINDS, compatibility, findPackages, recognise } from "../device/packages.js";
 import { unpackFiles, fileData } from "../archive/unpack.js";
 import { saveBytes, setupDesktop } from "../ui/desktop.js";
 
@@ -284,18 +284,20 @@ async function loadFiles(files) {
     await settle();
 
     try {
+        const results = await unpackFiles(list);
+        const methods = state.target.packages.map((kind) => PACKAGE_KINDS[kind].method);
         for (const [index, file] of list.entries()) {
             setStatus(`Opening ${file.name} (${index + 1} of ${list.length})...`);
             setProgress(5 + (index / list.length) * 80);
             await settle();
-            const [result] = await unpackFiles([file]);
             const direct = new Uint8Array(await file.arrayBuffer());
             if (addPackage(file.name, direct)) continue;
-            const methods = state.target.packages.map((kind) => PACKAGE_KINDS[kind].method);
-            for (const entry of result.log || []) {
-                if (!methods.some((method) => method.test(entry.method || ""))) continue;
+            for (const entry of results[index].log || []) {
+                const method = entry.method || "";
+                if (!methods.some((pattern) => pattern.test(method))) continue;
                 const data = await fileData(entry);
-                if (data) addPackage(entry.name || entry.container, data);
+                if (!data) continue;
+                state.packages.push(...findPackages(state.target.packages, entry.name || entry.container, method, data));
             }
         }
     } catch (error) {

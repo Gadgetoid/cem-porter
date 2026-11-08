@@ -1,5 +1,5 @@
 import { looksLikeCbea, readCbea } from "../archive/cbea.js";
-import { listCabinet, readCabinet } from "../archive/cabread.js";
+import { findCabinets, listCabinet, readCabinet } from "../archive/cabread.js";
 import { isSetup, readSetup } from "../port/cesetup.js";
 import { planInstall } from "./cbeainstall.js";
 
@@ -7,6 +7,7 @@ export const ARCHITECTURE_ANY = 0;
 
 const ARCHITECTURES = {
     0: "any CPU",
+    1824: "ARM720",
     2577: "StrongARM",
     4000: "MIPS",
     10003: "SH3",
@@ -68,6 +69,7 @@ export const PACKAGE_KINDS = {
         label: ".cbea",
         extension: ".cbea",
         method: /cbea/i,
+        candidates: (method, bytes) => [bytes],
         detect: looksLikeCbea,
         describe: describeCbea,
         install: async (link, entry, onProgress) => {
@@ -78,7 +80,8 @@ export const PACKAGE_KINDS = {
     cab: {
         label: "CE .cab",
         extension: ".cab",
-        method: /^cab$/i,
+        method: /^cab$|^embedded cab at /i,
+        candidates: (method, bytes) => /^cab$/i.test(method) ? [bytes] : findCabinets(bytes).map((cabinet) => cabinet.data),
         detect: looksLikeCeCab,
         describe: describeCab,
         install: async (link, entry, onProgress) => {
@@ -109,9 +112,31 @@ export function recognise(kinds, name, bytes) {
         const handler = PACKAGE_KINDS[kind];
         if (!handler.detect(bytes)) continue;
         const described = handler.describe(bytes);
-        const named = name.toLowerCase().endsWith(handler.extension) || !described.program;
-        const fileName = named ? name : `${described.program}${handler.extension}`;
+        const baseName = name.split(/[\\/]/).pop();
+        const named = baseName.toLowerCase().endsWith(handler.extension) || !described.program;
+        const fileName = named ? baseName : `${described.program}${handler.extension}`;
         return { name: fileName, bytes, kind, ...described };
     }
     return null;
+}
+
+function tryRecognise(kind, name, bytes) {
+    try {
+        return recognise([kind], name, bytes);
+    } catch {
+        return null;
+    }
+}
+
+export function findPackages(kinds, name, method, bytes) {
+    const found = [];
+    for (const kind of kinds) {
+        const handler = PACKAGE_KINDS[kind];
+        if (!handler.method.test(method)) continue;
+        for (const candidate of handler.candidates(method, bytes)) {
+            const entry = tryRecognise(kind, name, candidate);
+            if (entry) found.push(entry);
+        }
+    }
+    return found;
 }
