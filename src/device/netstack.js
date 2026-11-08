@@ -208,6 +208,20 @@ export class TcpSocket {
         this.flush();
     }
 
+    closed(timeout = 2000) {
+        this.close();
+        if (this.state === "closed") return Promise.resolve();
+        return new Promise((resolve) => {
+            const timer = setTimeout(resolve, timeout);
+            const previous = this.onClose;
+            this.onClose = (error) => {
+                clearTimeout(timer);
+                if (previous) previous(error);
+                resolve();
+            };
+        });
+    }
+
     abort(error) {
         if (this.state === "closed") return;
         if (!error) this.segment(TCP_RST | TCP_ACK);

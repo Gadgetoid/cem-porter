@@ -8,6 +8,7 @@ import { saveBytes, setupDesktop } from "../ui/desktop.js";
 
 function describePcLink(info) {
     return [
+        ["Model", info.model || "unknown"],
         ["Platform", info.platform],
         ["OS", info.os],
         ["Processor", info.processor],
@@ -111,10 +112,12 @@ function setStatus(text) {
 }
 
 function log(text) {
+    const panel = elements.log;
+    const following = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 8;
     const line = document.createElement("div");
-    line.textContent = text;
-    elements.log.appendChild(line);
-    elements.log.scrollTop = elements.log.scrollHeight;
+    line.textContent = `${(performance.now() / 1000).toFixed(2)} ${text}`;
+    panel.appendChild(line);
+    if (following) panel.scrollTop = panel.scrollHeight;
 }
 
 function formatSize(bytes) {
@@ -662,7 +665,15 @@ elements.connect.addEventListener("click", connect);
 if (navigator.usb) {
     navigator.usb.addEventListener("connect", (event) => {
         const target = targetFor(event.device);
-        if (state.link || !target || !target.autoConnect) return;
+        const id = `${event.device.vendorId.toString(16).padStart(4, "0")}:${event.device.productId.toString(16).padStart(4, "0")}`;
+        if (!target || !target.autoConnect) {
+            log(`USB device ${id} appeared; not one CEMSync connects to by itself`);
+            return;
+        }
+        if (state.link) {
+            log(`${target.name} appeared, but a device is already connected`);
+            return;
+        }
         log(`${target.name} appeared`);
         start(target, (link) => { link.device = event.device; }).catch((error) => {
             setStatus(error.message);

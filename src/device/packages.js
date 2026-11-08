@@ -11,7 +11,6 @@ const CPU_FAMILIES = [
 ];
 
 const PLATFORM_NAMES = {
-    Handheld_PC: [],
     PocketPC: ["PocketPC"],
 };
 

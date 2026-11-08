@@ -55,6 +55,7 @@ export class PppLink {
         this.onLog = null;
         this.onUp = null;
         this.onDown = null;
+        this.terminated = null;
         this.reset();
         transport.onData = (bytes) => this.receive(bytes);
     }
@@ -64,7 +65,6 @@ export class PppLink {
     }
 
     reset() {
-        this.handshaken = false;
         this.handshakeText = "";
         this.frame = [];
         this.inFrame = false;
@@ -126,11 +126,11 @@ export class PppLink {
 
     receive(bytes) {
         for (let byte of bytes) {
-            if (!this.handshaken) {
-                if (byte === HDLC_FLAG) {
-                    this.handshaken = true;
-                } else {
-                    this.handshakeByte(byte);
+            if (!this.lcp.open) {
+                this.handshakeText = (this.handshakeText + String.fromCharCode(byte)).slice(-HANDSHAKE.length);
+                if (this.handshakeText === HANDSHAKE) {
+                    this.reset();
+                    this.answerHandshake();
                     continue;
                 }
             }
@@ -143,10 +143,7 @@ export class PppLink {
                 if (complete) this.receiveFrame(Uint8Array.from(frame));
                 continue;
             }
-            if (!this.inFrame) {
-                if (!this.lcp.open) this.handshakeByte(byte);
-                continue;
-            }
+            if (!this.inFrame) continue;
             if (byte === HDLC_ESCAPE) {
                 this.escaped = true;
                 continue;
@@ -156,23 +153,17 @@ export class PppLink {
                 this.escaped = false;
             }
             if (this.frame.length < FRAME_MAX) this.frame.push(byte);
-            if (this.frame.length === HANDSHAKE.length && String.fromCharCode(...this.frame) === HANDSHAKE) {
-                this.reset();
-                this.answerHandshake();
-            }
         }
-    }
-
-    handshakeByte(byte) {
-        this.handshakeText = (this.handshakeText + String.fromCharCode(byte)).slice(-32);
-        if (this.handshakeText.includes(HANDSHAKE)) this.answerHandshake();
     }
 
     answerHandshake() {
         this.handshakeText = "";
-        this.handshaken = true;
         this.log("PC Link handshake");
-        this.write(Uint8Array.from(HANDSHAKE_REPLY, (character) => character.charCodeAt(0)));
+        this.nudge();
+    }
+
+    nudge() {
+        return this.write(Uint8Array.from(HANDSHAKE_REPLY, (character) => character.charCodeAt(0)));
     }
 
     receiveFrame(frame) {
@@ -226,6 +217,8 @@ export class PppLink {
                 if (isLcp) this.maybeOpenLcp();
                 else this.maybeOpenIpcp();
             }
+        } else if (code === TERMINATE_ACK && isLcp) {
+            if (this.terminated) this.terminated();
         } else if (code === CONFIGURE_NAK || code === CONFIGURE_REJECT) {
             if (isLcp) this.sendLcpRequest();
             else this.sendIpcpRequest();
@@ -290,6 +283,22 @@ export class PppLink {
             this.ipcp.weAcked = true;
             this.maybeOpenIpcp();
         }
+    }
+
+    terminate(timeout = 1000) {
+        if (!this.lcp.open) return Promise.resolve();
+        return new Promise((resolve) => {
+            const timer = setTimeout(done, timeout);
+            const self = this;
+            function done() {
+                clearTimeout(timer);
+                self.terminated = null;
+                self.reset();
+                resolve();
+            }
+            this.terminated = done;
+            this.sendControl(PROTOCOL_LCP, TERMINATE_REQUEST, this.nextId++);
+        });
     }
 
     maybeOpenLcp() {

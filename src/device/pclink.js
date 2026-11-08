@@ -11,6 +11,9 @@ const RAPI_PORT = 990;
 const PING = 0x12345678;
 const PING_MS = 1000;
 const INFO_MAX = 512;
+const RAPI_WAIT_MS = 20000;
+const RAPI_RETRY_MS = 500;
+const NUDGE_MS = 1500;
 const BAUD_LISTEN_MS = 3000;
 const BAUD_SEARCH_MS = 90000;
 const HANDSHAKE = "CLIENT";
@@ -67,11 +70,20 @@ function optionalOut(writer, size) {
 }
 
 export function parseDesktopInfo(bytes) {
-    const reader = new Reader(bytes);
-    const osMajor = bytes.length >= 6 ? bytes[4] | (bytes[5] << 8) : 0;
-    const nameOffset = bytes.length >= 0x1c ? reader.view.getUint32(0x18, true) : 0;
-    const name = nameOffset && nameOffset < bytes.length ? decodeUtf16(bytes.subarray(nameOffset)) : "";
-    return { osMajor, name };
+    const view = new Reader(bytes).view;
+    const string = (at) => {
+        if (at + 4 > bytes.length) return "";
+        const offset = view.getUint32(at, true);
+        return offset && offset < bytes.length ? decodeUtf16(bytes.subarray(offset)) : "";
+    };
+    const osMajor = bytes.length >= 6 ? view.getUint16(4, true) : 0;
+    const oem = string(0x20).split(",").map((part) => part.trim());
+    return {
+        osMajor,
+        name: string(0x18),
+        platform: string(0x1c),
+        model: oem.slice(0, 2).filter(Boolean).join(" "),
+    };
 }
 
 export class PcLinkLink {
@@ -155,18 +167,43 @@ export class PcLinkLink {
             for (const bytes of pending) this.ppp.receive(bytes);
         } else {
             await this.transport.open();
-            this.log("waiting for PC Link");
+            this.log("USB serial open; waiting for PC Link");
         }
-        this.desktop = await desktop;
+        const nudge = setInterval(() => {
+            if (this.ppp.lcp.open) {
+                clearInterval(nudge);
+                return;
+            }
+            this.log("no CLIENT yet; answering anyway");
+            this.ppp.nudge();
+        }, NUDGE_MS);
+        try {
+            this.desktop = await desktop;
+        } finally {
+            clearInterval(nudge);
+        }
         this.info = await this.readDesktopInfo(this.desktop);
         this.desktop.onData = () => undefined;
         this.ping = setInterval(() => {
             if (this.desktop && this.desktop.state === "established") this.desktop.write(words(PING));
         }, PING_MS);
         this.desktop.write(words(PING));
-        this.log(`${this.info.name || "device"} connected, Windows CE ${this.info.osMajor}.x`);
-        this.rapi = await this.stack.connect(DEVICE_IP, RAPI_PORT, 15000);
+        this.log(`${this.info.model || this.info.name || "device"} (${this.info.platform}) connected, Windows CE ${this.info.osMajor}.x`);
+        this.rapi = await this.connectRapi();
         this.log("RAPI connected");
+    }
+
+    async connectRapi() {
+        const deadline = Date.now() + RAPI_WAIT_MS;
+        for (let attempt = 1; ; attempt++) {
+            try {
+                return await this.stack.connect(DEVICE_IP, RAPI_PORT, 5000);
+            } catch (error) {
+                if (Date.now() >= deadline) throw new Error(`the device's RAPI server did not start: ${error.message}`);
+                if (attempt === 1) this.log("waiting for the device's RAPI server");
+                await new Promise((resolve) => setTimeout(resolve, RAPI_RETRY_MS));
+            }
+        }
     }
 
     async readDesktopInfo(socket) {
@@ -181,13 +218,11 @@ export class PcLinkLink {
     async close() {
         if (this.ping) clearInterval(this.ping);
         this.ping = null;
-        for (const socket of [this.rapi, this.desktop]) {
-            if (socket) socket.close();
-        }
+        await Promise.all([this.rapi, this.desktop].filter(Boolean).map((socket) => socket.closed()));
         this.rapi = null;
         this.desktop = null;
+        if (this.ppp) await this.ppp.terminate();
         if (this.transport) {
-            await new Promise((resolve) => setTimeout(resolve, 200));
             await this.transport.close();
         } else if (this.device) {
             await this.device.close().catch(() => undefined);
@@ -237,7 +272,8 @@ export class PcLinkLink {
         }
         return {
             name: this.info.name,
-            platform: this.info.name,
+            model: this.info.model,
+            platform: this.info.platform || this.info.name,
             os: `Windows CE ${os.major}.${os.minor} build ${os.build}`,
             osMajor: os.major,
             osMinor: os.minor,

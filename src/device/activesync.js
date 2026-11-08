@@ -91,14 +91,17 @@ export class ActiveSyncLink {
     async connect() {
         if (!this.device) throw new Error("no device chosen");
         await this.device.open();
+        this.log("USB device opened");
         if (this.device.configuration) {
             this.log("device was left configured by an earlier session; resetting it");
             await this.device.reset();
+            this.log("USB reset done");
             await sleep(1000);
         }
         this.rndis = new RndisLink(this.device);
         this.rndis.onLog = (text) => this.log(text);
         await this.rndis.open();
+        this.log("RNDIS up");
         this.stack = new NetStack(this.rndis, { ip: HOST_IP });
         this.stack.onLog = (text) => this.log(text);
         this.stack.listen(CONTROL_PORT, (socket) => {
@@ -106,7 +109,9 @@ export class ActiveSyncLink {
             if (this.connectionWaiter) this.connectionWaiter();
         });
         await this.waitForAddress();
+        this.log("device network up; asking it to connect");
         this.control = await this.trigger();
+        this.log("device connected");
         this.info = await this.handshake(this.control);
         this.log(`${this.info.name} (${this.info.model}) Windows CE ${this.info.osMajor}.${this.info.osMinor}`);
         if (this.info.passwordKey) throw new Error("the device is password protected; unlock it and remove the password to connect");
