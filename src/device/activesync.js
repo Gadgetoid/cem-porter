@@ -415,6 +415,18 @@ export class ActiveSyncLink {
         return { ret: reply.u32(), err: reply.lastError };
     }
 
+    async installCab(name, bytes, { onProgress = null } = {}) {
+        const base = name.split(/[\\/]/).pop().replace(/[^\w.-]+/g, "_").replace(/\.cab$/i, "") || "install";
+        const target = `\\Temp\\${base}.cab`;
+        await this.createDirectory("\\Temp");
+        this.log(`staging ${target}`);
+        await this.sendFile(target, bytes, onProgress);
+        this.log(`running wceload.exe "${target}"`);
+        const reply = await this.execute("wceload.exe", `"${target}"`);
+        if (!reply.ret) throw new Error(`could not start wceload.exe (err ${reply.err})`);
+        return reply;
+    }
+
     async execute(application, commandLine = "") {
         const reply = await this.call(RAPI.createProcess, (writer) => writer
             .string(application).string(commandLine)

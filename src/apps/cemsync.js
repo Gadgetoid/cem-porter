@@ -1,8 +1,7 @@
 import { BeLink, isSupported, NAND_BASE, NAND_TOTAL, SECTOR } from "../device/belink.js";
 import { ActiveSyncLink } from "../device/activesync.js";
 import { RNDIS_TARGETS } from "../device/rndis.js";
-import { looksLikeCbea, readCbea, cbeaPlatform } from "../archive/cbea.js";
-import { planInstall } from "../device/cbeainstall.js";
+import { PACKAGE_KINDS, compatibility, recognise } from "../device/packages.js";
 import { unpackFiles, fileData } from "../archive/unpack.js";
 import { saveBytes, setupDesktop } from "../ui/desktop.js";
 
@@ -20,6 +19,7 @@ const TARGETS = [
             ["User disk", info.userDisk || "unknown"],
         ],
         installRoot: "\\Nand Disk",
+        packages: ["cbea"],
         nand: { base: NAND_BASE, total: NAND_TOTAL },
         can: { install: true, send: true, backup: true, reset: true },
     },
@@ -37,7 +37,9 @@ const TARGETS = [
             ["Processor", info.processor],
         ],
         installRoot: "\\My Documents",
-        can: { install: false, send: true, backup: false, reset: false },
+        packages: ["cab"],
+        architectures: [2577],
+        can: { install: true, send: true, backup: false, reset: false },
     },
 ];
 
@@ -96,8 +98,19 @@ function setConnected(connected) {
     elements["tool-reset"].disabled = !connected || !can.reset;
     elements["tool-files"].disabled = !connected || !can.send;
     elements["package-panel"].hidden = connected && !can.install;
-    elements.install.disabled = !connected || !can.install || !state.file;
+    elements.install.disabled = !connected || !can.install || !state.file
+        || !!compatibility(state.target, state.file);
     elements["device-legend"].textContent = state.target ? state.target.name : "Device";
+}
+
+function packageLabels() {
+    return state.target.packages.map((kind) => PACKAGE_KINDS[kind].label).join(" or ");
+}
+
+function promptForPackage() {
+    const labels = packageLabels();
+    elements["drop-title"].textContent = `Drop an installer, archive or ${labels} here`;
+    elements["drop-hint"].textContent = `.exe, .zip, .cab, .iso or ${labels}, with any extra volumes. Or tap to open.`;
 }
 
 function renderSupported() {
@@ -153,9 +166,8 @@ function renderPackages() {
         const row = document.createElement("tr");
         const cell = document.createElement("td");
         cell.className = "empty";
-        cell.colSpan = 2;
         cell.colSpan = 4;
-        cell.textContent = "Drop an installer, archive, CD image or .cbea.";
+        cell.textContent = `Drop an installer, archive, CD image or ${state.target ? packageLabels() : "package"}.`;
         row.appendChild(cell);
         elements.members.appendChild(row);
         return;
@@ -166,9 +178,9 @@ function renderPackages() {
         const name = document.createElement("td");
         name.textContent = entry.name;
         const program = document.createElement("td");
-        program.textContent = entry.info.Program || "";
+        program.textContent = entry.program;
         const version = document.createElement("td");
-        version.textContent = entry.info.Version || "";
+        version.textContent = entry.version;
         const size = document.createElement("td");
         size.textContent = formatSize(entry.bytes.length);
         row.append(name, program, version, size);
@@ -204,6 +216,8 @@ async function connect() {
         setStatus("Connecting...");
         await link.connect();
         state.link = link;
+        promptForPackage();
+        renderPackages();
         setConnected(true);
         setStatus("Connected");
         const info = await link.deviceInfo();
@@ -241,16 +255,15 @@ async function disconnect() {
     setStatus("Disconnected");
 }
 
-async function addPackage(name, bytes) {
-    let info = {};
-    let plan = null;
+function addPackage(name, bytes) {
     try {
-        plan = planInstall(readCbea(bytes));
-        info = plan.info;
-    } catch {
-        // a .cbea we cannot plan is still installable by the device
+        const entry = recognise(state.target.packages, name, bytes);
+        if (entry) state.packages.push(entry);
+        return !!entry;
+    } catch (error) {
+        log(`${name}: ${error.message}`);
+        return false;
     }
-    state.packages.push({ name, bytes, info, plan });
 }
 
 async function loadFiles(files) {
@@ -277,15 +290,12 @@ async function loadFiles(files) {
             await settle();
             const [result] = await unpackFiles([file]);
             const direct = new Uint8Array(await file.arrayBuffer());
-            if (looksLikeCbea(direct)) {
-                await addPackage(file.name, direct);
-                continue;
-            }
+            if (addPackage(file.name, direct)) continue;
+            const methods = state.target.packages.map((kind) => PACKAGE_KINDS[kind].method);
             for (const entry of result.log || []) {
-                if (!/cbea/i.test(entry.method || "")) continue;
+                if (!methods.some((method) => method.test(entry.method || ""))) continue;
                 const data = await fileData(entry);
-                if (!data || !looksLikeCbea(data)) continue;
-                await addPackage(entry.name || entry.container, data);
+                if (data) addPackage(entry.name || entry.container, data);
             }
         }
     } catch (error) {
@@ -296,15 +306,16 @@ async function loadFiles(files) {
     setProgress(100);
     elements["drop-title"].textContent = label;
     if (!state.packages.length) {
-        elements["drop-hint"].textContent = "No .cbea packages inside";
-        log(`no .cbea packages found in ${label}`);
+        elements["drop-hint"].textContent = `No ${packageLabels()} packages inside`;
+        log(`no ${packageLabels()} packages found in ${label}`);
         setStatus("No packages found");
     } else {
         elements["drop-hint"].textContent =
             `${state.packages.length} package${state.packages.length === 1 ? "" : "s"} found`;
         log(`found ${state.packages.length} package(s) in ${label}`);
         setStatus(`${state.packages.length} package(s) found`);
-        select(0);
+        const usable = state.packages.findIndex((entry) => !compatibility(state.target, entry));
+        select(Math.max(0, usable));
     }
     renderPackages();
     setConnected(!!state.link);
@@ -314,15 +325,17 @@ function select(index) {
     state.file = state.packages[index] || null;
     if (!state.file) return;
     elements.size.textContent = formatSize(state.file.bytes.length);
-    const plan = state.file.plan;
-    if (plan) {
-        const bits = [`${plan.copies.length} file${plan.copies.length === 1 ? "" : "s"}`];
-        if (plan.dirs.length) bits.push(`${plan.dirs.length} folders`);
-        if (plan.registry.length) bits.push(`${plan.registry.length} registry entries`);
-        log(`${state.file.name}: ${plan.info.Program || "?"} ${plan.info.Version || ""} - ${bits.join(", ")} into ${plan.installDir}`);
-        if (plan.missing.length) log(`  warning: ${plan.missing.length} member(s) named by the INF are not in the package`);
+    const entry = state.file;
+    if (entry.summary) {
+        log(`${entry.name}: ${entry.program || "?"} ${entry.version} - ${entry.summary}`);
     } else {
-        log(`${state.file.name}: selected`);
+        log(`${entry.name}: selected`);
+    }
+    for (const warning of entry.warnings) log(`  warning: ${warning}`);
+    const problem = compatibility(state.target, entry);
+    if (problem) {
+        log(`  cannot install: ${problem}`);
+        setStatus(`Cannot install ${entry.name}: ${problem}`);
     }
     renderPackages();
     setConnected(!!state.link);
@@ -368,20 +381,18 @@ async function install() {
         elements.install.disabled = true;
         setStatus("Staging package...");
         setProgress(0);
-        const reply = await state.link.installPackage(state.file.bytes, {
-            onProgress: (sent, total) => {
-                setProgress((sent / total) * 100);
-                setStatus(`Staging ${formatSize(sent)} of ${formatSize(total)}`);
-            },
+        const message = await PACKAGE_KINDS[state.file.kind].install(state.link, state.file, (sent, total) => {
+            setProgress((sent / total) * 100);
+            setStatus(`Staging ${formatSize(sent)} of ${formatSize(total)}`);
         });
         setProgress(100);
-        log(`CoInstall.exe dispatched (ret=0x${reply.ret.toString(16)})`);
-        setStatus("CoInstall is running on the device; follow the prompts there");
+        log(message);
+        setStatus("The installer is running on the device; follow the prompts there");
     } catch (error) {
         setStatus(error.message);
         log(`error: ${error.message}`);
     } finally {
-        elements.install.disabled = false;
+        setConnected(!!state.link);
     }
 }
 
