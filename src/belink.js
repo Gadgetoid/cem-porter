@@ -410,11 +410,20 @@ export class BeLink {
                 throw error;
             }
             if (!written.ret) throw new Error(`write failed at offset ${sent} (err ${written.err})`);
-            sent += slice.length;
+            const view = new DataView(written.data.buffer, written.data.byteOffset, written.data.byteLength);
+            const count = written.data.length >= 4 ? view.getUint32(0, false) : slice.length;
+            if (!count) throw new Error(`device wrote nothing at offset ${sent}`);
+            if (count !== slice.length) {
+                this.log(`short write at ${sent}: asked ${slice.length}, wrote ${count}`);
+            }
+            sent += count;
             if (onProgress) onProgress(sent, bytes.length);
         }
         await this.call(CMD.closeHandle, u32be(handle));
-        this.log(`closed handle, ${sent} bytes`);
+        if (sent !== bytes.length) {
+            throw new Error(`only ${sent} of ${bytes.length} bytes reached ${path}`);
+        }
+        this.log(`wrote ${sent} bytes to ${path}`);
         return sent;
     }
 

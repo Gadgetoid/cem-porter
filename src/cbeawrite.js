@@ -7,13 +7,13 @@ const ENTRY_FIXED = 9;
 
 const TYPE_INF = 1;
 const TYPE_BINARY = 2;
-const TYPE_TEXT = 3;
+const TYPE_DATA = 3;
 
 export function memberType(name) {
     const lower = name.toLowerCase();
     if (lower.endsWith(".inf")) return TYPE_INF;
-    if (lower.endsWith(".txt")) return TYPE_TEXT;
-    return TYPE_BINARY;
+    if (lower.endsWith(".exe") || lower.endsWith(".dll")) return TYPE_BINARY;
+    return TYPE_DATA;
 }
 
 function writeU32(target, offset, value) {
