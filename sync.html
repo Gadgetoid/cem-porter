@@ -131,22 +131,26 @@
     <article>
         <h1>CEMSync</h1>
         <p>Your device, no period PC required.</p>
-        <p>Talks to a Windows CE device over USB from the browser. The Casio BE-300 is the first target.</p>
+        <p>Talks to a Windows CE device over USB from the browser: the Casio BE-300 over its own PC Connect protocol, and the Dell Axim X51v (Windows Mobile 5) over ActiveSync.</p>
         <h2>Using it</h2>
         <ul>
             <li>Connect the cradle, press <strong>Connect</strong>, and choose the device when the browser asks.</li>
-            <li>The device answers with its Unit ID and the names of its system and user disks.</li>
-            <li>Drop a <code>.cbea</code> to see what it installs, then send it. Any other file is copied as is.</li>
-            <li><strong>Back up flash</strong> reads all 16 MB, the OS partitions included, and saves it.</li>
+            <li>The BE-300 answers with its Unit ID and the names of its system and user disks; the Axim with its name, model, OS version and processor.</li>
+            <li><strong>Files</strong> browses the device, and sends, saves and deletes files.</li>
+            <li>BE-300: drop a <code>.cbea</code> to see what it installs, then send it. Any other file is copied as is.</li>
+            <li>BE-300: <strong>Back up flash</strong> reads all 16 MB, the OS partitions included, and saves it.</li>
         </ul>
         <h2>Needs</h2>
         <ul>
             <li>Chrome or Edge. Safari and Firefox do not implement WebUSB.</li>
-            <li>On Linux, a udev rule, or the kernel's <code>ipaq</code> driver will claim the device first.</li>
+            <li>On Linux, a udev rule, or the kernel's <code>ipaq</code> and <code>rndis_host</code> drivers will claim the device first.</li>
+            <li>Axim: leave <strong>Enable advanced network functionality</strong> on (Settings, Connections, USB to PC), and no device password.</li>
         </ul>
         <h2>How it works</h2>
         <p>The BE-300 speaks Casio's own PC Connect protocol rather than ActiveSync. The host asserts DTR and RTS, trades <code>0x55</code> twice, then sends framed commands. The device drops off the bus about 115 ms after connecting if nothing follows, so the first command goes out immediately.</p>
         <p>Flash reads below the file system use a negative sector offset: the driver maps the user volume at physical sector 7584 and only bounds checks the top of its window, so the OS partitions are readable through the ordinary call.</p>
+        <p>Windows Mobile 5 ActiveSync runs over TCP/IP on an RNDIS network over USB. CEMSync carries that network itself: RNDIS, Ethernet, ARP and a small TCP, with the PC at 169.254.2.2 and the device at 169.254.2.1. A <code>0x7F</code> byte to the device's UDP port 5679 makes it connect to the PC's port 990, describe itself, and on request open a second connection carrying RAPI.</p>
+        <p>The device's network stops passing data once a session ends, until its USB configuration is cleared, so a later Connect resets the device first.</p>
     </article>
 </dialog>
 <script type="module" src="src/apps/cemsync.js"></script>

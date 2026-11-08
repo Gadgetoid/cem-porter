@@ -1,4 +1,6 @@
 import { BeLink, isSupported, NAND_BASE, NAND_TOTAL, SECTOR } from "../device/belink.js";
+import { ActiveSyncLink } from "../device/activesync.js";
+import { RNDIS_TARGETS } from "../device/rndis.js";
 import { looksLikeCbea, readCbea, cbeaPlatform } from "../archive/cbea.js";
 import { planInstall } from "../device/cbeainstall.js";
 import { unpackFiles, fileData } from "../archive/unpack.js";
@@ -9,17 +11,51 @@ const TARGETS = [
         id: "be300",
         name: "Casio BE-300",
         link: "PC Connect over USB",
-        vendor: 0x07cf,
-        product: 0x2002,
+        filters: [{ vendorId: 0x07cf, productId: 0x2002 }],
+        createLink: () => new BeLink(),
+        describe: (info) => [
+            ["Unit ID", info.uuid || "unknown"],
+            ["RAPI version", info.version === undefined ? "unknown" : `0x${info.version.toString(16)}`],
+            ["System disk", info.systemDisk || "unknown"],
+            ["User disk", info.userDisk || "unknown"],
+        ],
         installRoot: "\\Nand Disk",
         nand: { base: NAND_BASE, total: NAND_TOTAL },
         can: { install: true, send: true, backup: true, reset: true },
     },
+    {
+        id: "wm5",
+        name: "Dell Axim X51v",
+        link: "ActiveSync over USB",
+        filters: RNDIS_TARGETS,
+        createLink: () => new ActiveSyncLink(),
+        describe: (info) => [
+            ["Name", info.name],
+            ["Model", info.model],
+            ["Platform", info.platform],
+            ["OS", info.os],
+            ["Processor", info.processor],
+        ],
+        installRoot: "\\My Documents",
+        can: { install: false, send: true, backup: false, reset: false },
+    },
 ];
 
+function matches(filter, device) {
+    if (filter.vendorId !== undefined) {
+        return filter.vendorId === device.vendorId && filter.productId === device.productId;
+    }
+    const classes = [[device.deviceClass, device.deviceSubclass, device.deviceProtocol]];
+    for (const iface of (device.configuration || device.configurations[0] || { interfaces: [] }).interfaces) {
+        const alternate = iface.alternates[0];
+        classes.push([alternate.interfaceClass, alternate.interfaceSubclass, alternate.interfaceProtocol]);
+    }
+    return classes.some(([code, subclass, protocol]) =>
+        code === filter.classCode && subclass === filter.subclassCode && protocol === filter.protocolCode);
+}
+
 function targetFor(device) {
-    return TARGETS.find((entry) =>
-        entry.vendor === device.vendorId && entry.product === device.productId) || null;
+    return TARGETS.find((entry) => entry.filters.some((filter) => matches(filter, device))) || null;
 }
 
 const elements = Object.fromEntries([
@@ -97,13 +133,7 @@ function showTools(open) {
     elements["tools-button"].setAttribute("aria-expanded", String(open));
 }
 
-function renderInfo(info) {
-    const rows = [
-        ["Unit ID", info.uuid || "unknown"],
-        ["RAPI version", info.version === undefined ? "unknown" : `0x${info.version.toString(16)}`],
-        ["System disk", info.systemDisk || "unknown"],
-        ["User disk", info.userDisk || "unknown"],
-    ];
+function renderInfo(rows) {
     elements.info.innerHTML = "";
     for (const [label, value] of rows) {
         const row = document.createElement("tr");
@@ -159,34 +189,41 @@ async function connect() {
         setStatus("This browser has no WebUSB. Use Chrome or Edge.");
         return;
     }
-    const link = new BeLink();
-    link.onLog = log;
-    link.filters = TARGETS.map((entry) => ({ vendorId: entry.vendor, productId: entry.product }));
+    let link = null;
     try {
         setStatus("Choose the device...");
-        const device = await link.request();
+        const device = await navigator.usb.requestDevice({
+            filters: TARGETS.flatMap((entry) => entry.filters),
+        });
         state.target = targetFor(device);
         if (!state.target) throw new Error("that device is not one CEMSync knows");
         log(`${state.target.name} chosen`);
+        link = state.target.createLink();
+        link.onLog = log;
+        link.device = device;
         setStatus("Connecting...");
         await link.connect();
         state.link = link;
         setConnected(true);
         setStatus("Connected");
         const info = await link.deviceInfo();
-        link.startHeartbeat();
-        log("heartbeat started, link held open");
-        try {
-            Object.assign(info, await link.diskNames());
-        } catch (error) {
-            log(`disk names unavailable: ${error.message}`);
+        if (link.startHeartbeat) {
+            link.startHeartbeat();
+            log("heartbeat started, link held open");
         }
-        renderInfo(info);
-        log(`unit ${info.uuid || "?"}`);
+        if (link.diskNames) {
+            try {
+                Object.assign(info, await link.diskNames());
+            } catch (error) {
+                log(`disk names unavailable: ${error.message}`);
+            }
+        }
+        renderInfo(state.target.describe(info));
+        if (info.uuid) log(`unit ${info.uuid}`);
     } catch (error) {
         setStatus(error.message);
         log(`error: ${error.message}`);
-        await link.close();
+        if (link) await link.close();
         state.link = null;
         state.target = null;
         setConnected(false);
