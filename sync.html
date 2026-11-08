@@ -5,90 +5,101 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CEMSync</title>
 <meta name="description" content="Talk to a Windows CE device over USB from the browser: read its ID, send a package, back up its flash.">
-<link rel="stylesheet" href="src/ce.css">
+<link rel="stylesheet" href="src/ui/ce.css">
+<style>
+#device-panel { display: grid; gap: 10px; }
+
+#browser { top: 60px; width: min(460px, calc(100% - 32px)); }
+
+#browser-path { padding: 3px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+#browser .list { height: 260px; max-height: none; }
+
+#browser td:is(.folder, .file) { padding-left: 22px; background-repeat: no-repeat; background-position: 3px center; background-size: 14px 14px; }
+
+#browser td.folder { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 3h5l1.5 2H15v8H1z" fill="%23ffd54a" stroke="%23000" stroke-width="1"/></svg>'); }
+
+#browser td.file { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3.5 1.5h6L13 5v9.5H3.5z" fill="%23fff" stroke="%23000" stroke-width="1"/><path d="M9.5 1.5V5H13" fill="none" stroke="%23000" stroke-width="1"/></svg>'); }
+</style>
 </head>
 <body>
-<main class="window raised">
-    <div class="title-bar">
-        <span class="title">CEMSync</span>
-        <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
-    </div>
-    <div class="menu-bar">
-        <div class="menu-root">
-            <button class="menu-item" type="button" id="tools-button" aria-haspopup="menu" aria-expanded="false" aria-controls="tools-menu"><u>T</u>ools</button>
-            <div class="dropdown raised" id="tools-menu" role="menu" aria-label="Tools" hidden>
+<main>
+    <header>
+        <h1>CEMSync</h1>
+        <button id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </header>
+    <nav>
+        <div>
+            <button type="button" id="tools-button" aria-haspopup="menu" aria-expanded="false" aria-controls="tools-menu"><u>T</u>ools</button>
+            <div id="tools-menu" role="menu" aria-label="Tools" hidden>
                 <ul>
                     <li><button type="button" role="menuitem" id="tool-files" disabled><u>F</u>ile Manager...</button></li>
                     <li><button type="button" role="menuitem" id="tool-backup" disabled><u>B</u>ack Up Flash...</button></li>
-                    <li class="separator" role="separator"></li>
+                    <li role="separator"></li>
                     <li><button type="button" role="menuitem" id="tool-reset" disabled><u>R</u>eset Device</button></li>
-                    <li class="separator" role="separator"></li>
+                    <li role="separator"></li>
                     <li><button type="button" role="menuitem" id="tool-log"><u>L</u>og</button></li>
                 </ul>
             </div>
         </div>
-    </div>
-    <div class="body">
-        <section id="connect-panel">
-            <fieldset>
-                <legend>Connect</legend>
-                <p class="lead">Put the device in its cradle, press Connect, and choose it when the browser asks.</p>
-                <div class="list sunken">
-                    <table>
-                        <thead><tr><th>Supported device</th><th class="hide-narrow">Link</th></tr></thead>
-                        <tbody id="supported"></tbody>
-                    </table>
-                </div>
-                <div class="actions">
-                    <button type="button" id="connect">Connect...</button>
-                </div>
-            </fieldset>
-        </section>
-
-        <section id="device-panel" hidden>
-            <fieldset>
-                <legend id="device-legend">Device</legend>
-                <div class="list sunken">
-                    <table>
-                        <tbody id="info"></tbody>
-                    </table>
-                </div>
-                <div class="actions">
-                    <button type="button" id="disconnect">Disconnect</button>
-                </div>
-            </fieldset>
-
-            <fieldset id="package-panel">
-                <legend>Package</legend>
-                <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
-                    <strong id="drop-title">Drop an installer, archive or .cbea here</strong>
-                    <span id="drop-hint">.exe, .zip, .cab, .iso or .cbea, with any extra volumes. Or tap to open.</span>
-                </div>
-                <input class="visually-hidden" type="file" id="file-input" multiple aria-label="Open a package">
-                <div class="list sunken">
-                    <table>
-                        <thead><tr><th>Package</th><th>Program</th><th class="hide-narrow">Version</th><th>Size</th></tr></thead>
-                        <tbody id="members"></tbody>
-                    </table>
-                </div>
-                <div class="actions">
-                    <button type="button" id="install" disabled>Install Package</button>
-                </div>
-                <div class="gauge sunken" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-box">
-                    <div class="gauge-fill" id="progress"></div>
-                </div>
-            </fieldset>
-        </section>
-
-        <fieldset id="log-panel" hidden>
-            <legend>Log</legend>
-            <div class="list sunken" id="log"></div>
+    </nav>
+    <div id="connect-panel">
+        <fieldset>
+            <legend>Connect</legend>
+            <p>Put the device in its cradle, press Connect, and choose it when the browser asks.</p>
+            <div class="list">
+                <table>
+                    <thead><tr><th>Supported device</th><th class="hide-narrow">Link</th></tr></thead>
+                    <tbody id="supported"></tbody>
+                </table>
+            </div>
+            <div class="actions">
+                <button type="button" id="connect">Connect...</button>
+            </div>
         </fieldset>
     </div>
-    <div class="status-bar"><span id="status" role="status">Loading...</span><span id="size">&nbsp;</span></div>
+
+    <div id="device-panel" hidden>
+        <fieldset>
+            <legend id="device-legend">Device</legend>
+            <div class="list">
+                <table>
+                    <tbody id="info"></tbody>
+                </table>
+            </div>
+            <div class="actions">
+                <button type="button" id="disconnect">Disconnect</button>
+            </div>
+        </fieldset>
+
+        <fieldset id="package-panel">
+            <legend>Package</legend>
+            <div id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+                <strong id="drop-title">Drop an installer, archive or .cbea here</strong>
+                <span id="drop-hint">.exe, .zip, .cab, .iso or .cbea, with any extra volumes. Or tap to open.</span>
+            </div>
+            <input class="visually-hidden" type="file" id="file-input" multiple aria-label="Open a package">
+            <div class="list">
+                <table>
+                    <thead><tr><th>Package</th><th>Program</th><th class="hide-narrow">Version</th><th>Size</th></tr></thead>
+                    <tbody id="members"></tbody>
+                </table>
+            </div>
+            <div class="actions">
+                <button type="button" id="install" disabled>Install Package</button>
+            </div>
+            <progress id="progress" max="100" value="0" aria-label="Progress"></progress>
+        </fieldset>
+    </div>
+
+    <fieldset id="log-panel" hidden>
+        <legend>Log</legend>
+        <div class="list" id="log"></div>
+    </fieldset>
+    <footer><output id="status">Loading...</output><span id="size">&nbsp;</span></footer>
 </main>
-<div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
-    <div class="start-banner" aria-hidden="true">CEMSync</div>
+<div id="start-menu" role="menu" aria-label="Start" hidden>
+    <span aria-hidden="true">CEMSync</span>
     <ul>
         <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
         <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
@@ -99,53 +110,51 @@
         <li><a role="menuitem" href="fonts.html"><u>F</u>ont Converter</a></li>
         <li><a role="menuitem" href="hex.html"><u>H</u>ex Annotator</a></li>
         <li><a role="menuitem" href="icons.html"><u>I</u>con Lab</a></li>
-        <li class="separator" role="separator"></li>
+        <li role="separator"></li>
         <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
         <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
         <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
     </ul>
 </div>
-<div class="taskbar">
-    <button class="start" type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
-    <button class="task" type="button" tabindex="-1">CEMSync</button>
-    <button class="task" type="button" id="notes-task" hidden>Readme</button>
-    <span class="tray" id="clock"></span>
-</div>
-<section class="dialog raised" id="browser" hidden aria-labelledby="browser-title">
-    <div class="title-bar">
-        <span class="title" id="browser-title">File Manager</span>
-        <button class="raised" id="browser-close" type="button" aria-label="Close">X</button>
-    </div>
-    <div class="body">
-        <fieldset>
-            <legend>Look in</legend>
-            <div class="path sunken" id="browser-path">\</div>
-            <div class="list sunken filer">
-                <table>
-                    <thead><tr><th>Name</th><th class="right">Size</th></tr></thead>
-                    <tbody id="browser-list"></tbody>
-                </table>
-            </div>
-            <div class="actions">
-                <button type="button" id="browser-up">Up One Level</button>
-                <button type="button" id="browser-refresh">Refresh</button>
-                <button type="button" id="browser-upload">Upload File Here...</button>
-                <button type="button" id="browser-download" disabled>Download</button>
-                <button type="button" id="browser-delete" disabled>Delete</button>
-            </div>
-        </fieldset>
-    </div>
-    <div class="status-bar"><span id="browser-status" role="status">&nbsp;</span></div>
-</section>
-<section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
-    <div class="title-bar">
-        <span class="title" id="notes-title">Readme - Pocket Word</span>
-        <button class="raised" id="notes-close" type="button" aria-label="Close">X</button>
-    </div>
-    <div class="menu-bar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></div>
-    <div class="document sunken">
+<footer>
+    <button type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
+    <button type="button" tabindex="-1">CEMSync</button>
+    <button type="button" id="notes-task" hidden>Readme</button>
+    <time id="clock"></time>
+</footer>
+<dialog id="browser" aria-labelledby="browser-title">
+    <header>
+        <h2 id="browser-title">File Manager</h2>
+        <button id="browser-close" type="button" aria-label="Close">X</button>
+    </header>
+    <fieldset>
+        <legend>Look in</legend>
+        <div class="sunken" id="browser-path">\</div>
+        <div class="list">
+            <table>
+                <thead><tr><th>Name</th><th class="size">Size</th></tr></thead>
+                <tbody id="browser-list"></tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <button type="button" id="browser-up">Up One Level</button>
+            <button type="button" id="browser-refresh">Refresh</button>
+            <button type="button" id="browser-upload">Upload File Here...</button>
+            <button type="button" id="browser-download" disabled>Download</button>
+            <button type="button" id="browser-delete" disabled>Delete</button>
+        </div>
+    </fieldset>
+    <footer><output id="browser-status">&nbsp;</output></footer>
+</dialog>
+<dialog id="notes" aria-labelledby="notes-title">
+    <header>
+        <h2 id="notes-title">Readme - Pocket Word</h2>
+        <button id="notes-close" type="button" aria-label="Close">X</button>
+    </header>
+    <nav aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></nav>
+    <article>
         <h1>CEMSync</h1>
-        <p class="tagline">Your device, no period PC required.</p>
+        <p>Your device, no period PC required.</p>
         <p>Talks to a Windows CE device over USB from the browser. The Casio BE-300 is the first target.</p>
         <h2>Using it</h2>
         <ul>
@@ -162,8 +171,8 @@
         <h2>How it works</h2>
         <p>The BE-300 speaks Casio's own PC Connect protocol rather than ActiveSync. The host asserts DTR and RTS, trades <code>0x55</code> twice, then sends framed commands. The device drops off the bus about 115 ms after connecting if nothing follows, so the first command goes out immediately.</p>
         <p>Flash reads below the file system use a negative sector offset: the driver maps the user volume at physical sector 7584 and only bounds checks the top of its window, so the OS partitions are readable through the ordinary call.</p>
-    </div>
-</section>
-<script type="module" src="src/cemsync.js"></script>
+    </article>
+</dialog>
+<script type="module" src="src/apps/cemsync.js"></script>
 </body>
 </html>

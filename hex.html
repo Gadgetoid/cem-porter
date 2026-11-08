@@ -5,118 +5,146 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hex Annotator</title>
 <meta name="description" content="Annotated hex viewer and patcher for Windows CE executables: toggleable PE structure, strings, imports and relocation layers.">
-<link rel="stylesheet" href="src/ce.css">
-<link rel="stylesheet" href="src/explorer.css">
+<link rel="stylesheet" href="src/ui/ce.css">
 <style>
-main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64px); display: flex; flex-direction: column; }
-.hex .body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 4px; }
-.hex .toolbar input[type="text"] { width: 10ch; font-family: "Courier New", monospace; }
-.hex .toolbar .wide { width: 18ch; }
+main { --gap: 4px; height: calc(100vh - 64px); grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
 
-.layer-bar { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 4px 8px; align-items: center; }
-.layer-bar strong { font-weight: bold; margin-right: 2px; }
-.layer-bar label { white-space: nowrap; }
+[role="toolbar"] input[type="text"] { width: 10ch; font-family: var(--mono); }
+
+#find { width: 18ch; }
+
+#layers { gap: 4px 14px; padding: 4px 8px; }
+
+#layers strong { margin-right: 2px; }
+
+#layers label { white-space: nowrap; }
+
 #toggles { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+
 .layer { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
-.layer .count { font-size: 11px; min-width: 2.5ch; padding: 1px 5px; cursor: pointer; }
+
+.layer .count { min-width: 2.5ch; padding: 1px 5px; }
+
 .layer .count.active { font-weight: bold; }
-.nav-group { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
-.nav-group button { min-width: 3ch; }
+
+#site-nav { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+
+#site-nav button { min-width: 3ch; }
+
 #nav-pos { font-size: 12px; min-width: 12ch; }
 
-.hex-main { flex: 1 1 auto; min-height: 0; display: flex; gap: 4px; }
-.hex-main .drop { flex: 1 1 auto; }
-.hex-main .drop[hidden], .hex-main .view[hidden] { display: none; }
+#workspace { display: flex; gap: 4px; min-height: 0; }
 
-.hex-main .view { position: relative; overflow: auto; flex: 1 1 auto; min-width: 0; height: auto;
-    background: #fff; font-family: "Courier New", monospace; font-size: 13px; outline: none; }
+#workspace > [role="button"] { flex: 1 1 auto; min-height: 0; }
+
+#view { overflow: auto; flex: 1 1 auto; min-width: 0; height: auto; background: #fff; font-family: var(--mono); font-size: 13px; outline: none; }
+
 #space { width: 1px; }
+
 #rows { position: absolute; top: 0; left: 0; padding: 2px 6px; }
+
 .hexrow { height: 18px; line-height: 18px; white-space: nowrap; }
+
 .off { color: #8a8a8a; padding-right: 10px; }
+
 .b { display: inline-block; width: 20px; text-align: center; cursor: pointer; }
+
 .b.gap { margin-left: 8px; }
+
 .b.blank { color: transparent; cursor: default; }
+
 .ascii { margin-left: 12px; color: #444; }
+
 .ascii span { display: inline-block; width: 8px; }
 
 .c-struct { background: #d9e4ff; }
+
 .c-code { background: #ddf3dd; }
+
 .c-data { background: #efefef; }
+
 .c-string { background: #fff0c2; }
+
 .c-import { background: #ead9ff; }
+
 .c-reloc { background: #ffdada; }
+
 .c-patch { background: #ffd27f; outline: 1px solid #c87000; outline-offset: -1px; }
+
+.b.sel, .ascii span.sel { background: #000080; color: #fff; }
+
+.b.edited, .ascii span.edited { color: #c00000; font-weight: bold; }
+
+#workspace > aside { width: 300px; flex: none; display: flex; flex-direction: column; overflow: auto; padding: 6px; }
+
+#inspector { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--mono); font-size: 12px; }
 
 #apply-patch { margin-top: 8px; align-self: flex-start; }
 
-.b.sel, .ascii span.sel { background: #000080; color: #fff; }
-.b.edited, .ascii span.edited { color: #c00000; font-weight: bold; }
+#legend { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 4px 8px; font-size: 12px; }
 
-.inspector-pane { width: 300px; flex: none; display: flex; flex-direction: column; overflow: auto; padding: 6px; }
-#inspector { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: "Courier New", monospace; font-size: 12px; }
+#legend span { display: inline-flex; align-items: center; gap: 4px; }
 
-.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 4px 8px; font-size: 12px; }
-.legend span { display: inline-flex; align-items: center; gap: 4px; }
-.legend i { width: 12px; height: 12px; display: inline-block; border: 1px solid #0003; }
-@media (max-width: 680px) { .inspector-pane { display: none; } }
+#legend i { width: 12px; height: 12px; display: inline-block; border: 1px solid #0003; }
+
+@media (max-width: 680px) {
+    #workspace > aside { display: none; }
+}
 </style>
 </head>
 <body>
-<main class="window raised explorer hex">
-    <div class="title-bar">
-        <span class="title" id="window-title">Hex Annotator</span>
-        <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+<main class="wide">
+    <header>
+        <h1 id="window-title">Hex Annotator</h1>
+        <button id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </header>
+    <div role="toolbar" aria-label="Hex Annotator">
+        <button type="button" id="open">Open...</button>
+        <hr>
+        <label>Go to <input type="text" id="goto" placeholder="0x1234" aria-label="Go to offset"></label>
+        <label>Find <input type="text" id="find" placeholder='01 a0 or "text"' aria-label="Find bytes or text"></label>
+        <button type="button" id="find-next">Find</button>
+        <hr>
+        <button type="button" id="revert" disabled>Revert</button>
+        <button type="button" id="save" disabled>Save patched</button>
+        <span id="edit-count">No changes</span>
     </div>
-    <div class="body">
-        <div class="toolbar raised" role="toolbar" aria-label="Hex Annotator">
-            <button type="button" id="open">Open...</button>
-            <span class="separator" aria-hidden="true"></span>
-            <label>Go to <input type="text" id="goto" placeholder="0x1234" aria-label="Go to offset"></label>
-            <label>Find <input type="text" id="find" class="wide" placeholder='01 a0 or "text"' aria-label="Find bytes or text"></label>
-            <button type="button" id="find-next">Find</button>
-            <span class="separator" aria-hidden="true"></span>
-            <button type="button" id="revert" disabled>Revert</button>
-            <button type="button" id="save" disabled>Save patched</button>
-            <span id="edit-count">No changes</span>
-        </div>
-        <div class="layer-bar raised">
-            <strong>Layers:</strong><span id="toggles"></span>
-            <span class="nav-group">
-                <button type="button" id="nav-prev" title="Previous site" disabled>&#9664;</button>
-                <button type="button" id="nav-next" title="Next site" disabled>&#9654;</button>
-                <span id="nav-pos"></span>
-            </span>
-        </div>
-        <div class="hex-main">
-            <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
-                <strong id="drop-title">Drop an executable here</strong>
-                <span id="drop-hint">A Windows CE .exe or .dll (any PE), or any binary. Or tap to open one.</span>
-            </div>
-            <div class="view sunken" id="view" hidden tabindex="0" aria-label="Hex view">
-                <div id="space"></div>
-                <div id="rows"></div>
-            </div>
-            <aside class="inspector-pane sunken">
-                <div class="legend" aria-hidden="true">
-                    <span><i class="c-struct"></i>structure</span>
-                    <span><i class="c-code"></i>code</span>
-                    <span><i class="c-data"></i>data</span>
-                    <span><i class="c-string"></i>string</span>
-                    <span><i class="c-import"></i>import</span>
-                    <span><i class="c-reloc"></i>reloc</span>
-                    <span><i class="c-patch"></i>patch site</span>
-                </div>
-                <pre id="inspector">Open a file.</pre>
-                <button type="button" id="apply-patch" class="raised" hidden></button>
-            </aside>
-        </div>
-        <input class="visually-hidden" type="file" id="file-input" aria-label="Open an executable">
+    <div id="layers" role="toolbar" aria-label="Layers">
+        <strong>Layers:</strong><span id="toggles"></span>
+        <span id="site-nav">
+            <button type="button" id="nav-prev" title="Previous site" disabled>&#9664;</button>
+            <button type="button" id="nav-next" title="Next site" disabled>&#9654;</button>
+            <span id="nav-pos"></span>
+        </span>
     </div>
-    <div class="status-bar"><span id="status" role="status">Loading...</span><span id="size">&nbsp;</span></div>
+    <div id="workspace">
+        <div id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+            <strong id="drop-title">Drop an executable here</strong>
+            <span id="drop-hint">A Windows CE .exe or .dll (any PE), or any binary. Or tap to open one.</span>
+        </div>
+        <div id="view" hidden tabindex="0" aria-label="Hex view">
+            <div id="space"></div>
+            <div id="rows"></div>
+        </div>
+        <aside class="sunken">
+            <div id="legend" aria-hidden="true">
+                <span><i class="c-struct"></i>structure</span>
+                <span><i class="c-code"></i>code</span>
+                <span><i class="c-data"></i>data</span>
+                <span><i class="c-string"></i>string</span>
+                <span><i class="c-import"></i>import</span>
+                <span><i class="c-reloc"></i>reloc</span>
+                <span><i class="c-patch"></i>patch site</span>
+            </div>
+            <pre id="inspector">Open a file.</pre>
+            <button type="button" id="apply-patch" hidden></button>
+        </aside>
+    </div>
+    <input class="visually-hidden" type="file" id="file-input" aria-label="Open an executable">
+    <footer><output id="status">Loading...</output><span id="size">&nbsp;</span></footer>
 </main>
-<div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
-    <div class="start-banner" aria-hidden="true">Hex Annotator</div>
+<div id="start-menu" role="menu" aria-label="Start" hidden>
+    <span aria-hidden="true">Hex Annotator</span>
     <ul>
         <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
         <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
@@ -127,27 +155,27 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
         <li><a role="menuitem" href="state.html"><u>S</u>tate Explorer</a></li>
         <li><a role="menuitem" href="fonts.html"><u>F</u>ont Converter</a></li>
         <li><a role="menuitem" href="icons.html"><u>I</u>con Lab</a></li>
-        <li class="separator" role="separator"></li>
+        <li role="separator"></li>
         <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
         <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
         <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
     </ul>
 </div>
-<div class="taskbar">
-    <button class="start" type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
-    <button class="task" type="button" tabindex="-1">Hex Annotator</button>
-    <button class="task" type="button" id="notes-task" hidden>Readme</button>
-    <span class="tray" id="clock"></span>
-</div>
-<section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
-    <div class="title-bar">
-        <span class="title" id="notes-title">Readme - Pocket Word</span>
-        <button class="raised" id="notes-close" type="button" aria-label="Close">X</button>
-    </div>
-    <div class="menu-bar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></div>
-    <div class="document sunken">
+<footer>
+    <button type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
+    <button type="button" tabindex="-1">Hex Annotator</button>
+    <button type="button" id="notes-task" hidden>Readme</button>
+    <time id="clock"></time>
+</footer>
+<dialog id="notes" aria-labelledby="notes-title">
+    <header>
+        <h2 id="notes-title">Readme - Pocket Word</h2>
+        <button id="notes-close" type="button" aria-label="Close">X</button>
+    </header>
+    <nav aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></nav>
+    <article>
         <h1>Hex Annotator</h1>
-        <p class="tagline">Keep on keeping on!</p>
+        <p>Keep on keeping on!</p>
         <p>An annotated hex viewer and patcher for Windows CE executables. It reads a PE and
             labels what the bytes mean, in toggleable layers, so you can find and change the
             part you care about and save a patched file.</p>
@@ -181,8 +209,8 @@ main.window.hex { width: min(1100px, calc(100% - 16px)); height: calc(100vh - 64
             <li>Edits are byte-for-byte in place; it doesn't grow sections or fix checksums.</li>
             <li>String detection is ASCII and UTF-16LE runs of four or more; it isn't exhaustive.</li>
         </ul>
-    </div>
-</section>
-<script type="module" src="src/hexedit.js"></script>
+    </article>
+</dialog>
+<script type="module" src="src/apps/hexedit.js"></script>
 </body>
 </html>

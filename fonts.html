@@ -5,171 +5,134 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Font Converter</title>
 <meta name="description" content="Convert TrueType and OpenType fonts to TrueType and bitmap fonts for Windows CE 1.0 and 2.0 handhelds.">
-<link rel="stylesheet" href="src/ce.css">
+<link rel="stylesheet" href="src/ui/ce.css">
 <style>
-.body [hidden] { display: none; }
-
-.body { grid-template-columns: minmax(0, 1fr); }
-
-fieldset { min-width: 0; }
-
-input[type="text"], input[type="number"] {
-    font: 11px var(--font);
-    color: var(--text);
-    height: 21px;
-    border: 0;
-    padding: 0 4px;
-    width: 100%;
-    min-width: 0;
-    background: var(--window);
-    box-shadow: inset -1px -1px var(--highlight), inset 1px 1px var(--shadow), inset -2px -2px var(--light), inset 2px 2px var(--dark-shadow);
-    border-radius: 0;
-}
-
-input:disabled, select:disabled { color: var(--disabled); background: var(--face); }
-
-.fields { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px 8px; align-items: center; }
-
-.fields > span { white-space: nowrap; }
-
-.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; }
-
-.sizes { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+#sets { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px 12px; }
 
 #preview-view { overflow: auto; padding: 6px; min-height: 60px; }
 
 #preview { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
-
-.hint { color: var(--disabled); }
-
-fieldset[disabled] { color: var(--disabled); }
-
-@media (max-width: 560px) {
-    .fields { grid-template-columns: 1fr; }
-}
 </style>
 </head>
 <body>
-<main class="window raised">
-    <div class="title-bar">
-        <span class="title">Font Converter</span>
-        <button class="raised" id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
-    </div>
-    <div class="body">
-        <fieldset>
-            <legend>1. Font</legend>
-            <div class="drop sunken" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
-                <strong id="drop-title">Drop a font here</strong>
-                <span id="drop-hint">.ttf, .otf, .woff, or a zip from fonts.google.com. Or tap to open one.</span>
-            </div>
-            <input class="visually-hidden" type="file" id="file-input" aria-label="Open a font">
-            <div class="list sunken" style="margin-top: 8px;">
-                <table>
-                    <thead><tr><th>File</th><th>Family</th><th>Style</th><th class="hide-narrow">Outlines</th></tr></thead>
-                    <tbody id="fonts"><tr><td class="empty" colspan="4">Open a font to see what's in it.</td></tr></tbody>
-                </table>
-            </div>
-        </fieldset>
-
-        <fieldset>
-            <legend>2. Style</legend>
-            <div class="fields">
-                <span id="instance-label" hidden>Instance</span>
-                <select id="instance" aria-labelledby="instance-label" hidden></select>
-                <span id="axes-label" hidden>Axes</span>
-                <div class="row" id="axes" hidden></div>
-                <label for="family">Family name</label>
-                <input type="text" id="family" spellcheck="false" disabled>
-                <label for="style">Style</label>
-                <select id="style" disabled>
-                    <option>Regular</option>
-                    <option>Bold</option>
-                    <option>Italic</option>
-                    <option>Bold Italic</option>
-                </select>
-                <label for="weight">Weight</label>
-                <input type="number" id="weight" min="1" max="1000" step="1" disabled>
-            </div>
-        </fieldset>
-
-        <fieldset>
-            <legend>3. Output</legend>
-            <div class="fields">
-                <label for="format">Format</label>
-                <select id="format">
-                    <option value="ttf">TrueType (.ttf) for CE 2.0 and later</option>
-                    <option value="fnt">Bitmap (.fnt) for CE 1.0 and raster-font devices</option>
-                </select>
-                <label for="package">Save as</label>
-                <select id="package">
-                    <option value="files">Files</option>
-                    <option value="cab">CAB for CE 2.0 (any CPU)</option>
-                    <option value="setup-mips">Self-installing .exe (MIPS)</option>
-                    <option value="setup-sh3">Self-installing .exe (SH3)</option>
-                </select>
-                <label for="detail" data-format="ttf">Outline detail</label>
-                <select id="detail" data-format="ttf">
-                    <option value="0">Original</option>
-                    <option value="0.001" selected>Fine</option>
-                    <option value="0.0025">Medium</option>
-                    <option value="0.006">Coarse</option>
-                </select>
-                <label for="units" data-format="ttf">Units per em</label>
-                <select id="units" data-format="ttf">
-                    <option value="0" selected>Same as the font</option>
-                    <option value="2048">2048</option>
-                    <option value="1024">1024</option>
-                    <option value="512">512</option>
-                    <option value="256">256</option>
-                </select>
-                <label for="codepage" data-format="fnt">Characters</label>
-                <select id="codepage" data-format="fnt"></select>
-                <span data-format="fnt">Sizes</span>
-                <div class="sizes" id="sizes" data-format="fnt"></div>
-                <span data-format="fnt">Hinting</span>
-                <label data-format="fnt"><input type="checkbox" id="hinting" checked> Use the font's hinting</label>
-            </div>
-        </fieldset>
-
-        <fieldset id="characters-set">
-            <legend>4. Characters</legend>
-            <div class="checks" id="sets"></div>
-            <div class="fields" style="margin-top: 8px;">
-                <label for="extra">Also include</label>
-                <input type="text" id="extra" spellcheck="false" placeholder="Any other characters">
-            </div>
-            <p class="hint" id="characters-note" style="margin: 6px 0 0;" hidden>Bitmap fonts hold the characters of the chosen code page.</p>
-        </fieldset>
-
-        <fieldset>
-            <legend>5. Preview</legend>
-            <div class="fields">
-                <label for="sample">Text</label>
-                <input type="text" id="sample" spellcheck="false" value="The quick brown fox jumps over the lazy dog. 0123456789 &#xc0;&#xe9;&#xf1;&#xfc;&#xdf;">
-                <label for="preview-size">Size</label>
-                <div class="row">
-                    <select id="preview-size" style="width: auto;"></select>
-                    <select id="zoom" aria-label="Zoom" style="width: auto;">
-                        <option value="1">100%</option>
-                        <option value="2" selected>200%</option>
-                        <option value="3">300%</option>
-                    </select>
-                </div>
-            </div>
-            <div class="sunken" id="preview-view" style="margin-top: 8px;">
-                <canvas id="preview" width="1" height="1" aria-label="Preview of the converted font"></canvas>
-            </div>
-            <p class="hint" id="preview-note" style="margin: 6px 0 0;"></p>
-        </fieldset>
-
-        <div class="actions">
-            <button type="button" id="save" disabled>Save</button>
+<main>
+    <header>
+        <h1>Font Converter</h1>
+        <button id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </header>
+    <fieldset>
+        <legend>1. Font</legend>
+        <div id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+            <strong id="drop-title">Drop a font here</strong>
+            <span id="drop-hint">.ttf, .otf, .woff, or a zip from fonts.google.com. Or tap to open one.</span>
         </div>
+        <input class="visually-hidden" type="file" id="file-input" aria-label="Open a font">
+        <div class="list">
+            <table>
+                <thead><tr><th>File</th><th>Family</th><th>Style</th><th class="hide-narrow">Outlines</th></tr></thead>
+                <tbody id="fonts"><tr><td class="empty" colspan="4">Open a font to see what's in it.</td></tr></tbody>
+            </table>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>2. Style</legend>
+        <div class="fields">
+            <span id="instance-label" hidden>Instance</span>
+            <select id="instance" aria-labelledby="instance-label" hidden></select>
+            <span id="axes-label" hidden>Axes</span>
+            <div class="row" id="axes" hidden></div>
+            <label for="family">Family name</label>
+            <input type="text" id="family" spellcheck="false" disabled>
+            <label for="style">Style</label>
+            <select id="style" disabled>
+                <option>Regular</option>
+                <option>Bold</option>
+                <option>Italic</option>
+                <option>Bold Italic</option>
+            </select>
+            <label for="weight">Weight</label>
+            <input type="number" id="weight" min="1" max="1000" step="1" disabled>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>3. Output</legend>
+        <div class="fields">
+            <label for="format">Format</label>
+            <select id="format">
+                <option value="ttf">TrueType (.ttf) for CE 2.0 and later</option>
+                <option value="fnt">Bitmap (.fnt) for CE 1.0 and raster-font devices</option>
+            </select>
+            <label for="package">Save as</label>
+            <select id="package">
+                <option value="files">Files</option>
+                <option value="cab">CAB for CE 2.0 (any CPU)</option>
+                <option value="setup-mips">Self-installing .exe (MIPS)</option>
+                <option value="setup-sh3">Self-installing .exe (SH3)</option>
+            </select>
+            <label for="detail" data-format="ttf">Outline detail</label>
+            <select id="detail" data-format="ttf">
+                <option value="0">Original</option>
+                <option value="0.001" selected>Fine</option>
+                <option value="0.0025">Medium</option>
+                <option value="0.006">Coarse</option>
+            </select>
+            <label for="units" data-format="ttf">Units per em</label>
+            <select id="units" data-format="ttf">
+                <option value="0" selected>Same as the font</option>
+                <option value="2048">2048</option>
+                <option value="1024">1024</option>
+                <option value="512">512</option>
+                <option value="256">256</option>
+            </select>
+            <label for="codepage" data-format="fnt">Characters</label>
+            <select id="codepage" data-format="fnt"></select>
+            <span data-format="fnt">Sizes</span>
+            <div class="row" id="sizes" data-format="fnt"></div>
+            <span data-format="fnt">Hinting</span>
+            <label data-format="fnt"><input type="checkbox" id="hinting" checked> Use the font's hinting</label>
+        </div>
+    </fieldset>
+
+    <fieldset id="characters-set">
+        <legend>4. Characters</legend>
+        <div id="sets"></div>
+        <div class="fields">
+            <label for="extra">Also include</label>
+            <input type="text" id="extra" spellcheck="false" placeholder="Any other characters">
+        </div>
+        <small id="characters-note" hidden>Bitmap fonts hold the characters of the chosen code page.</small>
+    </fieldset>
+
+    <fieldset>
+        <legend>5. Preview</legend>
+        <div class="fields">
+            <label for="sample">Text</label>
+            <input type="text" id="sample" spellcheck="false" value="The quick brown fox jumps over the lazy dog. 0123456789 &#xc0;&#xe9;&#xf1;&#xfc;&#xdf;">
+            <label for="preview-size">Size</label>
+            <div class="row">
+                <select id="preview-size"></select>
+                <select id="zoom" aria-label="Zoom">
+                    <option value="1">100%</option>
+                    <option value="2" selected>200%</option>
+                    <option value="3">300%</option>
+                </select>
+            </div>
+        </div>
+        <div class="sunken" id="preview-view">
+            <canvas id="preview" width="1" height="1" aria-label="Preview of the converted font"></canvas>
+        </div>
+        <small id="preview-note"></small>
+    </fieldset>
+
+    <div class="actions">
+        <button type="button" id="save" disabled>Save</button>
     </div>
-    <div class="status-bar"><span id="status" role="status">No font open.</span><span id="size">&nbsp;</span></div>
+    <footer><output id="status">No font open.</output><span id="size">&nbsp;</span></footer>
 </main>
-<div class="start-menu raised" id="start-menu" role="menu" aria-label="Start" hidden>
-    <div class="start-banner" aria-hidden="true">Font Converter</div>
+<div id="start-menu" role="menu" aria-label="Start" hidden>
+    <span aria-hidden="true">Font Converter</span>
     <ul>
         <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
         <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
@@ -180,27 +143,27 @@ fieldset[disabled] { color: var(--disabled); }
         <li><a role="menuitem" href="state.html"><u>S</u>tate Explorer</a></li>
         <li><a role="menuitem" href="hex.html"><u>H</u>ex Annotator</a></li>
         <li><a role="menuitem" href="icons.html"><u>I</u>con Lab</a></li>
-        <li class="separator" role="separator"></li>
+        <li role="separator"></li>
         <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
         <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
         <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
     </ul>
 </div>
-<div class="taskbar">
-    <button class="start" type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
-    <button class="task" type="button" tabindex="-1">Font Converter</button>
-    <button class="task" type="button" id="notes-task" hidden>Readme</button>
-    <span class="tray" id="clock"></span>
-</div>
-<section class="notes raised" id="notes" hidden aria-labelledby="notes-title">
-    <div class="title-bar">
-        <span class="title" id="notes-title">Readme - Pocket Word</span>
-        <button class="raised" id="notes-close" type="button" aria-label="Close">X</button>
-    </div>
-    <div class="menu-bar" aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></div>
-    <div class="document sunken">
+<footer>
+    <button type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
+    <button type="button" tabindex="-1">Font Converter</button>
+    <button type="button" id="notes-task" hidden>Readme</button>
+    <time id="clock"></time>
+</footer>
+<dialog id="notes" aria-labelledby="notes-title">
+    <header>
+        <h2 id="notes-title">Readme - Pocket Word</h2>
+        <button id="notes-close" type="button" aria-label="Close">X</button>
+    </header>
+    <nav aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></nav>
+    <article>
         <h1>Font Converter</h1>
-        <p class="tagline">Keep on keeping on!</p>
+        <p>Keep on keeping on!</p>
         <p>Turns a desktop font into a TrueType or bitmap font that Windows CE 1.0 and 2.0 handhelds can use.</p>
         <h2>Using it</h2>
         <ul>
@@ -221,8 +184,8 @@ fieldset[disabled] { color: var(--disabled); }
             <li>Characters outside the Basic Multilingual Plane, colour glyphs, kerning and ligatures are dropped.</li>
             <li>Check the font's licence. Fonts with a Reserved Font Name need a new family name once modified.</li>
         </ul>
-    </div>
-</section>
-<script type="module" src="src/fonts.js"></script>
+    </article>
+</dialog>
+<script type="module" src="src/apps/fonts.js"></script>
 </body>
 </html>
