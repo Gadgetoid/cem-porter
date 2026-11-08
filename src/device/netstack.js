@@ -90,7 +90,7 @@ export class TcpSocket {
     }
 
     write(bytes) {
-        if (this.state !== "established" && this.state !== "close-wait") {
+        if ((this.state !== "established" && this.state !== "close-wait") || this.finPending) {
             throw new Error("socket is not connected");
         }
         for (let offset = 0; offset < bytes.length; offset += MSS) {

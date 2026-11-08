@@ -217,10 +217,12 @@ export class PcLinkLink {
         }
         this.info = await this.readDesktopInfo(this.desktop);
         this.desktop.onData = () => undefined;
-        this.ping = setInterval(() => {
-            if (this.desktop && this.desktop.state === "established") this.desktop.write(words(PING));
-        }, PING_MS);
-        this.desktop.write(words(PING));
+        if (this.info !== CE1_INFO) {
+            this.ping = setInterval(() => {
+                if (this.desktop && this.desktop.state === "established") this.desktop.write(words(PING));
+            }, PING_MS);
+            this.desktop.write(words(PING));
+        }
         this.log(this.info === CE1_INFO
             ? "Windows CE 1.0 device connected"
             : `${this.info.model || this.info.name || "device"} (${this.info.platform}) connected, Windows CE ${this.info.osMajor}.x`);
