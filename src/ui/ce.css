@@ -381,7 +381,9 @@ nav [role="menu"] { position: absolute; top: 100%; left: 0; z-index: 50; min-wid
 
 #start-menu ul { flex: 1; padding: 2px 0; }
 
-#start-menu [role="menuitem"] { padding: 5px 20px 5px 10px; cursor: pointer; }
+#start-menu [role="menuitem"] { display: flex; align-items: center; gap: 8px; padding: 4px 20px 4px 6px; cursor: pointer; }
+
+#start-menu [role="menuitem"] > :first-child { width: 16px; height: 16px; flex: none; image-rendering: pixelated; }
 
 #start-menu [role="separator"] { margin: 3px 4px; }
 
@@ -406,7 +408,29 @@ body > footer > #start { flex: none; font-weight: bold; min-width: 0; padding: 0
 
 body > footer > #start[aria-expanded="true"] { box-shadow: var(--pressed); }
 
+body > footer > button img { width: 16px; height: 16px; margin-right: 4px; vertical-align: -4px; image-rendering: pixelated; }
+
 body > footer > time { margin-left: auto; padding: 0 8px; height: 22px; line-height: 22px; box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--highlight); }
+
+main { position: relative; z-index: 1; }
+
+#desktop { position: fixed; top: 8px; left: 4px; bottom: 36px; z-index: 0; }
+
+#desktop ul { list-style: none; margin: 0; padding: 0; height: 100%; display: flex; flex-direction: column; flex-wrap: wrap; align-content: flex-start; gap: 10px 4px; }
+
+#desktop a { display: grid; justify-items: center; gap: 3px; width: 76px; color: var(--highlight); text-decoration: none; text-align: center; }
+
+#desktop img { width: 32px; height: 32px; image-rendering: pixelated; }
+
+#desktop span { padding: 0 2px; line-height: 1.25; }
+
+#desktop a:is(:hover, :focus-visible) { outline: none; }
+
+#desktop a:is(:hover, :focus-visible) span { background: var(--selection); outline: 1px dotted var(--highlight); }
+
+@media (min-width: 561px) {
+    body { padding-left: 96px; }
+}
 
 [role="toolbar"] { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 3px; background: var(--face); box-shadow: var(--raised); }
 
@@ -521,6 +545,7 @@ dialog > section > button { justify-self: start; }
 
 @media (max-width: 560px) {
     body { padding: 8px 0 40px; }
+    #desktop { display: none; }
     main { max-width: none; }
     .hide-narrow { display: none; }
     .fields { grid-template-columns: 1fr; }

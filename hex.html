@@ -143,30 +143,6 @@ main { --gap: 4px; height: calc(100vh - 64px); grid-template-rows: auto auto aut
     <input class="visually-hidden" type="file" id="file-input" aria-label="Open an executable">
     <footer><output id="status">Loading...</output><span id="size">&nbsp;</span></footer>
 </main>
-<div id="start-menu" role="menu" aria-label="Start" hidden>
-    <span aria-hidden="true">Hex Annotator</span>
-    <ul>
-        <li><button type="button" role="menuitem" id="menu-readme"><u>R</u>eadme</button></li>
-        <li><a role="menuitem" href="index.html"><u>C</u>EM Porter</a></li>
-        <li><a role="menuitem" href="cabs.html">CA<u>B</u> Maker</a></li>
-        <li><a role="menuitem" href="sync.html">CEM<u>S</u>ync</a></li>
-        <li><a role="menuitem" href="explorer.html">R<u>O</u>M Explorer</a></li>
-        <li><a role="menuitem" href="package.html">P<u>a</u>ckage Explorer</a></li>
-        <li><a role="menuitem" href="state.html"><u>S</u>tate Explorer</a></li>
-        <li><a role="menuitem" href="fonts.html"><u>F</u>ont Converter</a></li>
-        <li><a role="menuitem" href="icons.html"><u>I</u>con Lab</a></li>
-        <li role="separator"></li>
-        <li><a role="menuitem" href="https://github.com/sponsors/gadgetoid" target="_blank" rel="noopener">Sponsor on <u>G</u>itHub</a></li>
-        <li><a role="menuitem" href="https://www.patreon.com/gadgetoid" target="_blank" rel="noopener"><u>P</u>atreon</a></li>
-        <li><a role="menuitem" href="https://ko-fi.com/gadgetoid" target="_blank" rel="noopener"><u>K</u>o-fi</a></li>
-    </ul>
-</div>
-<footer>
-    <button type="button" id="start" aria-haspopup="menu" aria-expanded="false" aria-controls="start-menu">Start</button>
-    <button type="button" tabindex="-1">Hex Annotator</button>
-    <button type="button" id="notes-task" hidden>Readme</button>
-    <time id="clock"></time>
-</footer>
 <dialog id="notes" aria-labelledby="notes-title">
     <header>
         <h2 id="notes-title">Readme - Pocket Word</h2>

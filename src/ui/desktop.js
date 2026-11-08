@@ -61,7 +61,79 @@ function setupDragging() {
     });
 }
 
+const TOOLS = [
+    { page: "index.html", label: "CEM Porter", key: "C", icon: "app-hack-studio" },
+    { page: "cabs.html", label: "CAB Maker", key: "B", icon: "filetype-archive" },
+    { page: "sync.html", label: "CEMSync", key: "S", icon: "network" },
+    { page: "explorer.html", label: "ROM Explorer", key: "O", icon: "hard-disk" },
+    { page: "package.html", label: "Package Explorer", key: "a", icon: "app-file-manager" },
+    { page: "state.html", label: "State Explorer", key: "S", icon: "app-system-monitor" },
+    { page: "fonts.html", label: "Font Converter", key: "F", icon: "app-font-editor" },
+    { page: "hex.html", label: "Hex Annotator", key: "H", icon: "app-hex-editor" },
+    { page: "icons.html", label: "Icon Lab", key: "I", icon: "app-pixel-paint" },
+];
+
+const SPONSOR_LINKS = [
+    { href: "https://github.com/sponsors/gadgetoid", label: "Sponsor on GitHub", key: "G" },
+    { href: "https://www.patreon.com/gadgetoid", label: "Patreon", key: "P" },
+    { href: "https://ko-fi.com/gadgetoid", label: "Ko-fi", key: "K" },
+];
+
+const README_ICON = "app-help";
+
+function element(tag, attributes = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+    node.append(...children);
+    return node;
+}
+
+function icon(name, size) {
+    const image = element("img", { src: new URL(`../../vendor/serenity-icons/${size}x${size}/${name}.png`, import.meta.url).href, width: size, height: size });
+    image.alt = "";
+    return image;
+}
+
+function mnemonic(label, key) {
+    const index = label.indexOf(key);
+    return [label.slice(0, index), element("u", {}, key), label.slice(index + 1)];
+}
+
+function currentTool() {
+    const page = location.pathname.split("/").pop() || "index.html";
+    return TOOLS.find((tool) => tool.page === page);
+}
+
+function buildShell(current) {
+    const iconSlot = (name) => (name ? icon(name, 16) : element("span"));
+    const menuLink = ({ href, label, key, icon: name, external }) => {
+        const attributes = { role: "menuitem", href };
+        if (external) Object.assign(attributes, { target: "_blank", rel: "noopener" });
+        return element("li", {}, element("a", attributes, iconSlot(name), element("span", {}, ...mnemonic(label, key))));
+    };
+    const desktop = element("nav", { id: "desktop", "aria-label": "Tools" }, element("ul", {}, ...TOOLS.map((tool) => {
+        const attributes = { href: tool.page };
+        if (tool === current) attributes["aria-current"] = "page";
+        return element("li", {}, element("a", attributes, icon(tool.icon, 32), element("span", {}, tool.label)));
+    })));
+    const startMenu = element("div", { id: "start-menu", role: "menu", "aria-label": "Start", hidden: "" },
+        element("span", { "aria-hidden": "true" }, "CE Magic Tools"),
+        element("ul", {},
+            element("li", {}, element("button", { type: "button", role: "menuitem", id: "menu-readme" }, iconSlot(README_ICON), element("span", {}, ...mnemonic("Readme", "R")))),
+            ...TOOLS.filter((tool) => tool !== current).map((tool) => menuLink({ href: tool.page, ...tool })),
+            element("li", { role: "separator" }),
+            ...SPONSOR_LINKS.map((link) => menuLink({ ...link, external: true }))));
+    const title = current?.label ?? document.title;
+    const taskbar = element("footer", {},
+        element("button", { type: "button", id: "start", "aria-haspopup": "menu", "aria-expanded": "false", "aria-controls": "start-menu" }, "Start"),
+        element("button", { type: "button", tabindex: "-1" }, ...(current ? [icon(current.icon, 16)] : []), title),
+        element("button", { type: "button", id: "notes-task", hidden: "" }, icon(README_ICON, 16), "Readme"),
+        element("time", { id: "clock" }));
+    document.body.append(desktop, startMenu, taskbar);
+}
+
 export function setupDesktop({ readmeKey }) {
+    buildShell(currentTool());
     setupDragging();
     const elements = Object.fromEntries(["clock", "notes", "notes-task", "notes-close", "about-button", "start", "start-menu", "menu-readme"].map((id) => [id, document.getElementById(id)]));
     const tick = () => {

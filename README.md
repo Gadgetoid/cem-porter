@@ -142,4 +142,4 @@ https://gadgetoid.github.io/cem-porter/fonts.html (`fonts.html`) converts a desk
 
 ## Licence
 
-MIT, see `LICENSE`. `vendor/fflate.js` is fflate 0.8.2 (MIT, `vendor/fflate-LICENSE`). `vendor/opentype.js` is opentype.js 2.0.0 (MIT, `vendor/opentype-LICENSE`). `vendor/cubic2quad.js` is cubic2quad 1.2.1 (MIT, `vendor/cubic2quad-LICENSE`), with its CommonJS exports changed to ES module exports.
+MIT, see `LICENSE`. `vendor/fflate.js` is fflate 0.8.2 (MIT, `vendor/fflate-LICENSE`). `vendor/opentype.js` is opentype.js 2.0.0 (MIT, `vendor/opentype-LICENSE`). `vendor/cubic2quad.js` is cubic2quad 1.2.1 (MIT, `vendor/cubic2quad-LICENSE`), with its CommonJS exports changed to ES module exports. `vendor/serenity-icons` are icons from SerenityOS (BSD 2-Clause, `vendor/serenity-icons-LICENSE`).
