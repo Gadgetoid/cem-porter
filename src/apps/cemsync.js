@@ -55,11 +55,10 @@ const TARGETS = [
     {
         id: "jornada",
         name: "HP Jornada 720",
-        link: "PC Link over USB",
+        link: "PC Link over USB: press Connect, then dock it",
         filters: PC_LINK_TARGETS,
         createLink: () => new PcLinkLink(),
         describe: describePcLink,
-        autoConnect: true,
         installRoot: "\\My Documents",
         packages: ["cab"],
         can: { install: true, send: true, backup: false, reset: false },
@@ -662,25 +661,6 @@ function setupDrop() {
 setupDesktop({ readmeKey: "cemsync-readme" });
 setupDrop();
 elements.connect.addEventListener("click", connect);
-if (navigator.usb) {
-    navigator.usb.addEventListener("connect", (event) => {
-        const target = targetFor(event.device);
-        const id = `${event.device.vendorId.toString(16).padStart(4, "0")}:${event.device.productId.toString(16).padStart(4, "0")}`;
-        if (!target || !target.autoConnect) {
-            log(`USB device ${id} appeared; not one CEMSync connects to by itself`);
-            return;
-        }
-        if (state.link) {
-            log(`${target.name} appeared, but a device is already connected`);
-            return;
-        }
-        log(`${target.name} appeared`);
-        start(target, (link) => { link.device = event.device; }).catch((error) => {
-            setStatus(error.message);
-            log(`error: ${error.message}`);
-        });
-    });
-}
 elements["connect-serial"].addEventListener("click", connectSerial);
 elements["connect-serial"].hidden = !navigator.serial;
 elements.disconnect.addEventListener("click", disconnect);
