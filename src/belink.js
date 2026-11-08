@@ -16,6 +16,7 @@ export const CMD = {
     version: 0x0301,
     closeHandle: 0x0309,
     createDirectory: 0x030b,
+    deleteFile: 0x030e,
     findClose: 0x0310,
     findFirstFile: 0x0311,
     findNextFile: 0x0312,
@@ -507,6 +508,10 @@ export class BeLink {
             at += part.length;
         }
         return out;
+    }
+
+    async deleteFile(path) {
+        return this.call(CMD.deleteFile, wstr(path));
     }
 
     async createDirectory(path) {

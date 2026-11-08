@@ -30,7 +30,7 @@ const elements = Object.fromEntries([
     "tools-button", "tools-menu", "tool-files", "tool-backup", "tool-reset", "tool-log",
     "connect", "disconnect", "drop", "drop-title", "drop-hint", "file-input", "status", "size",
     "browser", "browser-title", "browser-path", "browser-list", "browser-up", "browser-close",
-    "browser-refresh", "browser-upload", "browser-download", "browser-status",
+    "browser-refresh", "browser-upload", "browser-download", "browser-delete", "browser-status",
 ].map((id) => [id, document.getElementById(id)]));
 
 const state = { link: null, target: null, file: null, packages: [] };
@@ -369,6 +369,7 @@ async function showListing({ refresh = false } = {}) {
     elements["browser-up"].disabled = path === "\\";
     browser.selected = null;
     elements["browser-download"].disabled = true;
+    elements["browser-delete"].disabled = true;
 
     if (refresh) listingCache.delete(path);
     let entries = listingCache.get(path);
@@ -419,6 +420,7 @@ function renderListing(entries) {
             }
             browser.selected = entry;
             elements["browser-download"].disabled = false;
+            elements["browser-delete"].disabled = false;
             for (const other of body.children) other.classList.remove("selected");
             row.classList.add("selected");
         });
@@ -426,6 +428,27 @@ function renderListing(entries) {
             if (event.key === "Enter") { event.preventDefault(); row.click(); }
         });
         body.appendChild(row);
+    }
+}
+
+async function deleteSelected() {
+    if (!browser.selected) return;
+    const entry = browser.selected;
+    const path = join(browser.path, entry.name);
+    try {
+        elements["browser-delete"].disabled = true;
+        const reply = await state.link.deleteFile(path);
+        if (!reply.ret) {
+            browserStatus(`could not delete ${entry.name} (err ${reply.err})`);
+        } else {
+            browserStatus(`Deleted ${entry.name}`);
+            log(`deleted ${path}`);
+        }
+        listingCache.delete(browser.path);
+        showListing();
+    } catch (error) {
+        browserStatus(error.message);
+        log(`error: ${error.message}`);
     }
 }
 
@@ -537,6 +560,7 @@ elements["browser-close"].addEventListener("click", () => { elements.browser.hid
 elements["browser-refresh"].addEventListener("click", () => showListing({ refresh: true }));
 elements["browser-upload"].addEventListener("click", uploadHere);
 elements["browser-download"].addEventListener("click", downloadSelected);
+elements["browser-delete"].addEventListener("click", deleteSelected);
 elements["browser-up"].addEventListener("click", () => {
     const cut = browser.path.replace(/\\+$/, "").lastIndexOf("\\");
     browser.path = cut > 0 ? browser.path.slice(0, cut) : "\\";
