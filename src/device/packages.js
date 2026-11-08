@@ -128,6 +128,9 @@ export function compatibility(target, entry, device = null) {
         return `the ${target.name} does not take ${PACKAGE_KINDS[entry.kind].label} packages`;
     }
     const name = target.serial ? "device" : target.name;
+    if (entry.kind === "cab" && device && device.osMajor && device.osMajor < 2) {
+        return `Windows CE ${device.osMajor}.${device.osMinor} has no CAB installer; CABs need Windows CE 2.0 or later`;
+    }
     const architecture = entry.architecture;
     const accepted = target.architectures || (device && device.processorType ? cpuFamily(device.processorType) : null);
     if (accepted && architecture && architecture !== ARCHITECTURE_ANY && !accepted.includes(architecture)) {

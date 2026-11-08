@@ -66,7 +66,7 @@ const TARGETS = [
     },
     {
         id: "serial",
-        name: "Windows CE 2.x and 3.0 devices",
+        name: "Windows CE 1.0 to 3.0 devices",
         link: "PC Link over a serial cable",
         serial: true,
         createLink: () => new PcLinkLink(),
