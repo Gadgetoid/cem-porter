@@ -8,12 +8,12 @@ import { saveBytes, setupDesktop } from "../ui/desktop.js";
 
 function describePcLink(info) {
     return [
-        ["Model", info.model || "unknown"],
+        ["Model", info.model],
         ["Platform", info.platform],
         ["OS", info.os],
         ["Processor", info.processor],
         ["Link", info.link],
-    ];
+    ].filter(([, value]) => value);
 }
 
 const TARGETS = [

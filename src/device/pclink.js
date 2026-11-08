@@ -53,7 +53,7 @@ const PROCESSORS = {
     2577: "StrongARM", 1824: "ARM720", 2080: "ARM820", 2336: "ARM920", 70001: "ARM7TDMI",
 };
 
-const CE1_INFO = { osMajor: 1, name: "", platform: "", model: "" };
+const CE1_INFO = { osMajor: 1, name: "Handheld PC", platform: "", model: "" };
 
 export const PC_LINK_TARGETS = [{ vendorId: 0x03f0, productId: 0x2016 }];
 
@@ -320,7 +320,7 @@ export class PcLinkLink {
             name: this.info.name || "Handheld PC",
             model: this.info.model,
             platform: this.info.platform || this.info.name || "unknown",
-            os: `Windows CE ${os.major}.${os.minor} build ${os.build}`,
+            os: `Windows CE ${os.major}.${os.minor}${os.build ? ` build ${os.build}` : ""}`,
             osMajor: os.major,
             osMinor: os.minor,
             processor: PROCESSORS[processorType] || `type ${processorType}`,
