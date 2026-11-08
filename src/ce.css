@@ -180,7 +180,7 @@ td.size { white-space: nowrap; text-align: right; }
 
 .path { word-break: break-all; }
 
-tr.selected td { background: var(--selection); color: var(--selection-text); }
+tr.selected td { background-color: var(--selection); color: var(--selection-text); }
 
 tr.selected .problem, tr.selected .note { color: var(--selection-text); }
 
