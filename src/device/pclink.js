@@ -53,6 +53,8 @@ const PROCESSORS = {
     2577: "StrongARM", 1824: "ARM720", 2080: "ARM820", 2336: "ARM920", 70001: "ARM7TDMI",
 };
 
+const CE1_INFO = { osMajor: 1, name: "", platform: "", model: "" };
+
 export const PC_LINK_TARGETS = [{ vendorId: 0x03f0, productId: 0x2016 }];
 
 function plainString(writer, text) {
@@ -219,7 +221,9 @@ export class PcLinkLink {
             if (this.desktop && this.desktop.state === "established") this.desktop.write(words(PING));
         }, PING_MS);
         this.desktop.write(words(PING));
-        this.log(`${this.info.model || this.info.name || "device"} (${this.info.platform}) connected, Windows CE ${this.info.osMajor}.x`);
+        this.log(this.info === CE1_INFO
+            ? "Windows CE 1.0 device connected"
+            : `${this.info.model || this.info.name || "device"} (${this.info.platform}) connected, Windows CE ${this.info.osMajor}.x`);
         this.rapi = await this.connectRapi();
         this.log("RAPI connected");
     }
@@ -238,9 +242,17 @@ export class PcLinkLink {
     }
 
     async readDesktopInfo(socket) {
+        let sawZero = false;
         for (;;) {
-            const header = new Reader(await socket.read(4, 30000)).u32();
+            let header;
+            try {
+                header = new Reader(await socket.read(4, 30000)).u32();
+            } catch (error) {
+                if (sawZero && socket.remoteClosed) return CE1_INFO;
+                throw error;
+            }
             if (this.trace) this.log(`desktop header 0x${header.toString(16)}`);
+            if (header === 0) sawZero = true;
             if (header === 0 || header === PING) continue;
             if (header >= INFO_MAX) throw new Error("the device is password protected; remove the password to connect");
             return parseDesktopInfo(await socket.read(header, 30000));
@@ -303,9 +315,9 @@ export class PcLinkLink {
             processorType = system.u32();
         }
         return {
-            name: this.info.name,
+            name: this.info.name || "Handheld PC",
             model: this.info.model,
-            platform: this.info.platform || this.info.name,
+            platform: this.info.platform || this.info.name || "unknown",
             os: `Windows CE ${os.major}.${os.minor} build ${os.build}`,
             osMajor: os.major,
             osMinor: os.minor,
