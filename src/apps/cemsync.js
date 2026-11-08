@@ -50,6 +50,7 @@ const TARGETS = [
         installRoot: "\\My Documents",
         packages: ["cab"],
         architectures: [2577],
+        autoConnect: true,
         can: { install: true, send: true, backup: false, reset: false },
     },
     {
@@ -661,6 +662,21 @@ function setupDrop() {
 setupDesktop({ readmeKey: "cemsync-readme" });
 setupDrop();
 elements.connect.addEventListener("click", connect);
+
+function connectRemembered(device) {
+    const target = targetFor(device);
+    if (!target || !target.autoConnect || state.link) return;
+    log(`${target.name} found`);
+    start(target, (link) => { link.device = device; }).catch((error) => {
+        setStatus(error.message);
+        log(`error: ${error.message}`);
+    });
+}
+
+if (navigator.usb) {
+    navigator.usb.addEventListener("connect", (event) => connectRemembered(event.device));
+    navigator.usb.getDevices().then((devices) => devices.forEach(connectRemembered));
+}
 elements["connect-serial"].addEventListener("click", connectSerial);
 elements["connect-serial"].hidden = !navigator.serial;
 elements.disconnect.addEventListener("click", disconnect);
