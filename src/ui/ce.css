@@ -161,15 +161,15 @@ nav button[aria-haspopup][aria-expanded="true"] { background: var(--selection); 
     box-shadow: var(--sunken);
 }
 
-#notes h1 { font-size: 15px; margin: 0 0 2px; }
+#notes > article h1 { font-size: 15px; margin: 0 0 2px; }
 
-#notes h1 + p { font-style: italic; margin: 0 0 8px; }
+#notes > article h1 + p { font-style: italic; margin: 0 0 8px; }
 
-#notes h2 { font-size: 12px; margin: 12px 0 4px; }
+#notes > article h2 { font-size: 12px; margin: 12px 0 4px; }
 
-#notes p, #notes ul { margin: 0 0 6px; }
+#notes > article :is(p, ul) { margin: 0 0 6px; }
 
-#notes ul { padding-left: 18px; }
+#notes > article ul { padding-left: 18px; }
 
 fieldset {
     border: 0;
