@@ -1,4 +1,5 @@
 export const BAUD_RATES = [115200, 57600, 38400, 19200];
+const SIGNAL_DROP_MS = 250;
 
 export class WebSerial {
     constructor(port, baudRate) {
@@ -12,6 +13,8 @@ export class WebSerial {
 
     async open() {
         await this.port.open({ baudRate: this.baudRate, bufferSize: 65536 });
+        await this.port.setSignals({ dataTerminalReady: false, requestToSend: false });
+        await new Promise((resolve) => setTimeout(resolve, SIGNAL_DROP_MS));
         await this.port.setSignals({ dataTerminalReady: true, requestToSend: true });
         this.running = true;
         this.readLoop();
