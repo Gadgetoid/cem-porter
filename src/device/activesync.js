@@ -1,5 +1,6 @@
 import { RndisLink, RNDIS_TARGETS } from "./rndis.js";
 import { NetStack, parseIp } from "./netstack.js";
+import { Reader, Writer, sleep, words } from "./wire.js";
 
 const DEVICE_IP = "169.254.2.1";
 const HOST_IP = "169.254.2.2";
@@ -40,97 +41,6 @@ const PROCESSORS = {
     10003: "SH3", 10004: "SH4",
     2577: "ARM", 1824: "ARM 720", 2080: "ARM 820", 2336: "ARM 920", 70001: "ARM 7TDMI",
 };
-
-class Writer {
-    constructor() {
-        this.parts = [];
-    }
-
-    u32(value) {
-        const bytes = new Uint8Array(4);
-        new DataView(bytes.buffer).setUint32(0, value >>> 0, true);
-        this.parts.push(bytes);
-        return this;
-    }
-
-    bytes(data) {
-        this.parts.push(data);
-        return this;
-    }
-
-    string(text) {
-        const bytes = new Uint8Array((text.length + 1) * 2);
-        for (let index = 0; index < text.length; index++) {
-            const code = text.charCodeAt(index);
-            bytes[index * 2] = code & 0xff;
-            bytes[index * 2 + 1] = code >>> 8;
-        }
-        return this.u32(bytes.length).bytes(bytes);
-    }
-
-    build() {
-        const total = this.parts.reduce((sum, part) => sum + part.length, 0);
-        const out = new Uint8Array(total);
-        let position = 0;
-        for (const part of this.parts) {
-            out.set(part, position);
-            position += part.length;
-        }
-        return out;
-    }
-}
-
-class Reader {
-    constructor(bytes) {
-        this.bytes = bytes;
-        this.view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-        this.position = 0;
-    }
-
-    u32() {
-        const value = this.view.getUint32(this.position, true);
-        this.position += 4;
-        return value;
-    }
-
-    take(length) {
-        const out = this.bytes.subarray(this.position, this.position + length);
-        this.position += length;
-        return out;
-    }
-
-    skip(length) {
-        this.position += length;
-    }
-
-    wide(length) {
-        return decodeUtf16(this.take(length));
-    }
-
-    ascii(length) {
-        return String.fromCharCode(...this.take(length));
-    }
-}
-
-function decodeUtf16(bytes) {
-    let text = "";
-    for (let offset = 0; offset + 1 < bytes.length; offset += 2) {
-        const code = bytes[offset] | (bytes[offset + 1] << 8);
-        if (!code) break;
-        text += String.fromCharCode(code);
-    }
-    return text;
-}
-
-function words(...values) {
-    const writer = new Writer();
-    for (const value of values) writer.u32(value);
-    return writer.build();
-}
-
-function sleep(milliseconds) {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
 
 export function parseDeviceInfo(bytes) {
     const reader = new Reader(bytes);
@@ -319,7 +229,10 @@ export class ActiveSyncLink {
             model: this.info.model,
             platform: this.info.platforms.join(", "),
             os: `Windows CE ${os.major}.${os.minor} build ${os.build}`,
+            osMajor: os.major,
+            osMinor: os.minor,
             processor: PROCESSORS[processor] || `type ${processor}`,
+            processorType: processor,
         };
     }
 
@@ -409,18 +322,6 @@ export class ActiveSyncLink {
     async createDirectory(path) {
         const reply = await this.call(RAPI.createDirectory, (writer) => writer.string(path));
         return { ret: reply.u32(), err: reply.lastError };
-    }
-
-    async installCab(name, bytes, { onProgress = null } = {}) {
-        const base = name.split(/[\\/]/).pop().replace(/[^\w.-]+/g, "_").replace(/\.cab$/i, "") || "install";
-        const target = `\\Temp\\${base}.cab`;
-        await this.createDirectory("\\Temp");
-        this.log(`staging ${target}`);
-        await this.sendFile(target, bytes, onProgress);
-        this.log(`running wceload.exe "${target}"`);
-        const reply = await this.execute("wceload.exe", `"${target}"`);
-        if (!reply.ret) throw new Error(`could not start wceload.exe (err ${reply.err})`);
-        return reply;
     }
 
     async execute(application, commandLine = "") {

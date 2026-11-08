@@ -1,9 +1,19 @@
 import { BeLink, isSupported, NAND_BASE, NAND_TOTAL, SECTOR } from "../device/belink.js";
 import { ActiveSyncLink } from "../device/activesync.js";
 import { RNDIS_TARGETS } from "../device/rndis.js";
+import { PcLinkLink, PC_LINK_TARGETS } from "../device/pclink.js";
 import { PACKAGE_KINDS, compatibility, findPackages, recognise } from "../device/packages.js";
 import { unpackFiles, fileData } from "../archive/unpack.js";
 import { saveBytes, setupDesktop } from "../ui/desktop.js";
+
+function describePcLink(info) {
+    return [
+        ["Platform", info.platform],
+        ["OS", info.os],
+        ["Processor", info.processor],
+        ["Link", info.link],
+    ];
+}
 
 const TARGETS = [
     {
@@ -41,6 +51,29 @@ const TARGETS = [
         architectures: [2577],
         can: { install: true, send: true, backup: false, reset: false },
     },
+    {
+        id: "jornada",
+        name: "HP Jornada 720",
+        link: "PC Link over USB",
+        filters: PC_LINK_TARGETS,
+        createLink: () => new PcLinkLink(),
+        describe: describePcLink,
+        autoConnect: true,
+        installRoot: "\\My Documents",
+        packages: ["cab"],
+        can: { install: true, send: true, backup: false, reset: false },
+    },
+    {
+        id: "serial",
+        name: "Windows CE 2.x and 3.0 devices",
+        link: "PC Link over a serial cable",
+        serial: true,
+        createLink: () => new PcLinkLink(),
+        describe: describePcLink,
+        installRoot: "\\My Documents",
+        packages: ["cab"],
+        can: { install: true, send: true, backup: false, reset: false },
+    },
 ];
 
 function matches(filter, device) {
@@ -57,11 +90,11 @@ function matches(filter, device) {
 }
 
 function targetFor(device) {
-    return TARGETS.find((entry) => entry.filters.some((filter) => matches(filter, device))) || null;
+    return TARGETS.find((entry) => (entry.filters || []).some((filter) => matches(filter, device))) || null;
 }
 
 const elements = Object.fromEntries([
-    "connect", "disconnect", "status", "size",
+    "connect", "connect-serial", "disconnect", "status", "size",
     "drop", "drop-title", "drop-hint", "file-input",
     "info", "members", "install", "progress", "log", "log-panel",
     "connect-panel", "device-panel", "package-panel", "device-legend", "supported",
@@ -71,7 +104,7 @@ const elements = Object.fromEntries([
     "browser-refresh", "browser-upload", "browser-download", "browser-delete", "browser-status",
 ].map((id) => [id, document.getElementById(id)]));
 
-const state = { link: null, target: null, file: null, packages: [] };
+const state = { link: null, target: null, device: null, file: null, packages: [] };
 
 function setStatus(text) {
     elements.status.textContent = text;
@@ -99,7 +132,7 @@ function setConnected(connected) {
     elements["tool-files"].disabled = !connected || !can.send;
     elements["package-panel"].hidden = connected && !can.install;
     elements.install.disabled = !connected || !can.install || !state.file
-        || !!compatibility(state.target, state.file);
+        || !!compatibility(state.target, state.file, state.device);
     elements["device-legend"].textContent = state.target ? state.target.name : "Device";
 }
 
@@ -201,19 +234,45 @@ async function connect() {
         setStatus("This browser has no WebUSB. Use Chrome or Edge.");
         return;
     }
-    let link = null;
     try {
         setStatus("Choose the device...");
         const device = await navigator.usb.requestDevice({
-            filters: TARGETS.flatMap((entry) => entry.filters),
+            filters: TARGETS.flatMap((entry) => entry.filters || []),
         });
-        state.target = targetFor(device);
-        if (!state.target) throw new Error("that device is not one CEMSync knows");
+        const target = targetFor(device);
+        if (!target) throw new Error("that device is not one CEMSync knows");
+        await start(target, (link) => { link.device = device; });
+    } catch (error) {
+        setStatus(error.message);
+        log(`error: ${error.message}`);
+    }
+}
+
+async function connectSerial() {
+    if (!navigator.serial) {
+        setStatus("This browser has no Web Serial. Use Chrome or Edge.");
+        return;
+    }
+    try {
+        setStatus("Choose the serial port...");
+        const port = await navigator.serial.requestPort();
+        setStatus("Start PC Link on the device...");
+        await start(TARGETS.find((entry) => entry.serial), (link) => { link.port = port; });
+    } catch (error) {
+        setStatus(error.message);
+        log(`error: ${error.message}`);
+    }
+}
+
+async function start(target, attach) {
+    let link = null;
+    state.target = target;
+    try {
         log(`${state.target.name} chosen`);
         link = state.target.createLink();
         link.onLog = log;
-        link.device = device;
-        setStatus("Connecting...");
+        attach(link);
+        if (!state.target.serial) setStatus("Connecting...");
         await link.connect();
         state.link = link;
         promptForPackage();
@@ -221,6 +280,7 @@ async function connect() {
         setConnected(true);
         setStatus("Connected");
         const info = await link.deviceInfo();
+        state.device = info;
         if (link.startHeartbeat) {
             link.startHeartbeat();
             log("heartbeat started, link held open");
@@ -235,12 +295,12 @@ async function connect() {
         renderInfo(state.target.describe(info));
         if (info.uuid) log(`unit ${info.uuid}`);
     } catch (error) {
-        setStatus(error.message);
-        log(`error: ${error.message}`);
         if (link) await link.close();
         state.link = null;
         state.target = null;
+        state.device = null;
         setConnected(false);
+        throw error;
     }
 }
 
@@ -248,6 +308,7 @@ async function disconnect() {
     if (state.link) await state.link.close();
     state.link = null;
     state.target = null;
+    state.device = null;
     state.packages = [];
     state.file = null;
     renderPackages();
@@ -316,7 +377,7 @@ async function loadFiles(files) {
             `${state.packages.length} package${state.packages.length === 1 ? "" : "s"} found`;
         log(`found ${state.packages.length} package(s) in ${label}`);
         setStatus(`${state.packages.length} package(s) found`);
-        const usable = state.packages.findIndex((entry) => !compatibility(state.target, entry));
+        const usable = state.packages.findIndex((entry) => !compatibility(state.target, entry, state.device));
         select(Math.max(0, usable));
     }
     renderPackages();
@@ -334,7 +395,7 @@ function select(index) {
         log(`${entry.name}: selected`);
     }
     for (const warning of entry.warnings) log(`  warning: ${warning}`);
-    const problem = compatibility(state.target, entry);
+    const problem = compatibility(state.target, entry, state.device);
     if (problem) {
         log(`  cannot install: ${problem}`);
         setStatus(`Cannot install ${entry.name}: ${problem}`);
@@ -598,6 +659,19 @@ function setupDrop() {
 setupDesktop({ readmeKey: "cemsync-readme" });
 setupDrop();
 elements.connect.addEventListener("click", connect);
+if (navigator.usb) {
+    navigator.usb.addEventListener("connect", (event) => {
+        const target = targetFor(event.device);
+        if (state.link || !target || !target.autoConnect) return;
+        log(`${target.name} appeared`);
+        start(target, (link) => { link.device = event.device; }).catch((error) => {
+            setStatus(error.message);
+            log(`error: ${error.message}`);
+        });
+    });
+}
+elements["connect-serial"].addEventListener("click", connectSerial);
+elements["connect-serial"].hidden = !navigator.serial;
 elements.disconnect.addEventListener("click", disconnect);
 
 

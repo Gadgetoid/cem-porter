@@ -239,7 +239,8 @@ export class NetStack {
         this.ipId = 1;
         this.nextPort = 49152 + Math.floor(Math.random() * 1000);
         this.onLog = null;
-        link.onFrame = (frame) => this.receiveFrame(frame);
+        if (link.pointToPoint) link.onPacket = (packet) => this.receiveIp(packet, null);
+        else link.onFrame = (frame) => this.receiveFrame(frame);
     }
 
     log(text) {
@@ -322,7 +323,7 @@ export class NetStack {
     }
 
     async sendIp(destination, protocol, payload, destinationMac = null) {
-        const mac = destinationMac || await this.resolve(destination);
+        const mac = this.link.pointToPoint ? null : destinationMac || await this.resolve(destination);
         const packet = new Uint8Array(20 + payload.length);
         packet[0] = 0x45;
         packet[2] = packet.length >>> 8;
@@ -339,6 +340,10 @@ export class NetStack {
         packet[10] = sum >>> 8;
         packet[11] = sum & 0xff;
         packet.set(payload, 20);
+        if (this.link.pointToPoint) {
+            this.link.send(packet).catch((error) => this.log(`send failed: ${error.message}`));
+            return;
+        }
         this.sendEthernet(mac, ETHERTYPE_IPV4, packet);
     }
 
@@ -352,7 +357,7 @@ export class NetStack {
         const unconfigured = !this.ip[0] && !this.ip[1] && !this.ip[2] && !this.ip[3];
         const forUs = unconfigured || sameBytes(destination, this.ip) || destination[3] === 255 || destination[0] >= 224;
         if (!forUs) return;
-        if (ipToString(source) !== "0.0.0.0") this.arpCache.set(ipToString(source), sourceMac.slice());
+        if (sourceMac && ipToString(source) !== "0.0.0.0") this.arpCache.set(ipToString(source), sourceMac.slice());
         const payload = packet.subarray(headerLength, Math.min(totalLength, packet.length));
         if (packet[9] === PROTOCOL_ICMP) this.receiveIcmp(source, payload);
         else if (packet[9] === PROTOCOL_UDP) this.receiveUdp(source, payload, sourceMac);

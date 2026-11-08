@@ -55,6 +55,7 @@
             </div>
             <div class="actions">
                 <button type="button" id="connect">Connect...</button>
+                <button type="button" id="connect-serial">Connect Serial Port...</button>
             </div>
         </fieldset>
     </div>
@@ -131,7 +132,7 @@
     <article>
         <h1>CEMSync</h1>
         <p>Your device, no period PC required.</p>
-        <p>Talks to a Windows CE device over USB from the browser: the Casio BE-300 over its own PC Connect protocol, and the Dell Axim X51v (Windows Mobile 5) over ActiveSync.</p>
+        <p>Talks to a Windows CE device from the browser: the Casio BE-300 over its own PC Connect protocol, the Dell Axim X51v (Windows Mobile 5) over ActiveSync, and the HP Jornada 720 and other Windows CE 2.x and 3.0 devices over PC Link, by USB or a serial cable.</p>
         <h2>Using it</h2>
         <ul>
             <li>Connect the cradle, press <strong>Connect</strong>, and choose the device when the browser asks.</li>
@@ -145,12 +146,15 @@
             <li>Chrome or Edge. Safari and Firefox do not implement WebUSB.</li>
             <li>On Linux, a udev rule, or the kernel's <code>ipaq</code> and <code>rndis_host</code> drivers will claim the device first.</li>
             <li>Axim: leave <strong>Enable advanced network functionality</strong> on (Settings, Connections, USB to PC), and no device password.</li>
+            <li>Jornada and other PC Link devices: start PC Link on the device. The Jornada only appears on USB while PC Link is connecting, so choose it quickly the first time; after that CEMSync connects on its own whenever PC Link starts.</li>
+            <li>Serial: <strong>Connect Serial Port...</strong> takes any serial port or USB serial adapter. Start PC Link on the device; CEMSync finds the speed itself.</li>
         </ul>
         <h2>How it works</h2>
         <p>The BE-300 speaks Casio's own PC Connect protocol rather than ActiveSync. The host asserts DTR and RTS, trades <code>0x55</code> twice, then sends framed commands. The device drops off the bus about 115 ms after connecting if nothing follows, so the first command goes out immediately.</p>
         <p>Flash reads below the file system use a negative sector offset: the driver maps the user volume at physical sector 7584 and only bounds checks the top of its window, so the OS partitions are readable through the ordinary call.</p>
         <p>Windows Mobile 5 ActiveSync runs over TCP/IP on an RNDIS network over USB. CEMSync carries that network itself: RNDIS, Ethernet, ARP and a small TCP, with the PC at 169.254.2.2 and the device at 169.254.2.1. A <code>0x7F</code> byte to the device's UDP port 5679 makes it connect to the PC's port 990, describe itself, and on request open a second connection carrying RAPI.</p>
         <p>The device's network stops passing data once a session ends, until its USB configuration is cleared, so a later Connect resets the device first.</p>
+        <p>Older devices dial in. The device sends <code>CLIENT</code>, CEMSync answers <code>CLIENTSERVER</code> and plays the PC's side of PPP, giving the device 192.168.131.201. The device then connects to the PC's port 5679, describes itself and expects a ping every second, while CEMSync opens RAPI on the device's port 990.</p>
     </article>
 </dialog>
 <script type="module" src="src/apps/cemsync.js"></script>

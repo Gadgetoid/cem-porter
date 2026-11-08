@@ -5,6 +5,16 @@ import { planInstall } from "./cbeainstall.js";
 
 export const ARCHITECTURE_ANY = 0;
 
+const CPU_FAMILIES = [
+    [3000, 3910, 3912, 4000, 4100, 4111, 4121, 4200, 4300],
+    [10003, 10004],
+];
+
+const PLATFORM_NAMES = {
+    Handheld_PC: [],
+    PocketPC: ["PocketPC"],
+};
+
 const ARCHITECTURES = {
     0: "any CPU",
     1824: "ARM720",
@@ -55,13 +65,26 @@ function describeCab(bytes) {
     if (!setup) return { program: "", version: "", summary: "", warnings: ["no CE setup file inside"], architecture: null };
     const files = Object.keys(setup.files).length;
     const cpu = ARCHITECTURES[setup.architecture] || `CPU ${setup.architecture}`;
+    const [minimumMajor, minimumMinor] = setup.versions;
     return {
         program: setup.app,
         version: "",
         summary: `${setup.provider ? `${setup.provider}, ` : ""}${plural(files, "file")}, for ${cpu}`,
         warnings: [],
         architecture: setup.architecture,
+        unsupported: setup.unsupported.split(/[,;]/).map((name) => name.trim()).filter(Boolean),
+        minimumOs: minimumMajor ? [minimumMajor, minimumMinor] : null,
     };
+}
+
+async function installCab(link, entry, onProgress) {
+    const base = entry.name.replace(/[^\w.-]+/g, "_").replace(/\.cab$/i, "") || "install";
+    const target = `\\Temp\\${base}.cab`;
+    await link.createDirectory("\\Temp");
+    await link.sendFile(target, entry.bytes, onProgress);
+    const reply = await link.execute("wceload.exe", `"${target}"`);
+    if (!reply.ret) throw new Error(`could not start wceload.exe (err ${reply.err})`);
+    return `wceload.exe "${target}" started`;
 }
 
 export const PACKAGE_KINDS = {
@@ -84,10 +107,7 @@ export const PACKAGE_KINDS = {
         candidates: (method, bytes) => /^cab$/i.test(method) ? [bytes] : findCabinets(bytes).map((cabinet) => cabinet.data),
         detect: looksLikeCeCab,
         describe: describeCab,
-        install: async (link, entry, onProgress) => {
-            const reply = await link.installCab(entry.name, entry.bytes, { onProgress });
-            return `wceload.exe started (process ${reply.processId.toString(16)})`;
-        },
+        install: installCab,
     },
 };
 
@@ -95,14 +115,34 @@ export function architectureName(architecture) {
     return ARCHITECTURES[architecture] || `CPU ${architecture}`;
 }
 
-export function compatibility(target, entry) {
+function cpuFamily(type) {
+    return CPU_FAMILIES.find((family) => family.includes(type)) || [type];
+}
+
+export function devicePlatforms(device) {
+    if (!device || !device.platform) return [];
+    return device.platform.split(",").flatMap((name) => PLATFORM_NAMES[name.trim()] || [name.trim()]);
+}
+
+export function compatibility(target, entry, device = null) {
     if (!target.packages.includes(entry.kind)) {
         return `the ${target.name} does not take ${PACKAGE_KINDS[entry.kind].label} packages`;
     }
+    const name = target.serial ? "device" : target.name;
     const architecture = entry.architecture;
-    if (architecture === null || architecture === undefined || architecture === ARCHITECTURE_ANY) return null;
-    if (target.architectures && !target.architectures.includes(architecture)) {
-        return `built for ${architectureName(architecture)}; the ${target.name} runs ${target.architectures.map(architectureName).join(" or ")}`;
+    const accepted = target.architectures || (device && device.processorType ? cpuFamily(device.processorType) : null);
+    if (accepted && architecture && architecture !== ARCHITECTURE_ANY && !accepted.includes(architecture)) {
+        const runs = target.architectures ? target.architectures[0] : device.processorType;
+        return `built for ${architectureName(architecture)}; the ${name} runs ${architectureName(runs)}`;
+    }
+    const platforms = devicePlatforms(device).map((platform) => platform.toLowerCase());
+    const refused = (entry.unsupported || []).find((platform) => platforms.includes(platform.toLowerCase()));
+    if (refused) return `marked as not for ${refused} devices`;
+    if (device && device.osMajor && entry.minimumOs) {
+        const [major, minor] = entry.minimumOs;
+        if (device.osMajor < major || (device.osMajor === major && device.osMinor < minor)) {
+            return `needs Windows CE ${major}.${minor}; the ${name} runs ${device.osMajor}.${device.osMinor}`;
+        }
     }
     return null;
 }
