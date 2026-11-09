@@ -795,6 +795,34 @@ export class RarVM {
         break;
       }
 
+      case VM_StandardFilters.VMSF_E8:
+      case VM_StandardFilters.VMSF_E8E9: {
+        const dataSize = this.R_[4];
+        const fileOffset = this.R_[6];
+        if (dataSize >= VM_GLOBALMEMADDR || dataSize < 4) {
+          break;
+        }
+        const fileSize = 0x1000000;
+        const cmpByte2 = filterType == VM_StandardFilters.VMSF_E8E9 ? 0xe9 : 0xe8;
+        const dataView = new DataView(this.mem_.buffer);
+        for (let curPos = 0; curPos < dataSize - 4;) {
+          const curByte = this.mem_[curPos++];
+          if (curByte == 0xe8 || curByte == cmpByte2) {
+            const offset = curPos + fileOffset;
+            const addr = dataView.getUint32(curPos, true);
+            if (addr & 0x80000000) {
+              if (((addr + offset) & 0x80000000) == 0) {
+                dataView.setUint32(curPos, (addr + fileSize) >>> 0, true);
+              }
+            } else if (((addr - fileSize) & 0x80000000) != 0) {
+              dataView.setUint32(curPos, (addr - offset) >>> 0, true);
+            }
+            curPos += 4;
+          }
+        }
+        break;
+      }
+
       default:
         console.error('RarVM Standard Filter not supported: ' + getDebugString(VM_StandardFilters, filterType));
         break;

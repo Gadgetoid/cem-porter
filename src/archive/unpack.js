@@ -10,6 +10,7 @@ import { readIsListed, readIsSetup } from "./issetup.js";
 import { isLzh, scanLzh } from "./lzh.js";
 import { isCompoundFile, readCompoundStreams } from "./msi.js";
 import { findNsis, readNsis } from "./nsis.js";
+import { findRar, isRar, readRar } from "./rar.js";
 import { isPe, readSections, u16, u32 } from "../pe/pe.js";
 import { extractSevenZip, isSevenZip } from "./sevenzip.js";
 import { isVise, readVise } from "./vise.js";
@@ -390,6 +391,24 @@ function tryReadIsSetup(data) {
     }
 }
 
+function tryReadRar(data, offset = 0) {
+    try {
+        const { members } = readRar(data, offset);
+        return members.length ? members : null;
+    } catch {
+        return null;
+    }
+}
+
+function tryReadRarSfx(data) {
+    try {
+        const offset = findRar(data, overlayStart(data));
+        return offset < 0 ? null : tryReadRar(data, offset);
+    } catch {
+        return null;
+    }
+}
+
 function tryReadNsis(data) {
     try {
         const offset = findNsis(data, overlayStart(data));
@@ -433,6 +452,10 @@ export function membersOf(name, data, siblings = []) {
     }
     if (startsWith(data, CAB_SIGNATURE.slice(0, 4))) return { members: readCabinetLikeBsdtar(data), method: "cab" };
     if (isLzh(data)) return { members: readLzhLikeBsdtar(data), method: "lzh" };
+    if (isRar(data)) {
+        const members = tryReadRar(data);
+        if (members) return { members, method: "rar" };
+    }
     if (isRawCd(data) || isIso(data)) {
         const disc = tryReadIso(data);
         if (disc) return disc;
@@ -478,6 +501,8 @@ export function membersOf(name, data, siblings = []) {
         if (setup) return { members: setup, method: "InstallShield setup" };
         const nsis = tryReadNsis(data);
         if (nsis) return { members: nsis, method: "NSIS" };
+        const rar = tryReadRarSfx(data);
+        if (rar) return { members: rar, method: "RAR self-extractor" };
     }
     if (isVise(data)) {
         const members = tryReadVise(data);
@@ -494,7 +519,7 @@ export function membersOf(name, data, siblings = []) {
 function worthReading(name, head) {
     const lower = name.toLowerCase();
     return startsWith(head, ZIP_LOCAL_SIGNATURE) || lower.endsWith(".zip") || startsWith(head, CAB_SIGNATURE.slice(0, 4)) || isLzh(head) ||
-        isRawCd(head, Infinity) || isIso(head, Infinity) || isIs3(head) || isSevenZip(head) || isIs5(head) || looksLikeCbea(head) || isCpk(head) ||
+        isRawCd(head, Infinity) || isIso(head, Infinity) || isIs3(head) || isSevenZip(head) || isIs5(head) || looksLikeCbea(head) || isCpk(head) || isRar(head) ||
         startsWith(head, SZDD_SIGNATURE) || lower.endsWith("_") || lower.endsWith("$") || isPe(head);
 }
 

@@ -21,6 +21,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - Installer VISE for Windows (`setup.exe`): the files it installs, not its own runtime
 - InstallShield `setup.exe` file streams (InstallShield X era), decoded where obfuscated, and the older `setup.exe` that lists its disk files by name, path, version and size
 - NSIS installers compressed per file with Deflate (not solid, LZMA or bzip2)
+- RAR 1.5 to 3.x (not RAR5), including solid archives, PPMd and the standard filters (not Itanium), and RAR self-extractors. Each file is checked against its CRC. Decoding uses bitjs's unrar (MIT), adapted, with a PPMd port from libarchive's public domain Ppmd7
 - Windows Installer `.msi` and `.mst` streams, including Windows CE CABs InstallShield stores as binary streams
 - 7z: LZMA, LZMA2, Deflate and Copy, with BCJ, BCJ2, ARM and Delta filters (not PPMd, BZip2 or encrypted archives)
 - CD images: ISO 9660 with Joliet names (`.iso`), and raw 2352-byte sector images (`.bin`, `.mdf`) in Mode 1 or Mode 2 Form 1. Opened discs stay on disk: programs, archives and files up to 1 MB are read and unpacked, anything else only when a build installs it, or it's viewed or saved
@@ -40,7 +41,8 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 ### CE 2.11 to 2.0
 
 - System calls imported by ordinal are renumbered from H/PC Pro, Palm-size PC and HPC2000 numbering to H/PC 2.0's
-- MIPS Palm-size PCs (Compaq Aero, Philips Nino) keep the CE 2.01 numbering later versions share, checked against the Nino 300's COREDLL; only functions it names or numbers differently are changed
+- MIPS Palm-size PC 1.0 (Philips Nino) keeps the CE 2.01 numbering later versions share, checked against the Nino 300's COREDLL; only functions it names or numbers differently are changed
+- MIPS Palm-size PC 1.2 (Compaq Aero 1500 series) is checked against the Aero 1520 ROM's exports. Its COREDLL matches H/PC Pro 2.11; WINSOCK and OLE32 are numbered differently from the Nino's. NDIS and CEDDK imports are checked too
 - C runtime functions only later COREDLLs export come from `VELOCRT.DLL` (MIPS `__dp*`, `__ll_*`; SH3 `_divls`, `_addd`, `_*i64` and others)
 
 ### CE 2.0 or 1.01 to 1.0
