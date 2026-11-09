@@ -3,7 +3,7 @@ import { realign } from "./realign.js";
 import { redirect, shim, SHIM_DLL, RENAMES, SHIMMED } from "./shim.js";
 import { CE1_RENAMES, coredllOrdinalNames, markCe1, moveImports, ordinalsToNames, renameImports } from "./ce1.js";
 import { CRT_DLL, portToCe2 } from "./port.js";
-import { SH3_CE2_LABEL, SH3_CE212_LABEL, VELO_LABEL, MIPS_LABEL, PSPC_LABEL, importEntries, sh3Tables } from "./ordinals.js";
+import { SH3_CE2_LABEL, SH3_CE212_LABEL, VELO_LABEL, MIPS_LABEL, PSPC_LABEL, PSPC12_LABEL, importEntries, sh3Tables } from "./ordinals.js";
 import { ARCHITECTURE_ANY, ARCHITECTURE_MIPS, ARCHITECTURE_SH3, ARCHITECTURE_SH4, ARCHITECTURE_STRONGARM, Package } from "./cabwrite.js";
 import { selfInstaller } from "./selfinstall.js";
 import { reduceColourBitmaps } from "../pe/bitmaps.js";
@@ -15,7 +15,8 @@ export const DEVICES = {
     "velo-ce1": { label: "Philips Velo 1 (MIPS R3910)", cpu: "mips", ce: 1, fourKbPages: true, exports: "velo1" },
     "velo-ce2": { label: "Philips Velo 1 with the CE 2.0 upgrade (MIPS R3910)", cpu: "mips", ce: 2, fourKbPages: true },
     "mips-ce2": { label: "Other MIPS H/PCs (NEC MobilePro 700, Casio A-20, Sharp HC-4100)", cpu: "mips", ce: 2, fourKbPages: false },
-    "pspc-mips": { label: "MIPS Palm-size PCs (Compaq Aero, Philips Nino)", cpu: "mips", ce: 2, fourKbPages: true, ordinals: PSPC_LABEL, deviceName: "Palm-size PC" },
+    "pspc-mips": { label: "MIPS Palm-size PC 1.0 (Philips Nino)", cpu: "mips", ce: 2, fourKbPages: true, ordinals: PSPC_LABEL, deviceName: "Palm-size PC 1.0" },
+    "pspc12-mips": { label: "MIPS Palm-size PC 1.2 (Compaq Aero 1500 series)", cpu: "mips", ce: 2, fourKbPages: false, ordinals: PSPC12_LABEL, deviceName: "Palm-size PC 1.2" },
     "hp300lx": { label: "HP 300LX (SH3)", cpu: "sh3", ce: 1, fourKbPages: false, exports: "hp300lx" },
     "sh3-ce2": { label: "HP 320LX, 360LX, 620LX, Hitachi HPW-200EC (SH3)", cpu: "sh3", ce: 2, fourKbPages: false },
 };

@@ -4,6 +4,7 @@ export const VELO_LABEL = "H/PC 2.0 (Velo 1)";
 export const CE211_LABEL = "H/PC Pro 2.11 (Cassiopeia E-55)";
 export const MIPS_LABEL = "HPC2000 3.0 (MobilePro 790)";
 export const PSPC_LABEL = "Palm-size PC 2.0 (Nino 300)";
+export const PSPC12_LABEL = "Palm-size PC 1.2 (Aero 1520)";
 export const SH3_CE2_LABEL = "H/PC 2.0 SH3 (HP 320LX)";
 export const SH3_CE212_LABEL = "CE 2.12 SH3 (Odo)";
 export const CPU_HELPERS = 2000;
