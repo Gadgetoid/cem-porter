@@ -4,6 +4,7 @@ import { parsePe } from "../pe/pe.js";
 const ROOTS = { HKLM: "HKEY_LOCAL_MACHINE", HKCU: "HKEY_CURRENT_USER", HKCR: "HKEY_CLASSES_ROOT", HKU: "HKEY_USERS" };
 const PROGRAM_FILES = "\\Program Files";
 const UNLOAD_FOLDER = "Storage Card\\Program Files";
+const AYGSHELL_PATH = "\\Windows\\aygshell.dll";
 
 function leaf(path) {
     return path.slice(path.lastIndexOf("\\") + 1);
@@ -52,23 +53,27 @@ function needsAygshell(data) {
     }
 }
 
-export function cbeaWarnings(plan, dataFor = () => null) {
-    const warnings = [];
-    const shellUsers = plan.operations
+export function aygshellUsers(plan, dataFor = () => null) {
+    return plan.operations
         .filter((operation) => operation.kind === "file" && /\.(exe|dll)$/i.test(operation.path))
         .filter((operation) => {
             const data = dataFor(operation.source);
             return data && needsAygshell(data);
         })
         .map((operation) => leaf(operation.path));
-    if (shellUsers.length) warnings.push(`${shellUsers.join(", ")} need${shellUsers.length === 1 ? "s" : ""} AYGSHELL.DLL, which the stock BE-300 lacks`);
+}
+
+export function cbeaWarnings(plan, dataFor = () => null) {
+    const warnings = [];
+    const shellUsers = aygshellUsers(plan, dataFor);
+    if (shellUsers.length) warnings.push(`${shellUsers.join(", ")} use${shellUsers.length === 1 ? "s" : ""} AYGSHELL.DLL; the package adds CEM Porter's shim to \\Windows`);
     const unsupported = plan.operations.filter((operation) => operation.kind === "regmulti" || operation.kind === "regbinary");
     if (unsupported.length) warnings.push(`${unsupported.length} multi-string or binary registry value${unsupported.length === 1 ? "" : "s"} left out of the .cbea`);
     if (plan.setupDlls?.length) warnings.push("CoInstall doesn't run setup DLLs; the .cbea installs without it");
     return warnings;
 }
 
-export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}) {
+export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE, aygshell = null } = {}) {
     const files = installedFiles(plan, ported);
     const program = mainProgram(plan, files);
     if (!program) throw new Error("no program to install");
@@ -97,6 +102,7 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}
     };
 
     const copies = files.map((file) => ({ file, member: memberName(file.path) }));
+    const shim = aygshell ? { path: AYGSHELL_PATH, member: memberName(AYGSHELL_PATH), data: aygshell } : null;
     const folders = new Set();
     for (const operation of plan.operations) {
         if (operation.kind === "mkdir" && !within(operation.path, "\\Windows\\Programs") && operation.path.toLowerCase() !== "\\windows\\programs") folders.add(operation.path);
@@ -138,6 +144,7 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}
         `"?Drive?${PROGRAM_FILES}\\${uninstallName}" , "${uninstallName}", COPYFLG_REPLACEONLY`,
         `"%INSTALL_DIR%\\${programBase}.inf" , "${programBase}.txt", COPYFLG_REPLACEONLY`,
         ...copies.map(({ file, member }) => `"${devicePath(file.path)}" , "${member}", COPYFLG_REPLACEONLY`),
+        shim ? `"${shim.path}" , "${shim.member}", COPYFLG_REPLACEONLY` : [],
         "",
         registry.length ? ["[Add Registry]", ...registry, ""] : [],
         "; End",
@@ -171,6 +178,7 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}
             { name: uninstallName, data: uninstall },
             { name: `${programBase}.txt`, data: menu },
             ...copies.map(({ file, member }) => ({ name: member, data: ported.files.get(file) })),
+            ...(shim ? [{ name: shim.member, data: shim.data }] : []),
         ],
     });
 }

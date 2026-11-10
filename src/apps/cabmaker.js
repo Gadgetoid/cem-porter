@@ -2,7 +2,7 @@ import { zipSync } from "../../vendor/fflate.js";
 import { unpackFiles } from "../archive/unpack.js";
 import { findBuilds, loadPlanSources } from "../port/analyze.js";
 import { buildCab, buildSelfInstaller } from "../port/convert.js";
-import { buildCbea, cbeaWarnings } from "../device/cbeabuild.js";
+import { aygshellUsers, buildCbea, cbeaWarnings } from "../device/cbeabuild.js";
 import { fetchBytes } from "../port/assets.js";
 import { safeFolderName } from "../port/installplan.js";
 import { saveBytes, setupDesktop } from "../ui/desktop.js";
@@ -59,10 +59,13 @@ function cbeaOutput(build, files, base, notes) {
     if (String(build.cpu).toLowerCase() !== "mips" || !build.plan) return [];
     const plan = build.plan();
     const byPath = new Map(files.filter((file) => file.data).map((file) => [file.path, file.data]));
-    for (const warning of cbeaWarnings(plan, (source) => byPath.get(source))) notes.push(`BE-300: ${warning}`);
+    const dataFor = (source) => byPath.get(source);
+    for (const warning of cbeaWarnings(plan, dataFor)) notes.push(`BE-300: ${warning}`);
+    const shimmed = aygshellUsers(plan, dataFor).length > 0;
     let loading = null;
     const sources = () => (loading ??= loadPlanSources(plan, files).then((loaded) => unported(plan, loaded).ported));
-    return [output(`${base}.BE-300.cbea`, async () => buildCbea(plan, await sources()), null, "BE-300")];
+    const make = async () => buildCbea(plan, await sources(), { aygshell: shimmed ? await readBytes("data/mips/AYGSHELL.DLL") : null });
+    return [output(`${base}.BE-300.cbea`, make, null, "BE-300")];
 }
 
 function shippedRow(build, container, files) {
