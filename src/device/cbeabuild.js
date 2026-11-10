@@ -76,6 +76,8 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}
     const title = plan.title;
     const maker = plan.provider || title;
     const programBase = leaf(program.path).replace(/\.exe$/i, "");
+    const deviceFolder = `${PROGRAM_FILES}\\${leaf(installDir)}`;
+    const onDevice = (path) => within(path, installDir) ? `${deviceFolder}${path.slice(installDir.length)}` : path;
     const uninstallName = `Un${title.replace(/[^\w]+/g, "")}.inf`;
 
     const devicePath = (path) => {
@@ -107,6 +109,7 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}
     }
     const makeDirs = [...folders]
         .filter((folder) => folder.toLowerCase() !== installDir.toLowerCase() && !/^\\windows$/i.test(folder))
+        .filter((folder) => !within(installDir, folder))
         .sort((a, b) => a.length - b.length);
 
     const registry = [];
@@ -123,8 +126,8 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}
         `Maker       = "${maker}"`,
         `Program     = "${title}"`,
         "Version     = 1.0",
-        `InstallDir  = "?Drive?${installDir}"`,
-        `ExeFile     = "\\Program Disk${installDir.slice(PROGRAM_FILES.length)}\\${leaf(program.path)}"`,
+        `InstallDir  = "?Drive?${deviceFolder}"`,
+        `ExeFile     = "\\Program Disk${deviceFolder.slice(PROGRAM_FILES.length)}\\${leaf(program.path)}"`,
         `Destination = ${destination === PLACE_ALTERNATIVE ? "ALTERNATIVE" : "MAINMEM_ONLY"}`,
         "Unload      = 1",
         `Uninstall   = "${uninstallName}"`,
@@ -153,8 +156,8 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE } = {}
         ...outsideFiles,
         "",
         "[Delete Dirs]",
-        ...ownFolders.map((folder) => `"?Drive?${folder}"`),
-        `"?Drive?${installDir}"`,
+        ...ownFolders.map((folder) => `"?Drive?${onDevice(folder)}"`),
+        `"?Drive?${deviceFolder}"`,
         "",
         "; End",
     );
