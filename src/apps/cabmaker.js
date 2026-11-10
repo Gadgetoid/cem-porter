@@ -2,6 +2,7 @@ import { zipSync } from "../../vendor/fflate.js";
 import { unpackFiles } from "../archive/unpack.js";
 import { findBuilds, loadPlanSources } from "../port/analyze.js";
 import { buildCab, buildSelfInstaller } from "../port/convert.js";
+import { buildCbea, cbeaWarnings } from "../device/cbeabuild.js";
 import { fetchBytes } from "../port/assets.js";
 import { safeFolderName } from "../port/installplan.js";
 import { saveBytes, setupDesktop } from "../ui/desktop.js";
@@ -49,13 +50,26 @@ function unported(plan, sources) {
     return { ported: { files, support: [], setupDlls, modulePaths: new Set(), reports: [] }, missing };
 }
 
-function output(name, make, size = null) {
+function output(name, make, size = null, label = "Save") {
     let data = null;
-    return { name, size, make: async () => (data ??= await make()) };
+    return { name, size, label, make: async () => (data ??= await make()) };
 }
 
-function shippedRow(build, container) {
-    return { build, notes: [], outputs: [output(leafName(container.name), () => container.data, container.data.length)] };
+function cbeaOutput(build, files, base, notes) {
+    if (String(build.cpu).toLowerCase() !== "mips" || !build.plan) return [];
+    const plan = build.plan();
+    const byPath = new Map(files.filter((file) => file.data).map((file) => [file.path, file.data]));
+    for (const warning of cbeaWarnings(plan, (source) => byPath.get(source))) notes.push(`BE-300: ${warning}`);
+    let loading = null;
+    const sources = () => (loading ??= loadPlanSources(plan, files).then((loaded) => unported(plan, loaded).ported));
+    return [output(`${base}.BE-300.cbea`, async () => buildCbea(plan, await sources()), null, "BE-300")];
+}
+
+function shippedRow(build, container, files) {
+    const notes = [];
+    const base = safeFolderName(build.title.replace(/\.d\b/g, ""));
+    const outputs = [output(leafName(container.name), () => container.data, container.data.length), ...cbeaOutput(build, files, base, notes)];
+    return { build, notes, outputs };
 }
 
 function builtRow(build, files) {
@@ -71,7 +85,8 @@ function builtRow(build, files) {
     if (plan.setupDlls?.length > 1) notes.push(`a CAB holds one setup DLL: ${plan.setupDlls[0].app}'s runs`);
     const base = safeFolderName(build.title.replace(/\.d\b/g, ""));
     const outputs = [output(`${base}.${cpuLabel(build)}.CAB`, async () => buildCab(plan, await ported(), { cpu: build.cpu }))];
-    if (hasStub) outputs.push(output(`${base} Setup.${cpuLabel(build)}.exe`, async () => buildSelfInstaller(plan, await ported(), { cpu: stubCpu }, { stub: { [stubCpu]: await stubFor(stubCpu) } })));
+    if (hasStub) outputs.push(output(`${base} Setup.${cpuLabel(build)}.exe`, async () => buildSelfInstaller(plan, await ported(), { cpu: stubCpu }, { stub: { [stubCpu]: await stubFor(stubCpu) } }), null, "Setup"));
+    outputs.push(...cbeaOutput(build, files, base, notes));
     return { build, notes, outputs };
 }
 
@@ -84,7 +99,7 @@ function rowsFor(name, unpacked) {
         if (build.merged) continue;
         try {
             const container = build.kind === "cab" ? containers.get(build.source.toLowerCase()) : null;
-            rows.push(container ? shippedRow(build, container) : builtRow(build, files));
+            rows.push(container ? shippedRow(build, container, files) : builtRow(build, files));
         } catch (error) {
             problems.push(`${build.title}: ${error.message}`);
         }
@@ -156,7 +171,7 @@ function renderRows() {
         row.outputs.forEach((item, index) => {
             const button = document.createElement("button");
             button.type = "button";
-            const label = index ? "Setup" : "Save";
+            const label = item.label;
             button.textContent = item.size === null ? label : `${label} (${formatSize(item.size)})`;
             button.setAttribute("aria-label", `Save ${item.name}`);
             button.addEventListener("click", () => save(row, item));
