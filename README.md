@@ -21,7 +21,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - Installer VISE for Windows (`setup.exe`): the files it installs, not its own runtime
 - InstallShield `setup.exe` file streams (InstallShield X era), decoded where obfuscated, and the older `setup.exe` that lists its disk files by name, path, version and size
 - NSIS installers, solid or compressed per file, with Deflate, LZMA or bzip2
-- RAR 1.5 to 3.x (not RAR5), including solid archives, PPMd and the standard filters (not Itanium), and RAR self-extractors. Each file is checked against its CRC. Decoding uses bitjs's unrar (MIT), adapted, with a PPMd port from libarchive's public domain Ppmd7
+- RAR 1.5 to 3.x, including solid archives, PPMd and the standard filters (not Itanium), RAR5 (not encrypted or multi-volume), and RAR self-extractors. Each file is checked against its CRC. RAR 1.5 to 3.x decoding uses bitjs's unrar (MIT), adapted, with a PPMd port from libarchive's public domain Ppmd7
 - Windows Installer `.msi` and `.mst` streams, including Windows CE CABs InstallShield stores as binary streams
 - 7z: LZMA, LZMA2, PPMd, BZip2, Deflate and Copy, with BCJ, BCJ2, ARM and Delta filters (not encrypted archives)
 - CD images: ISO 9660 with Joliet names (`.iso`), and raw 2352-byte sector images (`.bin`, `.mdf`) in Mode 1 or Mode 2 Form 1. Opened discs stay on disk: programs, archives and files up to 1 MB are read and unpacked, anything else only when a build installs it, or it's viewed or saved

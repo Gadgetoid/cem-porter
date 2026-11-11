@@ -1,4 +1,5 @@
 import { unrarBytes } from "../../vendor/bitjs/archive/unrar.js";
+import { isRar5, readRar5 } from "./rar5.js";
 import { crc32 } from "./zip.js";
 
 const MARKER = [0x52, 0x61, 0x72, 0x21, 0x1a, 0x07, 0x00];
@@ -11,17 +12,18 @@ function markerAt(data, offset) {
 }
 
 export function isRar(data) {
-    return data.length >= MARKER.length && markerAt(data, 0);
+    return markerAt(data, 0) || isRar5(data, 0);
 }
 
 export function findRar(data, start = 0) {
     for (let offset = data.indexOf(MARKER[0], start); offset >= 0; offset = data.indexOf(MARKER[0], offset + 1)) {
-        if (markerAt(data, offset)) return offset;
+        if (markerAt(data, offset) || isRar5(data, offset)) return offset;
     }
     return -1;
 }
 
 export function readRar(data, offset = 0) {
+    if (isRar5(data, offset)) return readRar5(data, offset);
     const { files, messages } = unrarBytes(data.subarray(offset));
     const members = [];
     const failures = [];
