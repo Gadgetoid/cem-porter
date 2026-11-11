@@ -1,0 +1,1 @@
+{"3b1d9f9bfdbb":[[1,"HIDDeviceAttach"],[2,"HIDDeviceNotifications"],[3,"TouchPanelCalibrateAPoint"],[4,"TouchPanelDisable"],[5,"TouchPanelEnable"],[6,"TouchPanelGetDeviceCaps"],[7,"TouchPanelPowerHandler"],[8,"TouchPanelReadCalibrationAbort"],[9,"TouchPanelReadCalibrationPoint"],[10,"TouchPanelSetCalibration"],[11,"TouchPanelSetMode"]]}

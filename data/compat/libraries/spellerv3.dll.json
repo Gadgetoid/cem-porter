@@ -1,0 +1,1 @@
+{"6863d6e72592":[[20,"SpellerVersion"],[21,"SpellerInit"],[22,"SpellerTerminate"],[23,"SpellerOpenLex"],[24,"SpellerCloseLex"],[25,"SpellerSetOptions"],[26,"SpellerGetOptions"],[27,"SpellerAddChangeUdr"],[28,"SpellerAddUdr"],[29,"SpellerBuiltinUdr"],[30,"SpellerCheck"],[31,"SpellerClearUdr"],[32,"SpellerDelUdr"],[33,"SpellerGetListUdr"],[34,"SpellerGetSizeUdr"]]}

@@ -1,0 +1,1 @@
+{"204d28bb75c0":[[1,"HeapHooksInitialize"],[2,"SdbCreate"],[3,"SdbDestroy"],[4,"SdbGetStackAddress"],[5,"SdbLogCurrentStack"],[6,"SdbLogStack"],[7,"SdbReleaseStackReference"],[8,"SentinelsDoEnableCallStacks"],[9,"SentinelsDoEnableDfq"],[10,"SentinelsDoEnableSanityChecks"]]}

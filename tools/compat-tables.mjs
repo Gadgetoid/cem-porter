@@ -6,6 +6,8 @@ import { basename, join } from "node:path";
 import { openRom } from "../src/rom/romimage.js";
 import { cpuFamily } from "../src/rom/romcheck.js";
 import { readExports } from "../src/pe/romres.js";
+import { openImgfs } from "../src/rom/imgfs.js";
+import { isSec, secImages } from "./sec.mjs";
 
 const LIBRARY = /\.(dll|cpl|drv|ocx)$/i;
 const MAX_ROM_SIZE = 512 * 1024 * 1024;
@@ -76,6 +78,16 @@ function romLibraries(rom) {
             }
         }
     }
+    for (const file of rom.imgfs?.files ?? []) {
+        const key = file.name.toLowerCase();
+        if (libraries.has(key) || !LIBRARY.test(key)) continue;
+        try {
+            const exports = readExports(rom.imgfs.fileData(file));
+            if (exports.length) libraries.set(key, compactExports(exports));
+        } catch {
+            continue;
+        }
+    }
     for (const module of rom.imgfs?.modules ?? []) {
         const key = module.name.toLowerCase();
         if (libraries.has(key) || !LIBRARY.test(key)) continue;
@@ -93,6 +105,18 @@ function romCandidates(config) {
     return [config.rom?.primary ?? "", ...others];
 }
 
+function openFileRom(romPath, name) {
+    if (statSync(romPath).size > MAX_ROM_SIZE) throw new Error(`${name} is over ${MAX_ROM_SIZE / 1048576} MB`);
+    return openRom(new Uint8Array(readFileSync(romPath)), name);
+}
+
+function openSecRom(romPath) {
+    const images = secImages(romPath);
+    const rom = openRom(images.xip, basename(romPath));
+    rom.imgfs = images.imgfs ? openImgfs(images.imgfs) : null;
+    return rom;
+}
+
 function bestRom(bundleDirectory, config) {
     let first = null;
     let firstError = null;
@@ -100,8 +124,8 @@ function bestRom(bundleDirectory, config) {
         const romPath = join(bundleDirectory, "rom", candidate);
         try {
             if (!existsSync(romPath)) continue;
-            if (statSync(romPath).size > MAX_ROM_SIZE) throw new Error(`${candidate} is over ${MAX_ROM_SIZE / 1048576} MB`);
-            const rom = openRom(new Uint8Array(readFileSync(romPath)), candidate);
+            const rom = isSec(romPath) ? openSecRom(romPath) : openFileRom(romPath, candidate);
+            if (rom.partial) throw new Error(`${candidate}: ${rom.partial}`);
             const libraries = romLibraries(rom);
             const version = ceVersion(rom.primary, libraries);
             const found = { romPath, rom, libraries, version };

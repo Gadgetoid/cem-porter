@@ -1,0 +1,1 @@
+{"7d285186b9ec":[[1,"BCM_Close"],[2,"BCM_Deinit"],[3,"BCM_IOControl"],[4,"BCM_Init"],[5,"BCM_Open"],[6,"BCM_Read"],[7,"BCM_Seek"],[8,"BCM_Write"],[9,"DllMain"],[10,"OemDataInit"],[11,"OemGetMacAddress"],[12,"PowerFmLnaOff"],[13,"PowerFmLnaOn"],[14,"PowerOff"],[15,"PowerOn"],[16,"ReadHCSuspendLine"],[17,"SetHostSuspendLine"],[18,"SetSerialHandle"]]}

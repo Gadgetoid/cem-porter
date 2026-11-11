@@ -1,0 +1,1 @@
+{"36912cf4d6af":[[1,"GetMessageCountInformation"],[2,"MW_GetMessageInfo"],[3,"MW_GetSize"],[4,"MW_Read"],[5,"MW_RecognizeMessage"],[6,"MW_Send"],[7,"Raw_GetMessageInfo"],[8,"Raw_GetSize"],[9,"Raw_Read"],[10,"Raw_RecognizeMessage"],[11,"Raw_Send"],[12,"Text_GetMessageInfo"],[13,"Text_GetSize"],[14,"Text_Read"],[15,"Text_RecognizeMessage"],[16,"Text_Send"],[17,"DllMain"]]}

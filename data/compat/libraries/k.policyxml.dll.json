@@ -1,0 +1,1 @@
+{"328848ae5467":[[1,"PolicyXmlClear"],[2,"PolicyXmlCreate"],[3,"PolicyXmlDestroy"],[4,"PolicyXmlDllVersion"],[5,"PolicyXmlLoadFromDatabase"],[6,"PolicyXmlLoadFromXml"],[7,"PolicyXmlMessageLoadString"],[8,"PolicyXmlMessageToSeverity"],[9,"PolicyXmlSaveToDatabase"],[10,"PolicyXmlSaveToXml"],[11,"PolicyXmlSupportedOSVersion"],[12,"PolicyXmlUpdateDatabase"]]}

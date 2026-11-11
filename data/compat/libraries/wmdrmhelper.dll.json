@@ -1,0 +1,1 @@
+{"a954c94f2fba":[[1,"WMDRM_CleanupLicenseStore"],[2,"WMDRM_DeleteLicensesByKID"],[3,"WMDRM_GenerateMeteringChallenge"],[4,"WMDRM_GetDeviceProperty"],[5,"WMDRM_GetHeaderAttribute"],[6,"WMDRM_GetLicenseEndTime"],[7,"WMDRM_GetLicenseState"],[8,"WMDRM_ProcessLicenseResponse"],[9,"WMDRM_ProcessMeteringResponse"]]}

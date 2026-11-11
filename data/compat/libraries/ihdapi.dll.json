@@ -1,0 +1,1 @@
+{"8027349e9eec":[[1,"IADSetSamplingRate"],[2,"IADStartStreamingAudio"],[3,"IADStopStreamingAudio"],[4,"IHDCloseDevice"],[5,"IHDGetAttachedDevice"],[6,"IHDGetAttachedDeviceByName"],[7,"IHDGetDeviceCaps"],[8,"IHDGetReportDescriptors"],[9,"IHDOpenDevice"],[10,"IHDReceiveReport"],[11,"IHDSendReport"],[12,"IHDSetChargeCurrent"],[13,"IHDSetQueueSize"]]}

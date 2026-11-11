@@ -1,0 +1,1 @@
+{"9a2c5e0086c8":[[1,"CancelSignalIo"],[2,"CreateSignalQueue"],[3,"GetActiveLoad"],[4,"GetNetworkState"],[5,"GetOverlappedSignalResult"],[6,"OpenSignalLayer"],[7,"ReceiveQueuedSignals"],[8,"ReceiveSignals"],[9,"SendSignals"],[10,"SetActiveLoad"],[11,"SetSignalFilters"],[12,"SetSignalTimeouts"],[13,"SignalIoControl"]]}

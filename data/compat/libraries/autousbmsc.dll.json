@@ -1,0 +1,1 @@
+{"20de0a5c02ed":[[1,"GetDWORD"],[2,"SetDWORD"],[3,"SetWORD"],[4,"USBDeviceAttach"],[5,"USBInstallDriver"],[6,"USBUnInstallDriver"],[7,"UsbsDataTransfer"],[8,"UsbsGetContextFromReg"],[9,"UsbsGetStringDescriptor"],[10,"UsbsGetUsbDeviceInfo"],[11,"UsbsGetUsbHcdInfo"]]}

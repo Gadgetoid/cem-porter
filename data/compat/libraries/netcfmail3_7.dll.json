@@ -1,0 +1,1 @@
+{"25911eb897e7":[[1,"ActivateListener"],[2,"DeactivateListener"],[3,"DeleteMessageFromStore"],[4,"GetMessageData"],[5,"InitializeTransport"],[6,"IsDeleted"],[7,"RegisterListener"],[8,"ScheduleMessageSearch"],[9,"SendAsAttachment"],[10,"SendInBody"],[11,"UninitializeTransport"],[12,"UnregisterListener"]]}

@@ -1,0 +1,1 @@
+{"c1dc10a9f4d8":[[1,"BSD_Close"],[2,"BSD_Deinit"],[3,"BSD_IOControl"],[4,"BSD_Init"],[5,"BSD_Open"],[6,"HCI_CloseConnection"],[7,"HCI_OpenConnection"],[8,"HCI_ReadHciParameters"],[9,"HCI_ReadPacket"],[10,"HCI_SetCallback"],[11,"HCI_StartHardware"],[12,"HCI_StopHardware"],[13,"HCI_WritePacket"]]}

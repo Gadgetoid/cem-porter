@@ -1,0 +1,1 @@
+{"c6fd6a007e1f":[[1,"CacheBufferInfo"],[2,"ClaimNextBuffer"],[3,"CreateSharedState"],[4,"DestroySharedState"],[5,"GetSecondaryBuffer"],[6,"IsObscured"],[7,"IsSecondaryBufferAvailable"],[8,"ModifySharedState"],[9,"PresentBuffer"]]}

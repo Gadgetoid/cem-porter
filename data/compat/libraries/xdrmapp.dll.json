@@ -1,0 +1,1 @@
+{"c0dc998b9dc0":[[1,"XDRMApp_CreateProxy"],[2,"XDRMApp_DeleteLicenses"],[3,"XDRMApp_DestroyProxy"],[4,"XDRMApp_GenerateLicenseChallenge"],[5,"XDRMApp_GetCustomDataFromResponse"],[6,"XDRMApp_GetDeviceID"],[7,"XDRMApp_GetDeviceProperty"],[8,"XDRMApp_GetHeaderAttribute"],[9,"XDRMApp_GetLicenseData"],[10,"XDRMApp_ProcessLicenseResponse"],[11,"XDRMApp_VerifyApplicationForExecute"]]}

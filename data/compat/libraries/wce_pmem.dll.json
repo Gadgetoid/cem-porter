@@ -1,0 +1,1 @@
+{"842477a3eded":[[1,"pmem_disable_cache"],[2,"pmem_enable_cache"],[3,"pmem_free"],[4,"pmem_get_client_id_type"],[5,"pmem_get_mem_type"],[6,"pmem_get_phys_addr"],[7,"pmem_malloc"]]}

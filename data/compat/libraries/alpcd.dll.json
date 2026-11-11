@@ -1,1 +1,1 @@
-{"e0db8e4a4301":[[1,"LPC_Close"],[2,"LPC_Deinit"],[3,"LPC_IOControl"],[4,"LPC_Init"],[5,"LPC_Open"]]}
+{"e0db8e4a4301":[[1,"LPC_Close"],[2,"LPC_Deinit"],[3,"LPC_IOControl"],[4,"LPC_Init"],[5,"LPC_Open"]],"ed373db4bd8f":[[1,"LPC_Close"],[2,"LPC_Deinit"],[3,"LPC_IOControl"],[4,"LPC_Init"],[5,"LPC_Open"],[6,"LPC_PreClose"],[7,"LPC_PreDeinit"]]}

@@ -1,0 +1,1 @@
+{"b0fb94b0a774":[[1,"npa_remote_define_node"],[2,"npa_remote_define_resource"],[3,"npa_remote_resource_create_client_fcn"],[4,"npa_remote_resource_destroy_client_fcn"],[5,"npa_remote_resource_init"],[6,"npa_remote_resource_local_aggregation_driver_fcn"],[7,"npa_remote_resource_remote_aggregation_driver_fcn"],[8,"npa_remote_resource_remote_aggregation_update_fcn"]]}

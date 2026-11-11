@@ -1,1 +1,1 @@
-{"ae64312d13a2":[[1,"Deinit"],[2,"Init"]],"fc9ec4c88722":[[1,"Deinit"],[2,"IOControl"],[3,"Init"]],"f653d5005200":[[1,"DWX_Close"],[2,"DWX_Deinit"],[3,"DWX_IOControl"],[4,"DWX_Init"],[5,"DWX_Open"]]}
+{"ae64312d13a2":[[1,"Deinit"],[2,"Init"]],"fc9ec4c88722":[[1,"Deinit"],[2,"IOControl"],[3,"Init"]],"5d181de07289":[[1,"DWX_Close"],[2,"DWX_Open"],[3,"DWX_Deinit"],[4,"DWX_IOControl"],[5,"DWX_Init"],[6,"IOControl"]],"f653d5005200":[[1,"DWX_Close"],[2,"DWX_Deinit"],[3,"DWX_IOControl"],[4,"DWX_Init"],[5,"DWX_Open"]]}

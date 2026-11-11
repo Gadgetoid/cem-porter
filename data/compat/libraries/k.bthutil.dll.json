@@ -1,0 +1,1 @@
+{"56525ac1f6e8":[[1,"BthSetMode"],[2,"BthGetMode"],[3,"BthSetLocalName"],[4,"GetAudioDeviceID"],[5,"BthAddToSqmStream"],6,7,8,9,[10,"BthNetlogPrintf"],[11,"DllCanUnloadNow"],12,13,[14,"DllGetClassObject"],21,23,[24,"BthGetLocalName"],[25,"BthGetPairedDevices"],[26,"BthGetPairedDeviceAddresses"],[27,"BthConnectDeviceServices"]]}

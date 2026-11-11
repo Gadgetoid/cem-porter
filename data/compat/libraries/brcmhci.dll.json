@@ -1,0 +1,1 @@
+{"59faa986b1d8":[[1,"BBF_Cancel"],[2,"BBF_Close"],[3,"BBF_Deinit"],[4,"BBF_IOControl"],[5,"BBF_Init"],[6,"BBF_Open"],[7,"BBF_Read"],[8,"BBF_Seek"],[9,"BBF_Write"],[10,"HCI_CloseConnection"],[11,"HCI_OpenConnection"],[12,"HCI_ReadHciParameters"],[13,"HCI_ReadPacket"],[14,"HCI_SetCallback"],[15,"HCI_StartHardware"],[16,"HCI_StopHardware"],[17,"HCI_WritePacket"]]}

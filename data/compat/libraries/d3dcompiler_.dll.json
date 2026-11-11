@@ -1,0 +1,1 @@
+{"d1978f50c03b":[[1,"D3DAssemble"],[2,"DebugSetMute"],[3,"D3DCompile"],[4,"D3DDisassemble"],[5,"D3DDisassemble10Effect"],[6,"D3DGetBlobPart"],[7,"D3DGetDebugInfo"],[8,"D3DGetInputAndOutputSignatureBlob"],[9,"D3DGetInputSignatureBlob"],[10,"D3DGetOutputSignatureBlob"],[11,"D3DPreprocess"],[12,"D3DReflect"],[13,"D3DReturnFailure1"],[14,"D3DStripShader"]]}

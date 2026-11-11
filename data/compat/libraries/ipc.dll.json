@@ -1,1 +1,1 @@
-{"7b171358ea30":[[1,"CreateClassPtr"]]}
+{"7b171358ea30":[[1,"CreateClassPtr"]],"64b55632800f":[[1,"Close"],[2,"Deinit"],[3,"DriverEntry"],[4,"IOControl"],[5,"Init"],[6,"Open"],[7,"PowerDown"],[8,"PowerUp"],[9,"Read"],[10,"Seek"],[11,"Write"]]}

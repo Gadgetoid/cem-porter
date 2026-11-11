@@ -1,0 +1,1 @@
+{"bf032c89e0da":[[1,"CreateNewConfigDataRecord"],[2,"CreateNewDbAccess"],[3,"CreateNewNotebookContentRecord"],[4,"CreateNewNotebookContentRecordParam"],[5,"CreateNewSectionContentRecord"],[6,"CreateNewSectionContentRecordParam"],[7,"CreatePathOnDevice"],[8,"GetDBName"],[9,"GetDBPathDir"],[10,"GetDBPathFull"],[11,"GetNCRDevicePath"],[12,"GetNewID"],[13,"IsFirstUseOnm"]]}
