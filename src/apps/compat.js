@@ -3,7 +3,7 @@ import { isPe, parsePe } from "../pe/pe.js";
 import { findBuilds } from "../port/analyze.js";
 import { readExports } from "../pe/romres.js";
 import { fetchBytes } from "../port/assets.js";
-import { checkDevice, describeBinary, machineLabel, referenceDevice, STATUS_LABELS, STATUS_ORDER } from "../port/compat.js";
+import { checkDevice, describeBinary, detailText, machineLabel, referenceDevice, STATUS_LABELS, STATUS_ORDER } from "../port/compat.js";
 import { formatSize } from "../ui/browser.js";
 import { setupDesktop } from "../ui/desktop.js";
 
@@ -176,7 +176,20 @@ function renderDetails(body, result) {
     list.append(facts);
     for (const item of result.checks) {
         const entry = document.createElement("li");
-        entry.textContent = `${item.label}: ${STATUS_LABELS[item.status]}. ${item.summary}.${item.details.length ? ` ${item.details.join(" ")}` : ""}`;
+        entry.textContent = `${item.label}: ${STATUS_LABELS[item.status]}. ${item.summary}.`;
+        for (const detail of item.details) {
+            if (typeof detail === "string") {
+                entry.append(` ${detail}`);
+                continue;
+            }
+            entry.append(` ${detail.text} `);
+            detail.names.forEach((name, index) => {
+                if (index) entry.append(", ");
+                const strong = document.createElement("strong");
+                strong.textContent = name;
+                entry.append(strong);
+            });
+        }
         list.append(entry);
     }
     cell.append(list);
@@ -219,7 +232,7 @@ function renderMatrix() {
             const byId = new Map(result.checks.map((item) => [item.id, item]));
             for (const id of CHECK_COLUMNS) {
                 const item = byId.get(id);
-                if (item) statusCell(row, item.status, item.summary, item.details.join(" "));
+                if (item) statusCell(row, item.status, item.summary, item.details.map(detailText).join(" "));
                 else statusCell(row, null, "");
             }
             const toggle = () => {

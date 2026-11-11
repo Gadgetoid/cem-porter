@@ -40,6 +40,10 @@ function check(id, label, status, summary, details = []) {
     return { id, label, status, summary, details };
 }
 
+export function detailText(detail) {
+    return typeof detail === "string" ? detail : `${detail.text} ${detail.names.join(", ")}`;
+}
+
 export function describeBinary(name, data) {
     const parsed = parsePe(data);
     if (!parsed) return null;
@@ -175,15 +179,15 @@ function importsCheck(binary, device, context) {
     if (unverified.length) details.push(`Imported by number, not checked by name: ${unverified.join(", ")}`);
     if (missing.length) {
         status = worst([status, missing.length <= FEW_MISSING ? "amber" : "red"]);
-        details.push(`Missing: ${missing.join(", ")}`);
+        details.push({ text: "Missing:", names: missing });
     }
     const summary = missing.length ? `${missing.length} function${missing.length === 1 ? "" : "s"} missing` : patched.length || renumbered.length ? `${patched.length + renumbered.length} patched` : "all present";
     checks.push(check("functions", "Functions", status, summary, details));
     if (absent.length || redistributable.length) {
         const dllStatus = absent.length ? "red" : "amber";
         const dllDetails = [];
-        if (redistributable.length) dllDetails.push(`Installable separately: ${redistributable.join(", ")}`);
-        if (absent.length) dllDetails.push(`Not on this device or in the package: ${absent.join(", ")}`);
+        if (redistributable.length) dllDetails.push({ text: "Installable separately:", names: redistributable });
+        if (absent.length) dllDetails.push({ text: "Not on this device or in the package:", names: absent });
         checks.push(check("dlls", "DLLs", dllStatus, `${absent.length + redistributable.length} missing`, dllDetails));
     } else {
         checks.push(check("dlls", "DLLs", "runs", "all present"));
