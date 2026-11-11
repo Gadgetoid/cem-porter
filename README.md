@@ -91,6 +91,7 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Check app checks a program, DLL, CAB or installer against the open ROM: CPU family, CE version, and each imported DLL and function. Ordinal imports are named from the app's own SDK numbering, so functions the ROM numbers differently are reported as renumbered rather than missing; functions CEM Porter supplies (VELOCRT, CE1COMPAT, VELOSHIM, CE 1.0 renames) are marked as such. DLLs in the app's own package count as present
 - A bar under the toolbar shows the ROM's CE version, CPU, module and file counts, sizes and kernel date
 - Windows can be dragged by their title bars on desktop-sized screens
+- Search lists every file and folder whose name contains the text, wherever it is; typing in a folder jumps to the first name starting with the letters typed, and repeating a letter steps through the names starting with it. The same goes for State Explorer and Package Explorer
 - Files with no readable ROM are described: blank, mostly blank, another format, compressed throughout, or naming CE files without a ROM table
 
 ## CEM Compat

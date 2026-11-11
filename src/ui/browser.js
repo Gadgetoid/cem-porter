@@ -16,7 +16,10 @@ const HTML_EXTENSIONS = new Set(["htm", "html", "htp", "htc"]);
 const HTML_IMAGE_ATTRIBUTES = [["img", "src"], ["input", "src"], ["body", "background"], ["table", "background"], ["td", "background"], ["th", "background"]];
 const HTML_POLICY = "default-src 'none'; img-src data:; style-src 'unsafe-inline'";
 const ZIP_EARLIEST = new Date(1980, 0, 2);
-const ELEMENT_IDS = ["window-title", "open", "folder", "up", "view-icons", "view-details", "properties", "save-selected", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok"];
+const TYPE_AHEAD_RESET_MS = 800;
+const SEARCH_DELAY_MS = 250;
+const SEARCH_LIMIT = 2000;
+const ELEMENT_IDS = ["window-title", "open", "folder", "up", "search", "view-icons", "view-details", "properties", "save-selected", "view", "drop", "drop-title", "drop-hint", "file-input", "status", "size", "dialog", "dialog-title", "dialog-close", "dialog-tabs", "dialog-panel", "dialog-save", "dialog-ok"];
 
 export function formatSize(bytes) {
     if (bytes === null || bytes === undefined) return "";
@@ -185,7 +188,7 @@ function versionTab(version) {
 
 export function createBrowser({ title, viewKey, readData, loadData = readData, generalFacts, extraTabs = () => [], folderTabs = () => [], summaryTabs, openFile, shortcutPlace = "In this ROM", nodeActions = [] }) {
     const elements = Object.fromEntries(ELEMENT_IDS.map((id) => [id, document.getElementById(id)]));
-    const state = { source: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new WeakMap(), iconJob: 0, dialogNode: undefined };
+    const state = { source: null, tree: null, folder: null, selected: new Set(), anchor: null, view: "icons", sort: { key: "name", ascending: true }, order: [], images: new Map(), icons: new WeakMap(), iconJob: 0, dialogNode: undefined, typed: "", typedAt: 0, searchTimer: 0 };
 
     function setStatus(text) {
         elements.status.textContent = text;
@@ -249,7 +252,7 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         const { key, ascending } = state.sort;
         const children = sortChildren(folder.children);
         if (key === "name") return ascending ? children : children.reverse();
-        const value = (node) => key === "size" ? nodeSize(node) ?? -1 : key === "type" ? typeName(node) : nodeTime(node)?.getTime() ?? 0;
+        const value = (node) => key === "size" ? nodeSize(node) ?? -1 : key === "type" ? typeName(node) : key === "location" ? pathOf(node.parent) : nodeTime(node)?.getTime() ?? 0;
         return children.sort((left, right) => {
             const folders = (left.kind === "folder" ? 0 : 1) - (right.kind === "folder" ? 0 : 1);
             if (folders) return folders;
@@ -301,6 +304,7 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
                 image.src = placeholderIcon(node, 32);
                 const label = document.createElement("span");
                 label.textContent = node.name;
+                if (state.folder.search) item.title = pathOf(node.parent);
                 item.append(image, label);
                 bindItem(item, node);
                 state.images.set(node, image);
@@ -310,7 +314,9 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         } else {
             const table = document.createElement("table");
             const head = table.createTHead().insertRow();
-            for (const [key, label] of [["name", "Name"], ["size", "Size"], ["type", "Type"], ["modified", "Modified"]]) {
+            const columns = [["name", "Name"], ["size", "Size"], ["type", "Type"], ["modified", "Modified"]];
+            if (state.folder.search) columns.push(["location", "In folder"]);
+            for (const [key, label] of columns) {
                 const th = document.createElement("th");
                 const button = document.createElement("button");
                 button.type = "button";
@@ -338,6 +344,7 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
                 size.textContent = node.kind === "folder" ? "" : formatSize(nodeSize(node));
                 row.insertCell().textContent = typeName(node);
                 row.insertCell().textContent = formatDate(nodeTime(node));
+                if (state.folder.search) row.insertCell().textContent = pathOf(node.parent);
                 bindItem(row, node);
                 state.images.set(node, image);
             }
@@ -396,16 +403,67 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         renderSelection();
     }
 
-    function openFolder(folder) {
+    function openFolder(folder, { focus = true } = {}) {
         state.folder = folder;
         state.selected.clear();
         state.anchor = null;
+        if (!folder.search) elements.search.value = "";
         elements.up.disabled = !folder.parent;
         elements["window-title"].textContent = `${folder.parent ? folder.name : state.source.name} - ${title}`;
         renderFolderList();
         renderView();
         elements.view.scrollTop = 0;
-        elements.view.focus({ preventScroll: true });
+        if (focus) elements.view.focus({ preventScroll: true });
+    }
+
+    function searchResults(query) {
+        const wanted = query.toLowerCase();
+        const results = [];
+        const walk = (folder) => {
+            for (const child of folder.children) {
+                if (results.length >= SEARCH_LIMIT) return;
+                if (child.name.toLowerCase().includes(wanted)) results.push(child);
+                if (child.kind === "folder") walk(child);
+            }
+        };
+        walk(state.tree);
+        return results;
+    }
+
+    function search({ focus = false } = {}) {
+        if (!state.tree) return;
+        const query = elements.search.value.trim();
+        const from = state.folder?.search ? state.folder.parent : state.folder ?? state.tree;
+        if (!query) {
+            if (state.folder?.search) openFolder(from, { focus });
+            return;
+        }
+        const results = searchResults(query);
+        openFolder({ kind: "folder", name: `Search for "${query}"`, parent: from, children: results, search: true }, { focus });
+        setStatus(`${results.length >= SEARCH_LIMIT ? `First ${SEARCH_LIMIT}` : results.length} match${results.length === 1 ? "" : "es"} for "${query}".`);
+    }
+
+    function typeAhead(key) {
+        const now = performance.now();
+        state.typed = now - state.typedAt > TYPE_AHEAD_RESET_MS ? key.toLowerCase() : state.typed + key.toLowerCase();
+        state.typedAt = now;
+        const current = state.anchor ? state.order.indexOf(state.anchor) : -1;
+        const repeated = [...state.typed].every((character) => character === state.typed[0]);
+        const prefix = repeated ? state.typed[0] : state.typed;
+        const start = repeated ? current + 1 : Math.max(current, 0);
+        for (let step = 0; step < state.order.length; step++) {
+            const index = (start + step) % state.order.length;
+            if (state.order[index].name.toLowerCase().startsWith(prefix)) {
+                showSelected(state.order[index]);
+                return;
+            }
+        }
+    }
+
+    function showSelected(node) {
+        select(node);
+        const element = [...elements.view.querySelectorAll("[data-selectable]")].find((candidate) => candidate._node === node);
+        element?.scrollIntoView({ block: "nearest" });
     }
 
     function activate(node) {
@@ -427,9 +485,7 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         if (!state.order.length) return;
         const current = state.anchor ? state.order.indexOf(state.anchor) : -1;
         const next = Math.max(0, Math.min(state.order.length - 1, current + step));
-        select(state.order[next]);
-        const element = [...elements.view.querySelectorAll("[data-selectable]")].find((candidate) => candidate._node === state.order[next]);
-        element?.scrollIntoView({ block: "nearest" });
+        showSelected(state.order[next]);
     }
 
     function iconColumns() {
@@ -680,6 +736,7 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         state.source = source;
         state.icons = new WeakMap();
         elements.folder.disabled = false;
+        elements.search.disabled = false;
         openFolder(folder ?? tree);
     }
 
@@ -761,6 +818,28 @@ export function createBrowser({ title, viewKey, readData, loadData = readData, g
         } else if (event.altKey && event.key === "Enter") {
             event.preventDefault();
             showProperties(state.selected.size === 1 ? [...state.selected][0] : null);
+        } else if (event.key === "Escape" && state.folder.search) {
+            event.preventDefault();
+            openFolder(state.folder.parent);
+        } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey && (event.key !== " " || performance.now() - state.typedAt < TYPE_AHEAD_RESET_MS)) {
+            event.preventDefault();
+            typeAhead(event.key);
+        }
+    });
+    elements.search.addEventListener("input", () => {
+        clearTimeout(state.searchTimer);
+        state.searchTimer = setTimeout(search, SEARCH_DELAY_MS);
+    });
+    elements.search.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            clearTimeout(state.searchTimer);
+            search({ focus: true });
+            if (state.order.length) showSelected(state.order[0]);
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            elements.search.value = "";
+            search();
         }
     });
     elements["dialog-close"].addEventListener("click", closeDialog);
