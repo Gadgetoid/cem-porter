@@ -80,7 +80,9 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Raw NAND dumps that start with a four-entry partition table (Casio BE-300 and BE-500 `All_nand_*.bin`): each partition is read in turn, and one holding a whole-image LZSS stream (4 KB window, 3 to 18 byte matches) is expanded first, so the boot loader and the OS are both listed
 - CE 1.0 and 1.01 (inline TOC names, LZW) and CE 2.0 to 8.0 (LZ with 1 KB or 4 KB blocks, LZX or XPRESS with 4 KB blocks); the compression is detected per ROM from the files' recorded sizes
 - Regions chained together (CE 4.2's kernel and XIP regions share a ROM extensions block) are shown as one ROM, and so are OSes split across regions with no chain (Compaq iPAQ h3600 and h3100 `.nbf`, whose 32-byte header is skipped)
-- Windows Mobile 5 and 6 IMGFS partitions: modules and files, compressed with LZX or XPRESS, stored in order or behind the flash translation map
+- Windows Mobile 5 and 6 IMGFS partitions: modules and files, compressed with LZX, XPRESS or XPRESS Huffman, stored in order or behind the flash translation map
+- ROM update images: Dell Axim (XOR-scrambled), HP iPAQ `.nbf` (with a banner header, or as 512-byte sectors tagged with their sector numbers), ASUS update images and `.cap` files, and Windows Phone `_wmstore` packages. Flash partition tables are followed to the OS, including XPRS-compressed OS partitions, rather than the update loader
+- Whole-ROM dumps that start part-way into a 1 KB page (IBM WorkPad z50)
 - Modules are rebuilt as PE files; data directories pointing at sections romimage stripped are cleared
 - Folders and shortcut copies come from the ROM's `initobj.dat`, or `initflashfiles.dat` on Windows Mobile; shortcuts show their target's icon
 - Icons and version information are read from each module's resources; an Icons tab shows every icon image a program or DLL holds
@@ -105,7 +107,7 @@ https://gadgetoid.github.io/cem-porter/compat.html (`compat.html`) checks a prog
 - Ordinal imports are named from the nearest older ROM with the same CPU
 - DLLs in the same package count as present
 - Devices are grouped by OS and CE version, and can be filtered by CPU, result and name
-- Export tables come from the CERF bundle ROMs (`tools/compat-tables.mjs`, written to `data/compat`). The iPAQ rx1950, rx3715 and h4150, Dell Axim X50, ASUS A6x6 (WM6) and P525, IBM WorkPad z50, Nokia Lumia 800 and Ford SYNC 2 images aren't read yet
+- Export tables come from the CERF bundle ROMs (`tools/compat-tables.mjs`, written to `data/compat`). The Ford SYNC 2 image is read from disk by the tool, since it's too large to load whole
 
 ## State Explorer
 

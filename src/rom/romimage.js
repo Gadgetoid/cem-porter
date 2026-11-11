@@ -1,4 +1,5 @@
 import { openImgfs } from "./imgfs.js";
+import { unwrapContainer } from "./containers.js";
 import { latin1Decode, u16, u32 } from "../pe/pe.js";
 import { attachRelocations } from "../port/recreate.js";
 import { lzDecode, lzwDecode, lzwFileDecode, lzxBlocksDecode } from "./romlz.js";
@@ -34,6 +35,7 @@ const ADDRESS_MASK = 0x1fffffff;
 const PAGE = 0x1000;
 const MAX_IMAGE_SIZE = 0x4000000;
 const MAX_HEADER_SHIFT = 0x100;
+const UPDATE_LOADER_MODULE = "uldrui.dll";
 const FILETIME_UNIX_EPOCH_MS = 11644473600000n;
 
 export const MACHINE_NAMES = {
@@ -137,6 +139,7 @@ class RomRegion {
     }
 
     decompress(stored, size, scheme = this.compression) {
+        if (size > MAX_IMAGE_SIZE) throw new Error(`a ${size}-byte section is too big to be real`);
         if (scheme === "lzx" || scheme === "xpress") return lzxBlocksDecode(stored, size, scheme);
         return lzDecode(stored, size, scheme === "lz4k" ? LZ_BLOCK_CE212 : LZ_BLOCK);
     }
@@ -533,7 +536,8 @@ function plausibleHeader(data, offset) {
     const ramStart = u32(data, offset + 20);
     const ramFree = u32(data, offset + 24);
     const ramEnd = u32(data, offset + 28);
-    if (physFirst & 0x3ff || physFirst >= physLast || moduleCount < 1 || moduleCount > 1000) return null;
+    const wholeDump = !(physFirst & 3) && physLast - physFirst === data.length;
+    if ((physFirst & 0x3ff && !wholeDump) || physFirst >= physLast || moduleCount < 1 || moduleCount > 1000) return null;
     if (!(ramStart <= ramFree && ramFree <= ramEnd)) return null;
     return { physFirst, physLast, moduleCount, fileCount: u32(data, offset + 48) };
 }
@@ -798,9 +802,18 @@ function groupRegions(regions) {
     return groups.sort((left, right) => Number(isCompleteOs(right)) - Number(isCompleteOs(left)) || size(right) - size(left));
 }
 
+function primaryGroup(groups, imgfs) {
+    const complete = groups.filter(isCompleteOs);
+    if (!imgfs || complete.length < 2) return groups;
+    const below = complete.filter((group) => group.every((region) => region.headerOffset < imgfs.volume.base)).sort((left, right) => Math.max(...right.map((region) => region.headerOffset)) - Math.max(...left.map((region) => region.headerOffset)));
+    return below.length ? [below[0], ...groups.filter((group) => group !== below[0])] : groups;
+}
+
 export function openRom(input, name = "") {
-    let data = input instanceof Uint8Array ? input : new Uint8Array(input);
-    let format = "Flat image";
+    const raw = input instanceof Uint8Array ? input : new Uint8Array(input);
+    const container = unwrapContainer(raw, name);
+    let data = container ? container.xip ?? container.image : raw;
+    let format = container ? container.kind : "Flat image";
     let bin = null;
     const nand = nandBinImages(data);
     const regions = [];
@@ -854,8 +867,12 @@ export function openRom(input, name = "") {
     if (!regions.length) throw new Error(`No Windows CE ROM found. ${describeUnreadable(data)}`);
     regions.sort((left, right) => hasKernel(right) - hasKernel(left) || right.physicalSize - left.physicalSize || right.modules.length - left.modules.length);
     const groups = groupRegions(regions);
-    const primary = groups[0].find((region) => moduleNames([region]).has("coredll.dll")) ?? groups[0][0];
-    const imgfs = openImgfs(input instanceof Uint8Array ? input : new Uint8Array(input));
-    if (imgfs) groups[0].push(new ImgfsRegion(imgfs, primary));
-    return { name, format: imgfs ? `${format}, with an IMGFS partition` : format, size: input.length, bin, regions, groups, imgfs, primary };
+    const imgfsSource = container ? container.imgfs ?? container.image : raw;
+    const imgfs = imgfsSource ? openImgfs(imgfsSource) : null;
+    const ordered = primaryGroup(groups, imgfsSource === data ? imgfs : null);
+    const primary = ordered[0].find((region) => moduleNames([region]).has("coredll.dll")) ?? ordered[0][0];
+    if (imgfs) ordered[0].push(new ImgfsRegion(imgfs, primary));
+    const loaderOnly = moduleNames(ordered[0]).has(UPDATE_LOADER_MODULE) && !regions.some((region) => !moduleNames([region]).has(UPDATE_LOADER_MODULE) && moduleNames([region]).has("coredll.dll"));
+    const partial = container?.partial ?? (loaderOnly ? "only the update loader's XIP could be read, not the OS's" : null);
+    return { name, format: imgfs ? `${format}, with an IMGFS partition` : format, size: input.length, bin, regions, groups: ordered, imgfs, primary, partial };
 }

@@ -500,7 +500,7 @@ function useChoice(index) {
     renderRomBar();
     const region = state.region;
     const names = new Set(groupModules().map((module) => module.name.toLowerCase()));
-    const partial = names.has("nk.exe") && names.has("coredll.dll") ? "" : " No kernel and COREDLL together, so this is probably a boot loader or a partial image.";
+    const partial = state.rom.partial ? ` Partly read: ${state.rom.partial}.` : names.has("nk.exe") && names.has("coredll.dll") ? "" : " No kernel and COREDLL together, so this is probably a boot loader or a partial image.";
     const chained = state.regions.length > 1 ? ` in ${state.regions.length} chained regions` : "";
     setStatus(`${view.source.name}: Windows CE ${versionLabel(region)}, ${machineName(region.machine)}, ${groupModules().length} modules and ${groupFiles().length} files${chained}.${partial}${notes.length ? " " + notes.join(" ") : ""}`);
 }

@@ -11,6 +11,10 @@ const RAW_BLOCK = 0x80000000;
 const LZSS_WINDOW = 4096;
 const LZSS_MIN_MATCH = 3;
 const LZSS_MAX_MATCH = 18;
+const HUFFMAN_TABLE_BYTES = 256;
+const HUFFMAN_SYMBOLS = 512;
+const HUFFMAN_TABLE_BITS = 15;
+const HUFFMAN_BLOCK_SIZE = 65536;
 
 function read24(data, offset) {
     return data[offset] | (data[offset + 1] << 8) | (data[offset + 2] << 16);
@@ -280,4 +284,87 @@ export function lzwFileDecode(data, size) {
         output.append(start & RAW_BLOCK ? chunk.subarray(0, length) : lzwDecode(chunk, length));
     });
     return output.result(size);
+}
+
+function huffmanWord(data, offset) {
+    return (data[offset] ?? 0) | ((data[offset + 1] ?? 0) << 8);
+}
+
+function huffmanTable(data, start) {
+    const lengths = new Uint8Array(HUFFMAN_SYMBOLS);
+    for (let index = 0; index < HUFFMAN_TABLE_BYTES; index++) {
+        lengths[index * 2] = data[start + index] & 0x0f;
+        lengths[index * 2 + 1] = data[start + index] >> 4;
+    }
+    const table = new Uint32Array(1 << HUFFMAN_TABLE_BITS);
+    let code = 0;
+    for (let length = 1; length <= HUFFMAN_TABLE_BITS; length++) {
+        for (let symbol = 0; symbol < HUFFMAN_SYMBOLS; symbol++) {
+            if (lengths[symbol] !== length) continue;
+            const span = 1 << (HUFFMAN_TABLE_BITS - length);
+            const first = code << (HUFFMAN_TABLE_BITS - length);
+            if (first + span > table.length) throw new Error("bad XPRESS Huffman table");
+            table.fill((symbol << 4) | length, first, first + span);
+            code++;
+        }
+        code <<= 1;
+    }
+    return table;
+}
+
+export function xpressHuffmanDecode(data, size) {
+    const output = new Uint8Array(size);
+    let written = 0;
+    let position = 0;
+    while (written < size) {
+        if (position + HUFFMAN_TABLE_BYTES + 4 > data.length) break;
+        const table = huffmanTable(data, position);
+        position += HUFFMAN_TABLE_BYTES;
+        let bits = ((huffmanWord(data, position) << 16) | huffmanWord(data, position + 2)) >>> 0;
+        position += 4;
+        let available = 16;
+        const consume = (count) => {
+            bits = (bits << count) >>> 0;
+            available -= count;
+            if (available < 0) {
+                bits = (bits | (huffmanWord(data, position) << -available)) >>> 0;
+                position += 2;
+                available += 16;
+            }
+        };
+        const blockEnd = Math.min(size, written + HUFFMAN_BLOCK_SIZE);
+        while (written < blockEnd) {
+            const entry = table[bits >>> (32 - HUFFMAN_TABLE_BITS)];
+            const length = entry & 0x0f;
+            if (!length) throw new Error("bad XPRESS Huffman code");
+            const symbol = entry >>> 4;
+            consume(length);
+            if (symbol < 256) {
+                output[written++] = symbol;
+                continue;
+            }
+            let matchLength = (symbol - 256) & 0x0f;
+            const offsetBits = (symbol - 256) >> 4;
+            if (matchLength === 15) {
+                matchLength = data[position++];
+                if (matchLength === 255) {
+                    matchLength = huffmanWord(data, position);
+                    position += 2;
+                    if (!matchLength) {
+                        matchLength = (huffmanWord(data, position) | (huffmanWord(data, position + 2) << 16)) >>> 0;
+                        position += 4;
+                    }
+                    if (matchLength < 15) throw new Error("bad XPRESS Huffman length");
+                    matchLength -= 15;
+                }
+                matchLength += 15;
+            }
+            matchLength += 3;
+            const offset = (offsetBits ? bits >>> (32 - offsetBits) : 0) + (1 << offsetBits);
+            if (offsetBits) consume(offsetBits);
+            if (offset > written) throw new Error("XPRESS Huffman match is outside the output");
+            for (let end = Math.min(blockEnd, written + matchLength); written < end; written++) output[written] = output[written - offset];
+        }
+    }
+    return output;
 }

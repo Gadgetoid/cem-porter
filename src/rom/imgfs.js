@@ -1,5 +1,5 @@
 import { u16, u32 } from "../pe/pe.js";
-import { xpressDecode } from "./romlz.js";
+import { xpressDecode, xpressHuffmanDecode } from "./romlz.js";
 import { decompressLzx } from "../archive/lzx.js";
 
 const SIGNATURE = [0xf8, 0xac, 0x2c, 0x9d, 0xe3, 0xd4, 0x2b, 0x4d, 0xbd, 0x30, 0x91, 0x6e, 0xd8, 0x4f, 0x31, 0xdc];
@@ -28,6 +28,7 @@ const EXPORT_DIRECTORY_SIZE = 40;
 const MAX_EXPORTS = 0x10000;
 const COMPRESSION_TAG = 0x2c;
 const LZX_TAG = 0x00585a4c;
+const XPRESS_HUFFMAN_TAG = 0x00485058;
 const LZX_CHUNK_HEADER = 8;
 const LZX_WINDOW_BITS = 16;
 const utf16 = new TextDecoder("utf-16le");
@@ -51,6 +52,7 @@ class Volume {
         this.base = base;
         this.blockSize = u32(data, base + 0x24);
         this.lzx = u32(data, base + COMPRESSION_TAG) === LZX_TAG;
+        this.huffman = u32(data, base + COMPRESSION_TAG) === XPRESS_HUFFMAN_TAG;
         this.map = null;
         const blocks = Math.floor((data.length - base) / ERASE_BLOCK);
         let live = 0;
@@ -115,7 +117,7 @@ class Volume {
                 chunk = new Uint8Array(full);
                 try {
                     const raw = this.read(address, stored);
-                    chunk.set(this.lzx ? decompressLzx(raw.subarray(LZX_CHUNK_HEADER), LZX_WINDOW_BITS, full) : xpressDecode(raw, full, { partial: true }));
+                    chunk.set(this.lzx ? decompressLzx(raw.subarray(LZX_CHUNK_HEADER), LZX_WINDOW_BITS, full) : this.huffman ? xpressHuffmanDecode(raw, full) : xpressDecode(raw, full, { partial: true }));
                 } catch {
                     chunk.fill(0);
                 }
