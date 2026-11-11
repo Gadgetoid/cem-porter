@@ -304,6 +304,13 @@ function isCarvedPayload(output) {
 }
 
 function probeDeflate(data, position) {
+    const blockType = (data[position] >> 1) & 3;
+    if (blockType === 3) return false;
+    if (blockType === 0) {
+        const length = data[position + 1] | (data[position + 2] << 8);
+        const complement = data[position + 3] | (data[position + 4] << 8);
+        return length >= 2 && length === (~complement & 0xffff) && startsWithZipOrPe(data.subarray(position + 5, position + 7));
+    }
     const { output, error } = inflateRaw(data, { start: position, end: position + CARVE_PROBE_SIZE, maxOutput: 2 });
     return !error && output.length === 2 && startsWithZipOrPe(output);
 }
@@ -356,7 +363,7 @@ function findEmbeddedLzh(data, start) {
     return null;
 }
 
-export function findEmbedded(data, start) {
+export function findEmbedded(data, start, overlay = true) {
     const zipOffset = findBytes(data, ZIP_LOCAL_SIGNATURE, start);
     if (zipOffset >= 0) {
         const members = readLocalEntries(data, zipOffset);
@@ -371,7 +378,7 @@ export function findEmbedded(data, start) {
     }
     const lzh = findEmbeddedLzh(data, start);
     if (lzh) return lzh;
-    const members = carveDeflate(data, start).map(({ offset, data: output }) => ({
+    const members = (overlay ? carveDeflate(data, start) : []).map(({ offset, data: output }) => ({
         name: "carved_" + offset.toString(16).padStart(6, "0") + (isPe(output) ? ".exe" : ".zip"),
         data: output,
     }));
@@ -510,7 +517,7 @@ export function membersOf(name, data, siblings = []) {
     }
     if (isPe(data) && peMachine(data) === MACHINE_X86 && data.length > EMBEDDED_SEARCH_MINIMUM_SIZE) {
         const start = overlayStart(data);
-        const embedded = findEmbedded(data, start < data.length ? start : 0);
+        const embedded = findEmbedded(data, start < data.length ? start : 0, start < data.length);
         if (embedded.members.length) return embedded;
     }
     return { members: null, method: null };
