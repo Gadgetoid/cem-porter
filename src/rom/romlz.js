@@ -122,7 +122,7 @@ export function lzssDecode(data, limit = Infinity) {
     return output.result();
 }
 
-function xpressDecode(data, size) {
+export function xpressDecode(data, size, { partial = false } = {}) {
     const output = new Uint8Array(size);
     let written = 0;
     let position = 0;
@@ -171,10 +171,13 @@ function xpressDecode(data, size) {
             length += 7;
         }
         length += 3;
-        if (offset > written) throw new Error("XPRESS match is outside the output");
+        if (offset > written) {
+            if (partial) break;
+            throw new Error("XPRESS match is outside the output");
+        }
         for (let index = 0; index < length && written < size; index++) output[written] = output[written++ - offset];
     }
-    if (written !== size) throw new Error(`XPRESS block produced ${written} of ${size} bytes`);
+    if (written !== size && !partial) throw new Error(`XPRESS block produced ${written} of ${size} bytes`);
     return output;
 }
 

@@ -1,3 +1,4 @@
+import { openImgfs } from "./imgfs.js";
 import { latin1Decode, u16, u32 } from "../pe/pe.js";
 import { attachRelocations } from "../port/recreate.js";
 import { lzDecode, lzwDecode, lzwFileDecode, lzxBlocksDecode } from "./romlz.js";
@@ -32,6 +33,7 @@ const FILE_ALIGNMENT = 0x200;
 const ADDRESS_MASK = 0x1fffffff;
 const PAGE = 0x1000;
 const MAX_IMAGE_SIZE = 0x4000000;
+const MAX_HEADER_SHIFT = 0x100;
 const FILETIME_UNIX_EPOCH_MS = 11644473600000n;
 
 export const MACHINE_NAMES = {
@@ -648,7 +650,9 @@ export function describeUnreadable(data) {
 function misalignedShifts(data) {
     const shifts = new Set();
     for (let position = data.indexOf(0x45); position >= 0 && shifts.size < 3; position = data.indexOf(0x45, position + 1)) {
-        if (position >= 0x40 && data[position + 1] === 0x43 && data[position + 2] === 0x45 && data[position + 3] === 0x43 && (position - 0x40) & 3) shifts.add((position - 0x40) & 3);
+        if (position < 0x40 || data[position + 1] !== 0x43 || data[position + 2] !== 0x45 || data[position + 3] !== 0x43) continue;
+        if ((position - 0x40) & 3) shifts.add((position - 0x40) & 3);
+        else if (((position - 0x40) & 0xfff) && ((position - 0x40) & 0xfff) < MAX_HEADER_SHIFT) shifts.add((position - 0x40) & 0xfff);
     }
     return [...shifts];
 }
@@ -704,6 +708,58 @@ function buildRegions(data, found) {
     }).filter((region) => !region.failed);
 }
 
+class ImgfsRegion {
+    constructor(imgfs, primary) {
+        this.imgfs = imgfs;
+        this.layout = "imgfs";
+        this.base = imgfs.volume.base;
+        this.machine = primary?.machine ?? 0;
+        this.version = primary?.version ?? null;
+        this.compression = imgfs.volume.lzx ? "lzx" : "xpress";
+        this.header = { copyEntries: 0, extensions: 0, cpuType: primary?.header.cpuType ?? 0 };
+        this.modules = [];
+        for (const [index, entry] of imgfs.modules.entries()) {
+            const module = { kind: "module", index, name: entry.name, attributes: entry.attributes, time: filetimeDate(entry.time[0], entry.time[1]), entry, region: this };
+            try {
+                const header = imgfs.header(entry);
+                const units = Object.fromEntries(UNIT_NAMES.map((name, unit) => [name, header.units[unit] ?? [0, 0]]));
+                module.header = { ...header, units };
+                module.sections = header.sections.map((section, number) => ({ ...section, name: sectionName(section, units), number }));
+                module.size = header.imageSize;
+            } catch (error) {
+                module.header = null;
+                module.sections = [];
+                module.size = entry.size;
+                module.problem = error.message;
+            }
+            this.modules.push(module);
+        }
+        this.files = imgfs.files.map((entry, index) => ({ kind: "file", index, name: entry.name, attributes: entry.attributes, time: filetimeDate(entry.time[0], entry.time[1]), size: entry.size, storedSize: entry.size, load: 0, entry, region: this }));
+    }
+
+    get physicalSize() {
+        return 0;
+    }
+
+    sectionData(section) {
+        const module = this.modules.find((candidate) => candidate.sections.includes(section));
+        return this.imgfs.sectionData(module.entry, section.number);
+    }
+
+    moduleData(module) {
+        if (!module.cached) module.cached = attachRelocations(RomRegion.prototype.rebuild.call(this, module)).pe;
+        return module.cached;
+    }
+
+    fileData(file) {
+        return this.imgfs.fileData(file.entry);
+    }
+
+    copyEntries() {
+        return [];
+    }
+}
+
 function moduleNames(regions) {
     return new Set(regions.flatMap((region) => region.modules.filter((module) => module.header).map((module) => module.name.toLowerCase())));
 }
@@ -725,6 +781,10 @@ function groupRegions(regions) {
         const chain = region.header.extensions ? regions.filter((other) => !used.has(other) && other.header.extensions === region.header.extensions) : [region];
         chain.forEach((member) => used.add(member));
         groups.push(chain);
+    }
+    if (!groups.some(isCompleteOs) && isCompleteOs(regions)) {
+        const split = groups.filter((group) => group.some((region) => region.modules.length));
+        groups.splice(0, groups.length, split.flat(), ...groups.filter((group) => !split.includes(group)));
     }
     for (const group of groups) {
         if (isCompleteOs(group) || !moduleNames(group).has("coredll.dll")) continue;
@@ -794,5 +854,8 @@ export function openRom(input, name = "") {
     if (!regions.length) throw new Error(`No Windows CE ROM found. ${describeUnreadable(data)}`);
     regions.sort((left, right) => hasKernel(right) - hasKernel(left) || right.physicalSize - left.physicalSize || right.modules.length - left.modules.length);
     const groups = groupRegions(regions);
-    return { name, format, size: input.length, bin, regions, groups, primary: groups[0].find((region) => moduleNames([region]).has("coredll.dll")) ?? groups[0][0] };
+    const primary = groups[0].find((region) => moduleNames([region]).has("coredll.dll")) ?? groups[0][0];
+    const imgfs = openImgfs(input instanceof Uint8Array ? input : new Uint8Array(input));
+    if (imgfs) groups[0].push(new ImgfsRegion(imgfs, primary));
+    return { name, format: imgfs ? `${format}, with an IMGFS partition` : format, size: input.length, bin, regions, groups, imgfs, primary };
 }

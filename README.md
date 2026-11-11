@@ -78,8 +78,9 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 
 - Reads CE BIN (B000FF) images, including ones whose load addresses differ from the OS's, and flat ROM or flash dumps (.nb0), finding the ROM header wherever the image sits, including dumps shifted by a few bytes and images that wrap round the end of a mirrored flash dump; zip and 7z archives are unpacked first, and every ROM in them is listed
 - Raw NAND dumps that start with a four-entry partition table (Casio BE-300 and BE-500 `All_nand_*.bin`): each partition is read in turn, and one holding a whole-image LZSS stream (4 KB window, 3 to 18 byte matches) is expanded first, so the boot loader and the OS are both listed
-- CE 1.0 and 1.01 (inline TOC names, LZW) and CE 2.0 to 6.0 (LZ with 1 KB or 4 KB blocks, LZX or XPRESS with 4 KB blocks); the compression is detected per ROM from the files' recorded sizes. CE 7 should read the same way but no CE 7 image has been tried
-- Regions chained together (CE 4.2's kernel and XIP regions share a ROM extensions block) are shown as one ROM
+- CE 1.0 and 1.01 (inline TOC names, LZW) and CE 2.0 to 8.0 (LZ with 1 KB or 4 KB blocks, LZX or XPRESS with 4 KB blocks); the compression is detected per ROM from the files' recorded sizes
+- Regions chained together (CE 4.2's kernel and XIP regions share a ROM extensions block) are shown as one ROM, and so are OSes split across regions with no chain (Compaq iPAQ h3600 and h3100 `.nbf`, whose 32-byte header is skipped)
+- Windows Mobile 5 and 6 IMGFS partitions: modules and files, compressed with LZX or XPRESS, stored in order or behind the flash translation map
 - Modules are rebuilt as PE files; data directories pointing at sections romimage stripped are cleared
 - Folders and shortcut copies come from the ROM's `initobj.dat`; shortcuts show their target's icon
 - Icons and version information are read from each module's resources; an Icons tab shows every icon image a program or DLL holds

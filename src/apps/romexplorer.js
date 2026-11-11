@@ -147,6 +147,13 @@ function romMemory() {
 }
 
 function regionMemory(region) {
+    if (region.layout === "imgfs") {
+        return [
+            ["IMGFS partition at", hex(region.base)],
+            ["Compression", COMPRESSION_NAMES[region.compression]],
+            ["Flash translation", region.imgfs.volume.map ? "Mapped sectors" : "None, stored in order"],
+        ];
+    }
     const header = region.header;
     return [
         ["ROM", range(header.physFirst, header.physLast)],
