@@ -120,6 +120,7 @@ export function parsePe(data) {
         relocSize: directories.length > 5 ? directories[5][1] : 0,
         imageBase: u32(data, optional + 28),
         sectionAlignment: u32(data, optional + 32),
+        imageSize: u32(data, optional + 56),
         fileAlignment: u32(data, optional + 36),
         osVersion: `${u16(data, optional + 40)}.${u16(data, optional + 42)}`,
         subsystem: u16(data, optional + 68),

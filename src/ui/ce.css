@@ -323,7 +323,7 @@ tr[tabindex] { cursor: pointer; }
 
 tr[aria-selected="true"] td { background-color: var(--selection); color: var(--selection-text); }
 
-tr[aria-selected="true"] :is(.problem, .note) { color: var(--selection-text); }
+tr[aria-selected="true"] :is(.problem, .fatal, .note) { color: var(--selection-text); }
 
 td.size, th.size { white-space: nowrap; text-align: right; }
 
@@ -336,6 +336,8 @@ td.name img { width: 16px; height: 16px; image-rendering: pixelated; flex: none;
 td.data { white-space: normal; overflow-wrap: anywhere; font-family: var(--mono); }
 
 .problem { color: var(--problem); }
+
+.fatal { color: var(--problem); font-weight: bold; }
 
 .note { color: var(--note); }
 

@@ -86,11 +86,12 @@ function renderReport(result) {
     body.replaceChildren();
     const lines = [];
     for (const report of result.reports) {
-        const changes = [...report.notes.map((text) => ({ text, className: "note" })), ...report.problems.map((text) => ({ text, className: "problem" }))];
+        const changes = [...report.fatal.map((text) => ({ text: `Won't run: ${text}`, className: "fatal" })), ...report.notes.map((text) => ({ text, className: "note" })), ...report.problems.map((text) => ({ text, className: "problem" }))];
         if (!changes.length) changes.push({ text: "unchanged", className: "" });
         lines.push({ name: report.name, changes });
     }
     for (const support of result.support) lines.push({ name: support.path.split("\\").pop(), changes: [{ text: `added: ${support.title}`, className: "note" }] });
+    for (const fatal of result.fatal) lines.unshift({ name: "Package", changes: [{ text: `Won't run: ${fatal}`, className: "fatal" }] });
     for (const warning of result.warnings) lines.push({ name: "Package", changes: [{ text: warning, className: "problem" }] });
     for (const skipped of result.skipped) lines.push({ name: "Package", changes: [{ text: skipped, className: "" }] });
     for (const line of lines) {
@@ -258,7 +259,7 @@ async function portSelected() {
     ported.warnings = [...plan.warnings];
     if (outputKind() === "cab" && ported.setupDlls.length > 1) ported.warnings.push(`A CAB holds one setup DLL: ${ported.setupDlls[0].app}'s runs, not ${ported.setupDlls.slice(1).map((setupDll) => setupDll.app).join(", ")}'s`);
     ported.skipped = plan.skipped;
-    if (build.cpu !== settings.cpu) ported.warnings.unshift(`This build is ${String(build.cpu).toUpperCase()}; the target is ${settings.cpu.toUpperCase()}. Pick a ${settings.cpu.toUpperCase()} build.`);
+    ported.fatal = build.cpu === settings.cpu ? [] : [`this build is ${String(build.cpu).toUpperCase()} and the target is ${settings.cpu.toUpperCase()}; pick a ${settings.cpu.toUpperCase()} build`];
     const base = safeFolderName(plan.title);
     let data;
     let name;
@@ -278,8 +279,8 @@ async function portSelected() {
     state.output = { data, name };
     renderReport(ported);
     const problems = ported.reports.reduce((count, report) => count + report.problems.length, 0) + ported.warnings.length;
-    const missingDlls = [...new Set(ported.reports.flatMap((report) => report.problems.map((problem) => /^missing (\S+\.DLL)/.exec(problem)?.[1]).filter(Boolean)))];
-    if (missingDlls.length) setStatus(`Won't run: missing ${missingDlls.join(", ")}.`);
+    const fatal = [...ported.fatal, ...ported.reports.flatMap((report) => report.fatal.map((text) => `${report.name} ${text}`))];
+    if (fatal.length) setStatus(`Won't run: ${fatal[0]}${fatal.length > 1 ? `, and ${fatal.length - 1} more; see the report` : ""}.`);
     else setStatus(problems ? `Ported with ${problems} problem${problems === 1 ? "" : "s"}; see the report.` : `Ported. Save ${name}.`);
     elements.size.textContent = formatSize(data.length);
     updateButtons();

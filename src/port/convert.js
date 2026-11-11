@@ -24,6 +24,7 @@ export const DEVICES = {
 const MACHINES = { mips: MACHINE_MIPS, sh3: MACHINE_SH3 };
 const CAB_PROCESSORS = { mips: ARCHITECTURE_MIPS, sh3: ARCHITECTURE_SH3, SH4: ARCHITECTURE_SH4, ARM: ARCHITECTURE_STRONGARM };
 const COMPAT_DLL = "CE1COMPAT.DLL";
+const MAX_PROGRAM_SIZE = 4 * 1024 * 1024;
 const SUPPORT_TITLES = { [CRT_DLL]: "C runtime for programs built with later CE 2.x SDKs", [SHIM_DLL]: "CE 1.01 functions for CE 1.0", [COMPAT_DLL]: "CE 2.0 functions for CE 1.0" };
 
 export function deviceSettings(device, assets) {
@@ -50,19 +51,25 @@ function subsystemVersion(data) {
     return major === 4 && minor === 0 ? 1 : major + minor / 100;
 }
 
+function megabytes(size) {
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function ordinalImports(parsed) {
     return Object.entries(parsed.imports).filter(([, functions]) => functions.some((name) => typeof name === "number")).map(([dll]) => dll);
 }
 
 export function portBinary(name, input, settings, destination = null) {
-    const result = { name, data: input, notes: [], problems: [], needs: new Set() };
+    const result = { name, data: input, notes: [], problems: [], fatal: [], needs: new Set() };
     const parsed = parsePe(input);
     if (!parsed) return result;
     const wanted = MACHINES[settings.cpu];
     if (parsed.machine !== wanted) {
-        result.problems.push(`built for ${MACHINE_NAMES[parsed.machine] ?? "0x" + parsed.machine.toString(16)}, not ${settings.cpu.toUpperCase()}`);
+        result.fatal.push(`built for ${MACHINE_NAMES[parsed.machine] ?? "0x" + parsed.machine.toString(16)}, not ${settings.cpu.toUpperCase()}`);
         return result;
     }
+    const size = Math.max(input.length, parsed.imageSize);
+    if (size > MAX_PROGRAM_SIZE) result.fatal.push(`${megabytes(size)}, too big to load from RAM (${megabytes(MAX_PROGRAM_SIZE)} at most)`);
     let data = input;
     if (settings.cpu === "mips" && settings.fourKbPages && parsed.sectionAlignment < 0x1000) {
         try {
@@ -99,7 +106,7 @@ export function portBinary(name, input, settings, destination = null) {
             const compatNames = new Set(settings.compatExports);
             const resolve = (name) => coredllExports.has(name) ? "COREDLL.dll" : compatNames.has(name) ? COMPAT_DLL : null;
             if (parsePe(data).dll) {
-                if (findTrapCalls(data).length) result.problems.push("makes CE 2.0 kernel calls directly, which aren't redirected in a DLL");
+                if (findTrapCalls(data).length) result.fatal.push("makes CE 2.0 kernel calls directly, which can't be redirected in a DLL");
             } else {
                 const traps = redirectTrapCalls(data, settings.trapNames, resolve);
                 if (traps.data) {
@@ -107,7 +114,7 @@ export function portBinary(name, input, settings, destination = null) {
                     result.notes.push(`direct CE 2.0 kernel calls changed to imports: ${traps.calls.map((call) => call.name).join(", ")}`);
                     if (traps.calls.some((call) => resolve(call.name) === COMPAT_DLL)) result.needs.add(COMPAT_DLL);
                 }
-                if (traps.unknown.length) result.problems.push(`unknown CE 2.0 kernel calls: ${traps.unknown.join(", ")}`);
+                if (traps.unknown.length) result.fatal.push(`makes CE 2.0 kernel calls CE 1.0 has no equivalent for: ${traps.unknown.join(", ")}`);
             }
         }
         if (version >= 2 && settings.cpu === "sh3") {
@@ -117,7 +124,7 @@ export function portBinary(name, input, settings, destination = null) {
                 result.notes.push(`direct CE 2.0 kernel calls adapted: ${traps.calls.join(", ")}`);
                 if (traps.calls.includes("RaiseException")) result.problems.push("RaiseException calls removed");
             }
-            if (traps.unknown.length) result.problems.push(`unknown CE 2.0 kernel calls: ${traps.unknown.join(", ")}`);
+            if (traps.unknown.length) result.fatal.push(`makes CE 2.0 kernel calls CE 1.0 has no equivalent for: ${traps.unknown.join(", ")}`);
         }
         const ordinalDlls = ordinalImports(parsePe(data)).filter((dll) => exports[dll]);
         if (ordinalDlls.length) result.problems.push(`imports by ordinal from ${ordinalDlls.join(", ")}`);
@@ -177,7 +184,7 @@ export function portBinary(name, input, settings, destination = null) {
                 }
             }
             const absent = functions.map((function_) => typeof function_ === "number" ? `#${function_}` : function_).filter((name) => !coredll.has(name));
-            result.problems.push(`missing ${dll.split(".")[0].toUpperCase()}.DLL${absent.length ? `: ${absent.join(", ")}` : ""}`);
+            result.fatal.push(`missing ${dll.split(".")[0].toUpperCase()}.DLL${absent.length ? `: ${absent.join(", ")}` : ""}`);
         }
         for (const [dll, functions] of Object.entries(parsePe(data).imports)) {
             if (!exports[dll]) continue;
@@ -215,7 +222,7 @@ export function portPlan(plan, sources, deviceSettings, assets) {
         if (operation.kind !== "file") continue;
         const source = sources.get(operation.source);
         if (!source) {
-            reports.push({ name: operation.source, notes: [], problems: ["missing from the package"] });
+            reports.push({ name: operation.source, notes: [], problems: [], fatal: ["missing from the package"] });
             continue;
         }
         if (isPe(source)) {
