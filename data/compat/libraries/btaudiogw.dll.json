@@ -1,0 +1,1 @@
+{"dc3dcdca8292":[[1,"BthCloseHeadsetConnection"],[2,"BthCreateHeadsetConnection"],[3,"BthGetHeadsetMicVolume"],[4,"BthGetHeadsetSpkVolume"],[5,"BthInitializeAudioGateway"],[6,"BthRingHeadset"],[7,"BthSendHeadsetCommand"],[8,"BthSetHeadsetEvents"],[9,"BthSetHeadsetMicVolume"],[10,"BthSetHeadsetSpkVolume"],[11,"BthStopRingingHeadset"],[12,"BthUninitializeAudioGateway"]]}

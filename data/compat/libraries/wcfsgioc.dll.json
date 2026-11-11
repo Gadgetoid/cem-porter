@@ -1,0 +1,1 @@
+{"3fba93e3b3f8":[[1,"MacClose"],[2,"MacEventCreate"],[3,"MacEventDestroy"],[4,"MacEventWait"],[5,"MacFindFirstMatch"],[6,"MacFindFirstMatchEx"],[7,"MacFreeNames"],[8,"MacGetNames"],[9,"MacGetNamesEx"],[10,"MacIoctl"],[11,"MacMemoryAllocate"],[12,"MacMemoryFree"],[13,"MacMemorySize"],[14,"MacMessageCreateQueue"],[15,"MacMessageDestroyQueue"],[16,"MacOpen"]]}

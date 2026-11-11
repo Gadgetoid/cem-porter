@@ -1,0 +1,1 @@
+{"dead6b2f8697":[[1,"DetectVGA"],[2,"VGA_Close"],[3,"VGA_Deinit"],[4,"VGA_IOControl"],[5,"VGA_Init"],[6,"VGA_Open"],[7,"VGA_PowerDown"],[8,"VGA_PowerUp"],[9,"VGA_Read"],[10,"VGA_Seek"],[11,"VGA_Write"]]}

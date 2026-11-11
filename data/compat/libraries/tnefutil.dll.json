@@ -1,0 +1,1 @@
+{"337fd553a7e2":[[1,"TnefBuildInfo"],[2,"TnefDecodeFile"],[3,"TnefDecodeLine"],[4,"TnefEncodeFile"],[5,"TnefGetInfo"]],"2a001cecd8f3":[1,2,3,4,5,6,[7,"ModifiedUTF7ToUnicode"],[8,"TnefBuildInfo"],[9,"TnefConvertToUnicode"],[10,"TnefDecodeBuffer"],[11,"TnefDecodeFile"],[12,"TnefEncodeBuffer"],[13,"TnefEncodeFile"],[14,"TnefGetInfo"],[15,"UnicodeToModifiedUTF7"]]}

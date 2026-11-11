@@ -1,0 +1,1 @@
+{"e77f85bb4a04":[[1,"ZCabClose"],[2,"ZCabCreateReadFileStream"],[3,"ZCabExtractAllFilesToPath"],[4,"ZCabExtractAllFilesToPathEx"],[5,"ZCabExtractSingleFileToPath"],[6,"ZCabExtractSingleFileToPathEx"],[7,"ZCabFreeCertificateData"],[8,"ZCabGetCertificateData"],[9,"ZCabGetFileCount"],[10,"ZCabGetFileName"],[11,"ZCabOpen"],[12,"ZCabVerifyFileSignature"]]}

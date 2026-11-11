@@ -1,0 +1,1 @@
+{"f15550c61f9a":[[1,"ImeConversionList"],[2,"ImeGetImeMenuItems"],[3,"ImeSetCompositionString"],[4,"ImeConfigure"],[5,"ImeDestroy"],[6,"ImeEnumRegisterWord"],[7,"ImeEscape"],[8,"ImeGetRegisterWordStyle"],[9,"ImeInquire"],[10,"ImeProcessKey"],[11,"ImeRegisterWord"],[12,"ImeSelect"],[13,"ImeSetActiveContext"],[14,"ImeToAsciiEx"],[15,"ImeUnregisterWord"],[16,"NotifyIME"]]}

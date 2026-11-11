@@ -1,0 +1,1 @@
+{"f5383e7f4054":[[1,"waveInAddBuffer"],[2,"waveInClose"],[3,"waveInGetDevCaps"],[4,"waveInGetErrorText"],[5,"waveInGetID"],[6,"waveInGetNumDevs"],[7,"waveInMessage"],[8,"waveInOpen"],[9,"waveInPrepareHeader"],[10,"waveInProc"],[11,"waveInReset"],[12,"waveInStart"],[13,"waveInStop"],[14,"waveInUnprepareHeader"]]}

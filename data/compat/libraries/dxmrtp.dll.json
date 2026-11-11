@@ -1,0 +1,1 @@
+{"b654beb14ca3":[[1,"AudioGetCaptureDeviceInfo"],[2,"AudioGetRenderDeviceInfo"],[3,"AudioReleaseCaptureDeviceInfo"],[4,"AudioReleaseRenderDeviceInfo"],[5,"DllCanUnloadNow"],[6,"DllGetClassObject"],[7,"DllRegisterServer"],[8,"DllUnregisterServer"]]}

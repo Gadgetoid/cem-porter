@@ -1,0 +1,1 @@
+{"699e53521024":[[1,"??0Win32BCSP@@QAA@ABV0@@Z"],[2,"??4Win32BCSP@@QAAAAV0@ABV0@@Z"],[3,"??_7Win32BCSP@@6B@"],[4,"?getBCSPStack@Win32BCSP@@QAAPAU_BCSPStack@@XZ"],[5,"BTD_Close"],[6,"BTD_Deinit"],[7,"BTD_IOControl"],[8,"BTD_Init"],[9,"BTD_Open"],[10,"BTD_PowerDown"],[11,"BTD_PowerUp"],[12,"BTD_Read"],[13,"BTD_Seek"],[14,"BTD_Write"]]}

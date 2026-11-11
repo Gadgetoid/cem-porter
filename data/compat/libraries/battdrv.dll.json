@@ -1,0 +1,1 @@
+{"382f8737650e":[[1,"BAT_Close"],[2,"BAT_Deinit"],[3,"BAT_IOControl"],[4,"BAT_Init"],[5,"BAT_Open"],[6,"BAT_PowerDown"],[7,"BAT_PowerUp"],[8,"BAT_Read"],[9,"BAT_Seek"],[10,"BAT_Write"]],"59428eb1bfb6":[[1,"BatteryDriverGetLevels"],[2,"BatteryDriverGetStatus"],[3,"BatteryDriverSupportsChangeNotification"]]}

@@ -1,0 +1,1 @@
+{"dd43b200c88d":[[1,"SendAsAttachment"],[2,"SendInBody"],[3,"ActivateListener"],[4,"DeactivateListener"],[5,"DeleteMessageFromStore"],[6,"GetMessageData"],[7,"InitializeTransport"],[8,"IsDeleted"],[9,"RegisterListener"],[10,"ScheduleMessageSearch"],[11,"UninitializeTransport"],[12,"UnregisterListener"]]}

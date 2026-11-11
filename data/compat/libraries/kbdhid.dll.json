@@ -1,0 +1,1 @@
+{"c0a25e614a97":[[1,"HIDDeviceAttach"],[2,"HIDDeviceNotifications"],[3,"KBD_Close"],[4,"KBD_Deinit"],[5,"KBD_IOControl"],[6,"KBD_Init"],[7,"KBD_Open"],[8,"KBD_PreDeinit"]],"9fd4418d8777":[[1,"HIDDeviceAttach"],[2,"HIDDeviceNotifications"],[3,"KBD_Close"],[4,"KBD_Deinit"],[5,"KBD_IOControl"],[6,"KBD_Init"],[7,"KBD_Open"],[8,"KBD_Read"],[9,"KBD_Seek"],[10,"KBD_Write"]]}

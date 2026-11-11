@@ -1,0 +1,1 @@
+{"374bf6c436cd":[[1,"KBD_Close"],[2,"KBD_Deinit"],[3,"KBD_IOControl"],[4,"KBD_Init"],[5,"KBD_Open"],[6,"KBD_PowerDown"],[7,"KBD_PowerUp"],[8,"KBD_Read"],[9,"KBD_Seek"],[10,"KBD_Write"]],"57c15e776f47":[[1,"KPD_Close"],[2,"KPD_Deinit"],[3,"KPD_IOControl"],[4,"KPD_Init"],[5,"KPD_Open"],[6,"KPD_PowerUp"]]}

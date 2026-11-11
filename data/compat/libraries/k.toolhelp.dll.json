@@ -1,0 +1,1 @@
+{"6e60cabce139":[[1,"CloseToolhelp32Snapshot"],[2,"CreateToolhelp32Snapshot"],[3,"DllMain"],[4,"Heap32First"],[5,"Heap32ListFirst"],[6,"Heap32ListNext"],[7,"Heap32Next"],[8,"Module32First"],[9,"Module32Next"],[10,"Process32First"],[11,"Process32Next"],[12,"Thread32First"],[13,"Thread32Next"],[14,"Toolhelp32ReadProcessMemory"]]}

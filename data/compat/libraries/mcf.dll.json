@@ -1,0 +1,1 @@
+{"32ea6e597cca":[[1,"CreateFileStream"],[2,"McfCreateArchiveOnFile"],[3,"McfCreateControlledPackageOnStream"],[4,"McfCreatePackage"],[5,"McfCreatePackageOnFile"],[6,"McfCreatePackageOnStream"],[7,"McfInitialize"],[8,"McfOpenControlledPackageOnStream"],[9,"McfOpenPackage"],[10,"McfOpenPackageOnStream"],[11,"McfUninitialize"]]}

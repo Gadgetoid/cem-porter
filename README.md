@@ -93,6 +93,18 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Windows can be dragged by their title bars on desktop-sized screens
 - Files with no readable ROM are described: blank, mostly blank, another format, compressed throughout, or naming CE files without a ROM table
 
+## CEM Compat
+
+https://gadgetoid.github.io/cem-porter/compat.html (`compat.html`) checks a program or DLL against the ROMs of every device it knows, from CE 1.0 to Windows Embedded Compact 2013, and says whether it runs, why not, and whether CEM Porter can port it.
+
+- Opens anything CEM Porter unpacks; pick a binary from the package
+- Each device gets a result and a result per check: CPU, CE version, functions, DLLs, direct kernel calls, page size and size
+- Runs as is, CEM Porter patches it (renumbered or supplied functions, CE version, kernel calls, 4 KB pages, the AYGSHELL shim), might be made to work (a few functions missing, a runtime to install, a newer CE version) or won't work (another CPU, many missing functions, too big for RAM)
+- Ordinal imports are named from the nearest older ROM with the same CPU
+- DLLs in the same package count as present
+- Devices are grouped by OS and CE version, and can be filtered by CPU, result and name
+- Export tables come from the CERF bundle ROMs (`tools/compat-tables.mjs`, written to `data/compat`). The iPAQ rx1950, rx3715 and h4150, Dell Axim X50, ASUS A6x6 (WM6) and P525, IBM WorkPad z50, Nokia Lumia 800 and Ford SYNC 2 images aren't read yet
+
 ## State Explorer
 
 https://gadgetoid.github.io/cem-porter/state.html (`state.html`) lists the files and registry in a velo-emu or sh3emu saved state without running it, and saves them as a zip.

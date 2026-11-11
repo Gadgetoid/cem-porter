@@ -1,0 +1,1 @@
+{"79d98f98b011":[[1,"HCI_CloseConnection"],[2,"HCI_OpenConnection"],[3,"HCI_ReadHciParameters"],[4,"HCI_ReadPacket"],[5,"HCI_SetCallback"],[6,"HCI_StartHardware"],[7,"HCI_StopHardware"],[8,"HCI_WritePacket"]]}

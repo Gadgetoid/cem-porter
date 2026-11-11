@@ -1,0 +1,1 @@
+{"523968c115ce":[[1,"DispBkltEnable"],[2,"DispGetBkltBrightness"],[3,"DispGetBkltState"],[4,"DispSetBkltBrightness"],[5,"KbdGetKeymapID"],[6,"KbdGetModel"],[7,"KbdGetMultitapDelay"],[8,"KbdLoadKeymap"],[9,"KbdSetMultitapDelay"],[10,"UnitGetBootType"],[11,"UnitGetDeviceID"],[12,"UnitGetFirmwareVersion"],[13,"UnitGetModel"],[14,"UnitGetSerialNumber"]]}

@@ -1,0 +1,1 @@
+{"d10666bb1b10":[[1,"GetExtensionVersion"],[2,"HttpExtensionProc"],[3,"UPP_Close"],[4,"UPP_Deinit"],[5,"UPP_IOControl"],[6,"UPP_Init"],[7,"UPP_Open"],[8,"UPP_PowerDown"],[9,"UPP_PowerUp"],[10,"UPP_Read"],[11,"UPP_Seek"],[12,"UPP_Write"]]}

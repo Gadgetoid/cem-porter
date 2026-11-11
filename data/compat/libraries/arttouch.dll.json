@@ -1,0 +1,1 @@
+{"7add8db8e6ce":[[1,"ArtPointCallback"],[2,"GetVersionNumber"],[3,"TouchPanelCalibrateAPoint"],[4,"TouchPanelDisable"],[5,"TouchPanelDllEntry"],[6,"TouchPanelEnable"],[7,"TouchPanelGetDeviceCaps"],[8,"TouchPanelPowerHandler"],[9,"TouchPanelReadCalibrationAbort"],[10,"TouchPanelReadCalibrationPoint"],[11,"TouchPanelSetCalibration"],[12,"TouchPanelSetMode"]]}

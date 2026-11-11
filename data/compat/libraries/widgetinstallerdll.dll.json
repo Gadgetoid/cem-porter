@@ -1,0 +1,1 @@
+{"7b461f80bc11":[50,[51,"DllCanUnloadNow"],[52,"DllGetClassObject"],[53,"DllRegisterServer"],[54,"DllUnregisterServer"],[55,"GetInstalledWidgetsList"],[56,"GetWidgetDetails"],[57,"InstallWidgetsOnColdBoot"],[58,"LaunchWidget"],[59,"UninstallWidget"]]}

@@ -1,0 +1,1 @@
+{"1b3d34441ca4":[[1,"Acsapi_BeginFwUpdate"],[2,"Acsapi_DoI2cTransaction"],[3,"Acsapi_GetAVMem"],[4,"Acsapi_GetConnectedHeadphonesCount"],[5,"Acsapi_GetDeviceState"],[6,"Acsapi_GetMaxVolume"],[7,"Acsapi_GetType"],[8,"Acsapi_GetVolume"],[9,"Acsapi_GetVolumeControlCount"],[10,"Acsapi_IsConnected"],[11,"Acsapi_SetAVMem"],[12,"Acsapi_SetVolume"],[13,"Acsapi_UpdateFmRdsStatus"]]}

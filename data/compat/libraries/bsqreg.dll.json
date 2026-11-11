@@ -1,0 +1,1 @@
+{"bc26570a521b":[[1,"BSQSTDLIB_Version"],[2,"_bsqRegApp_GetAppFullPath"],[3,"_bsqRegApp_GetAppPathOnly"],[4,"_bsqRegApp_ReceiveDDE"],[5,"_bsqRegApp_SendDDE"],[6,"_bsqReg_createkey"],[7,"_bsqReg_deletekey"],[8,"_bsqReg_openkey"],[9,"_bsqReg_read_dword"],[10,"_bsqReg_read_string"],[11,"_bsqReg_write_dword"],[12,"_bsqReg_write_mstring"],[13,"_bsqReg_write_string"]]}

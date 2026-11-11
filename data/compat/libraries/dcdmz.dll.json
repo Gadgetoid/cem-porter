@@ -1,0 +1,1 @@
+{"b08a70ead055":[[1,"FileTypeWmz"],[2,"FileTypeEmz"],[3,"InitImage"],[4,"CreateOutputFile"],[5,"ProcessHeaders"],[6,"StartImage"],[7,"DecodeImage"],[8,"EndImage"],[9,"TermImage"],[10,"GetWmzWidth"],[11,"GetWmzHeight"]]}

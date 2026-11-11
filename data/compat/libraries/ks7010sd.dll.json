@@ -1,0 +1,1 @@
+{"a45e043ba73b":[[1,"CGC_Close"],[2,"CGC_Deinit"],[3,"CGC_IOControl"],[4,"CGC_Init"],[5,"CGC_Open"],[6,"CGC_PowerDown"],[7,"CGC_PowerUp"],[8,"CGC_Read"],[9,"CGC_Seek"],[10,"CGC_Write"],[11,"CGS_Close"],[12,"CGS_Deinit"],[13,"CGS_IOControl"],[14,"CGS_Init"],[15,"CGS_Open"],[16,"CGS_PowerDown"],[17,"CGS_PowerUp"],[18,"CGS_Read"],[19,"CGS_Seek"],[20,"CGS_Write"],[21,"DriverEntry"]]}

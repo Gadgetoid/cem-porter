@@ -1,0 +1,1 @@
+{"392153721f6f":[[1,"AddLocalFile"],[2,"AddLocalFiles"],[3,"CacheUrl"],[4,"GetCacheInfo"],[5,"HvStorageInfo"],[6,"InitHvStorage"],[7,"ResumeHvStorage"],[8,"SavePage"],[9,"SearchLocalFile"],[10,"SearchUrl"],[11,"StGetType"],[12,"SuspendHvStorage"],[13,"UnsavePage"],[14,"UrlPoolAlloc"],[15,"UrlPoolFree"]]}

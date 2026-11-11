@@ -1,0 +1,1 @@
+{"d86616ae1a71":[[1,"COM_Close"],[2,"COM_Deinit"],[3,"COM_IOControl"],[4,"COM_Init"],[5,"COM_MtpDeinit"],[6,"COM_MtpGetFlags"],[7,"COM_MtpInit"],[8,"COM_MtpRXPutData"],[9,"COM_MtpSetFlags"],[10,"COM_MtpTXGetData"],[11,"COM_Open"],[12,"COM_PowerDown"],[13,"COM_PowerUp"],[14,"COM_PreClose"],[15,"COM_PreDeinit"],[16,"COM_Read"],[17,"COM_Seek"],[18,"COM_Write"]]}

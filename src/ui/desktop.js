@@ -64,6 +64,7 @@ function setupDragging() {
 const TOOLS = [
     { page: "index.html", label: "CEM Porter", key: "C", icon: "app-hack-studio" },
     { page: "cabs.html", label: "CAB Maker", key: "B", icon: "filetype-archive" },
+    { page: "compat.html", label: "CEM Compat", key: "M", icon: "app-spreadsheet" },
     { page: "sync.html", label: "CEMSync", key: "S", icon: "network" },
     { page: "explorer.html", label: "ROM Explorer", key: "O", icon: "hard-disk" },
     { page: "package.html", label: "Package Explorer", key: "a", icon: "app-file-manager" },

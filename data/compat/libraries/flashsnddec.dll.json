@@ -1,0 +1,1 @@
+{"f0e6fdb27634":[[1,"DI_CreateSoundDecompressor"],[2,"DI_DecompressSound"],[3,"DI_SetupSoundDecompressor"],[4,"DI_DestroySoundDecompressor"],[5,"DI_GetSupportedFormats"],[6,"DI_SetupDecoderLibrary"]]}

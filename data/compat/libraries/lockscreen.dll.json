@@ -1,0 +1,1 @@
+{"b12c7f6b714d":[[1,"GetLockScreenHWND"],[2,"SendLockScreenHWNDMessage"],[3,"SetLockScreenSimplePinDefWndProc"],[4,"StartScreenLock"],[5,"StartSimplePin"],[6,"StopLockScreen"]]}

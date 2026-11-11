@@ -1,0 +1,1 @@
+{"8335945f5ebf":[[1,"NvAudioMixerClose"],[2,"NvAudioMixerCloseStream"],[3,"NvAudioMixerGetAttribute"],[4,"NvAudioMixerMapBuffer"],[5,"NvAudioMixerOpen"],[6,"NvAudioMixerOpenStream"],[7,"NvAudioMixerPowerMode"],[8,"NvAudioMixerReadData"],[9,"NvAudioMixerSetAttribute"],[10,"NvAudioMixerUnmapBuffer"],[11,"NvAudioMixerWriteData"]]}

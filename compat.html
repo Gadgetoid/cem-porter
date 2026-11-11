@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CEM Compat</title>
+<meta name="description" content="Check a Windows CE program against every known device and OS version: will it run, why not, and can it be ported.">
+<link rel="stylesheet" href="src/ui/ce.css">
+<style>
+main { width: min(1100px, calc(100% - 32px)); }
+
+#matrix-list { max-height: min(560px, calc(100vh - 380px)); overflow: auto; }
+
+#matrix td.status { white-space: normal; min-width: 22px; max-width: 160px; font-size: 11px; }
+
+#matrix tr.group td { font-weight: bold; background: var(--face); }
+
+#matrix tr.details td { white-space: normal; background: var(--window); }
+
+#matrix tr.details ul { margin: 2px 0 4px; padding-left: 18px; }
+
+#matrix tr.details li { overflow-wrap: anywhere; }
+
+.status-runs { background: rgb(150, 220, 150); }
+
+.status-patch { background: rgb(200, 240, 170); }
+
+.status-amber { background: rgb(250, 210, 120); }
+
+.status-red { background: rgb(240, 150, 140); }
+
+.status-none { color: var(--disabled); }
+
+tr[aria-selected="true"] td.status { color: var(--text); }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0; }
+
+.legend span { padding: 0 6px; }
+</style>
+</head>
+<body>
+<main>
+    <header>
+        <h1>CEM Compat</h1>
+        <button id="about-button" type="button" aria-label="About" aria-expanded="false">?</button>
+    </header>
+    <fieldset>
+        <legend>1. Program</legend>
+        <div id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+            <strong id="drop-title">Drop a program, DLL, CAB or installer here</strong>
+            <span id="drop-hint">.exe, .dll, .cab, .zip, .7z, .lzh or .iso. Or tap to open one.</span>
+        </div>
+        <input class="visually-hidden" type="file" id="file-input" aria-label="Open a program or package">
+        <div class="list">
+            <table>
+                <thead><tr><th>Name</th><th>Kind</th><th>CPU</th><th>Built for</th><th class="hide-narrow">Size</th></tr></thead>
+                <tbody id="binaries"><tr><td class="empty" colspan="5">Open a program or package to see its binaries.</td></tr></tbody>
+            </table>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>2. Devices</legend>
+        <div class="row">
+            <select id="family" aria-label="CPU">
+                <option value="same">Same CPU as the program</option>
+                <option value="all">All CPUs</option>
+                <option value="MIPS">MIPS</option>
+                <option value="SH">SH</option>
+                <option value="ARM">ARM</option>
+                <option value="x86">x86</option>
+            </select>
+            <select id="show" aria-label="Show">
+                <option value="all">All results</option>
+                <option value="works">Runs or CEM Porter patches it</option>
+                <option value="possible">Everything but won't work</option>
+            </select>
+            <input type="search" id="search" placeholder="Filter devices or OS" aria-label="Filter devices or OS">
+        </div>
+        <div class="legend"><span class="status-runs">Runs as is</span><span class="status-patch">CEM Porter patches it</span><span class="status-amber">Might be made to work</span><span class="status-red">Won't work</span></div>
+        <div class="list" id="matrix-list">
+            <table id="matrix">
+                <thead><tr><th>Device</th><th>Result</th><th>CPU</th><th>Version</th><th>Functions</th><th>DLLs</th><th>Kernel</th><th>Pages</th><th>Size</th></tr></thead>
+                <tbody id="devices"><tr><td class="empty" colspan="9">Pick a binary to check it.</td></tr></tbody>
+            </table>
+        </div>
+    </fieldset>
+    <footer><output id="status">Loading devices...</output><span id="size">&nbsp;</span></footer>
+</main>
+<dialog id="notes" aria-labelledby="notes-title">
+    <header>
+        <h2 id="notes-title">Readme - Pocket Word</h2>
+        <button id="notes-close" type="button" aria-label="Close">X</button>
+    </header>
+    <nav aria-hidden="true"><span>File</span><span>Edit</span><span>View</span><span>Insert</span><span>Format</span><span>Tools</span></nav>
+    <article>
+        <h1>CEM Compat</h1>
+        <p>Keep on keeping on!</p>
+        <p>Checks a Windows CE program or DLL against the ROMs of every device CEM Compat knows, from CE 1.0 to Windows Embedded Compact 2013, and says whether it runs, why not, and whether CEM Porter can port it.</p>
+        <h2>Using it</h2>
+        <ul>
+            <li>Open a program, DLL, CAB, installer or archive, and pick a binary from it.</li>
+            <li>Each device row shows the overall result and each check. Tap a row for the details.</li>
+            <li>DLLs that come in the same package count as present.</li>
+        </ul>
+        <h2>Results</h2>
+        <ul>
+            <li>Runs as is: everything it needs is on the device.</li>
+            <li>CEM Porter patches it: renumbered system calls, functions CEM Porter supplies, CE version, direct kernel calls, 4 KB pages.</li>
+            <li>Might be made to work: a few functions missing, a runtime to install, a newer CE version than the device's.</li>
+            <li>Won't work: another CPU, many missing functions, DLLs nobody supplies, too big for RAM.</li>
+        </ul>
+        <h2>Limitations</h2>
+        <ul>
+            <li>Only imports are checked: a program can still fail on screen size, hardware or registry settings.</li>
+            <li>Ordinal imports are named from the nearest older ROM of the same CPU.</li>
+            <li>The amber and red split for missing functions is a guess.</li>
+        </ul>
+    </article>
+</dialog>
+<script type="module" src="src/apps/compat.js"></script>
+</body>
+</html>

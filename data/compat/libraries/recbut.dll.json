@@ -1,0 +1,1 @@
+{"7fb8d8a822a6":[[1,"AudioRecordSwitchGetStatus"],[2,"AudioRecordSwitchInitialize"],[3,"AudioRecordSwitchServiceThread"],[4,"REC_Close"],[5,"REC_Deinit"],[6,"REC_IOControl"],[7,"REC_Init"],[8,"REC_Open"],[9,"REC_PowerDown"],[10,"REC_PowerUp"],[11,"REC_Read"],[12,"REC_Seek"],[13,"REC_Write"]]}

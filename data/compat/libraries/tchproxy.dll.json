@@ -1,0 +1,1 @@
+{"5878c53c9620":[[1,"TouchPanelCalibrateAPoint"],[2,"TouchPanelDisable"],[3,"TouchPanelEnable"],[4,"TouchPanelEnableEx"],[5,"TouchPanelGetDeviceCaps"],[6,"TouchPanelPowerHandler"],[7,"TouchPanelReadCalibrationAbort"],[8,"TouchPanelReadCalibrationPoint"],[9,"TouchPanelRegisterCallback"],[10,"TouchPanelSetCalibration"],[11,"TouchPanelSetMode"]]}

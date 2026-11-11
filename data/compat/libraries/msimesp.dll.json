@@ -1,0 +1,1 @@
+{"34b8d238218d":[[1,"ImeConversionList"],[2,"ImeGetImeMenuItems"],[3,"ImeInquire"],[4,"ImeSetCompositionString"],[5,"ImeConfigure"],[6,"ImeDestroy"],[7,"ImeEnumRegisterWord"],[8,"ImeEscape"],[9,"ImeGetRegisterWordStyle"],[10,"ImeProcessKey"],[11,"ImeRegisterWord"],[12,"ImeSelect"],[13,"ImeSetActiveContext"],[14,"ImeToAsciiEx"],[15,"ImeUnregisterWord"],[16,"NotifyIME"]]}
