@@ -20,11 +20,27 @@ function nameFromId(id) {
     return words.map((word, index) => {
         if (NAME_WORDS[word]) return NAME_WORDS[word];
         if (index === words.length - 1 && /^[a-z]{2}$/.test(word)) return word.toUpperCase();
+        if (UPPER_WORDS.test(word)) return word.toUpperCase();
         const modelNumber = /^([a-z]{4,})(\d+)$/.exec(word);
         if (modelNumber) return `${modelNumber[1][0].toUpperCase()}${modelNumber[1].slice(1)} ${modelNumber[2]}`;
-        if (/\d|-/.test(word) || UPPER_WORDS.test(word)) return word.toUpperCase();
+        if (/\d|-/.test(word)) return word.toUpperCase();
         return word[0].toUpperCase() + word.slice(1);
     }).join(" ");
+}
+
+function distinguishNames(devices) {
+    const groups = new Map();
+    for (const device of devices) groups.set(device.name, [...(groups.get(device.name) ?? []), device]);
+    for (const group of groups.values()) {
+        if (group.length < 2) continue;
+        const byOs = new Map();
+        for (const device of group) byOs.set(device.os?.name, [...(byOs.get(device.os?.name) ?? []), device]);
+        for (const device of group) {
+            const sameOs = byOs.get(device.os?.name).length > 1;
+            if (sameOs) device.name = nameFromId(device.id);
+            else if (!device.name.endsWith(device.os?.name)) device.name = `${device.name}, ${device.os?.name}`;
+        }
+    }
 }
 
 function ceVersion(region, libraries) {
@@ -159,6 +175,7 @@ for (const name of readdirSync(bundlesDirectory).sort()) {
     console.log(device.error ? `${name}: ${device.error}` : `${name}: ${Object.keys(device.libraries).length} libraries, ${device.ceLabel}, machine 0x${device.machine.toString(16)}`);
 }
 
+distinguishNames(devices);
 rmSync(scratch, { recursive: true, force: true });
 rmSync(outputDirectory, { recursive: true, force: true });
 mkdirSync(join(outputDirectory, "libraries"), { recursive: true });
