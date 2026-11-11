@@ -131,6 +131,7 @@ https://gadgetoid.github.io/cem-porter/cabs.html (`cabs.html`) gets the CAB you 
 https://gadgetoid.github.io/cem-porter/package.html (`package.html`) shows everything inside an installer or archive and saves files exactly as stored.
 
 - Opens anything CEM Porter unpacks, including installers inside installers; open `data1.cab` with `data1.hdr` and further volumes together
+- Packages over 64 MB open straight away and unpack the packages inside them in the background, updating the folders and totals as they go; unpacked files over 64 KB aren't kept in memory, and are unpacked again when viewed or saved
 - Each container is a folder; Properties names its format, the container it came from and its SHA-256, and Save container saves it as stored
 - CE CABs: files are named as they install, with the stored name (`FOO~1.001`) and install path in Properties. The CAB's folder and its `.000` setup file show the program, its files, the registry entries wceload writes and its shortcuts
 - Files get the same Properties and previews as in ROM Explorer, with Open in Hex and Open in Icon Lab

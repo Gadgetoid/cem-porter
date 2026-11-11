@@ -1,8 +1,8 @@
-import { fileData, unpackFiles } from "../archive/unpack.js";
+import { fileData, LAZY_UNPACK_SIZE, LazyUnpack, unpackFiles } from "../archive/unpack.js";
 import { readSetup } from "../port/cesetup.js";
 import { planFromCabSetup } from "../port/installplan.js";
 import { encodeLatin1 } from "../port/cabwrite.js";
-import { extensionOf, pathOf, sortChildren, typeName } from "../rom/romtree.js";
+import { extensionOf, findPath, pathOf, sortChildren, typeName } from "../rom/romtree.js";
 import { artIcon } from "../ui/romicons.js";
 import { registryPreview } from "../ui/previews.js";
 import { raiseWindow, saveBlob, saveBytes, setupDesktop } from "../ui/desktop.js";
@@ -10,7 +10,8 @@ import { putHandoff } from "../ui/handoff.js";
 import { baseName, createBrowser, digestText, exactSize, facts, folderTotals, formatSize, heading, pairs, rule, table } from "../ui/browser.js";
 
 const elements = Object.fromEntries(["save-all", "save-choice", "save-folder-label", "save-choice-close", "save-choice-save", "save-choice-cancel", "drop-title", "drop-hint", "package-bar", "package-facts", "package-details"].map((id) => [id, document.getElementById(id)]));
-const state = { inputs: [], log: [], containers: new Map(), setups: [] };
+const state = { inputs: [], log: [], containers: new Map(), setups: [], session: null };
+const LAZY_REFRESH_MS = 2000;
 const CAB_ARCHITECTURES = { 0: "Any", 2577: "StrongARM", 4000: "MIPS R4000", 10003: "SH3", 10004: "SH3E", 10005: "SH4", 70001: "ARM720" };
 const PROGRAM_EXTENSIONS = new Set(["exe", "dll", "cpl"]);
 const browser = createBrowser({
@@ -239,6 +240,7 @@ function packageSummary() {
         ["Containers", String(state.log.length)],
         ["Files", `${totals.files}, ${formatSize(totals.bytes)}`],
         ["CE CABs", state.setups.length ? state.setups.map((cab) => cab.setup.app || cab.folder.name).join(", ") : ""],
+        ["Still unpacking", state.session ? `${state.session.pending} to check` : ""],
     ];
 }
 
@@ -261,6 +263,7 @@ function renderPackageBar() {
         ["Files", String(totals.files)],
         ["Contents", formatSize(totals.bytes)],
         ["CE CABs", state.setups.length ? String(state.setups.length) : ""],
+        ["Still unpacking", state.session ? String(state.session.pending) : ""],
     ];
     elements["package-facts"].replaceChildren(...pairs(rows));
     elements["package-bar"].hidden = false;
@@ -293,37 +296,74 @@ function saveAll() {
     }
 }
 
+function showUnpacked(unpacked, log, label, folder = null) {
+    const tree = buildTree(unpacked, log);
+    Object.assign(state, { log, containers: tree.containers, setups: readCabSetups(tree.containers) });
+    const only = tree.root.children.length === 1 && tree.root.children[0].kind === "folder" ? tree.root.children[0] : null;
+    const kept = folder ? findPath(tree.root, folder) : null;
+    browser.show(tree.root, { name: label, size: state.inputs.reduce((total, input) => total + input.size, 0) }, kept?.kind === "folder" ? kept : only);
+    renderPackageBar();
+}
+
+function unpackedStatus(label, count) {
+    const methods = formats();
+    const cabs = state.setups.length ? `, ${state.setups.length} CE CAB${state.setups.length === 1 ? "" : "s"}` : "";
+    return `${label}: ${count} file${count === 1 ? "" : "s"}${methods.length ? ` from ${methods.join(", ")}` : ", nothing to unpack"}${cabs}`;
+}
+
+async function openLazily(files, label) {
+    const session = await LazyUnpack.open(files);
+    state.session = session;
+    showUnpacked(session.files(), session.log, label);
+    let shown = performance.now();
+    const current = () => (view.folder && view.folder !== view.tree ? pathOf(view.folder) : null);
+    while (state.session === session && (await session.step())) {
+        if (performance.now() - shown < LAZY_REFRESH_MS) continue;
+        showUnpacked(session.files(), session.log, label, current());
+        setStatus(`${unpackedStatus(label, session.files().length)}. Still unpacking: ${session.pending} to check.`);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        shown = performance.now();
+    }
+    if (state.session !== session) return;
+    state.session = null;
+    showUnpacked(session.files(), session.log, label, current());
+    elements["save-all"].disabled = false;
+    setStatus(`${unpackedStatus(label, session.files().length)}.`);
+}
+
 async function openFile(file, files = [file]) {
     browser.closeDialog();
+    state.session = null;
     const label = files.length === 1 ? file.name : `${files.length} files`;
+    const size = files.reduce((total, input) => total + input.size, 0);
     setStatus(`Unpacking ${label}...`);
     elements["drop-title"].textContent = label;
-    elements["drop-hint"].textContent = formatSize(files.reduce((total, input) => total + input.size, 0));
+    elements["drop-hint"].textContent = formatSize(size);
     await new Promise((resolve) => setTimeout(resolve, 0));
-    let tree;
-    let log;
-    let unpacked;
+    state.inputs = files.map((input) => ({ name: input.name, size: input.size }));
+    if (size > LAZY_UNPACK_SIZE) {
+        elements["save-all"].disabled = true;
+        try {
+            await openLazily(files, label);
+        } catch (error) {
+            setStatus(`Couldn't read ${label}: ${error.message}`);
+        }
+        return;
+    }
+    const unpacked = [];
+    const log = [];
     try {
-        const inputs = files.map((input) => ({ name: input.name, size: input.size }));
-        unpacked = [];
-        log = [];
         for (const result of await unpackFiles(files)) {
             unpacked.push(...result.files);
             log.push(...result.log);
         }
-        tree = buildTree(unpacked, log);
-        Object.assign(state, { inputs, log, containers: tree.containers, setups: readCabSetups(tree.containers) });
+        showUnpacked(unpacked, log, label);
     } catch (error) {
         setStatus(`Couldn't read ${label}: ${error.message}`);
         return;
     }
     elements["save-all"].disabled = false;
-    const only = tree.root.children.length === 1 && tree.root.children[0].kind === "folder" ? tree.root.children[0] : null;
-    browser.show(tree.root, { name: label, size: state.inputs.reduce((total, input) => total + input.size, 0) }, only);
-    renderPackageBar();
-    const methods = formats();
-    const cabs = state.setups.length ? `, ${state.setups.length} CE CAB${state.setups.length === 1 ? "" : "s"}` : "";
-    setStatus(`${label}: ${unpacked.length} file${unpacked.length === 1 ? "" : "s"}${methods.length ? ` from ${methods.join(", ")}` : ", nothing to unpack"}${cabs}.`);
+    setStatus(`${unpackedStatus(label, unpacked.length)}.`);
 }
 
 function setup() {

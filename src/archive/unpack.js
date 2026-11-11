@@ -29,6 +29,9 @@ const MINIMUM_BLAST_OUTPUT = 64;
 const CARVE_PROBE_SIZE = 256;
 const CARVE_TAIL = 64;
 const READ_ON_OPEN_SIZE = 1024 * 1024;
+export const LAZY_UNPACK_SIZE = 64 * 1024 * 1024;
+const KEEP_IN_MEMORY_SIZE = 64 * 1024;
+const CACHED_CONTAINERS = 2;
 const SNIFF_SIZE = 65536;
 
 const utf8 = new TextDecoder("utf-8", { fatal: true });
@@ -99,6 +102,10 @@ class FileTree {
         const existing = this.files.get(key);
         if (existing) Object.assign(existing, { data, ...origin });
         else this.files.set(key, { path: resolved, data, ...origin });
+    }
+
+    remove(path) {
+        this.files.delete(folderKey(this.resolve(path)));
     }
 
     list() {
@@ -582,4 +589,109 @@ export async function unpackFiles(files) {
         else results.push({ ...unpack(file.name, others[index].data, siblings.filter((sibling) => sibling !== others[index])), data: others[index].data });
     }
     return results;
+}
+
+function volumeStem(name) {
+    return name.toLowerCase().replace(/^.*\//, "").replace(/\.[^.]*$/, "").replace(/\d+$/, "");
+}
+
+export class LazyUnpack {
+    constructor() {
+        this.tree = new FileTree();
+        this.log = [];
+        this.queue = [];
+        this.expanded = 0;
+        this.cache = new Map();
+    }
+
+    static async open(files) {
+        const session = new LazyUnpack();
+        const discs = await Promise.all(files.map((file) => readIsoFile(file).catch(() => null)));
+        const others = files.filter((file, index) => !discs[index]);
+        for (const [index, file] of files.entries()) {
+            if (discs[index]) session.openDisc(file, discs[index]);
+            else await session.openFile(file, others.filter((other) => other !== file).map((other) => ({ name: other.name, read: async () => new Uint8Array(await other.arrayBuffer()) })));
+        }
+        return session;
+    }
+
+    openDisc(file, disc) {
+        const folder = safeName(file.name) + ".d";
+        const entry = { container: folder, method: discMethod(disc.raw, disc.joliet), members: disc.members.length, parent: null, name: file.name, data: null, size: file.size, read: async () => new Uint8Array(await file.arrayBuffer()), blob: file };
+        this.log.push(entry);
+        for (const member of disc.members) {
+            this.tree.write(joinPath(folder, safeName(member.name)), null, { container: entry, storedName: member.name, size: member.size, read: () => member.read() });
+            if (member.size) this.queue.push({ name: member.name, directory: folder, depth: 1, container: entry, size: member.size, read: () => member.read(), sniff: (length) => member.read(0, length), siblings: () => this.discSiblings(disc, member) });
+        }
+    }
+
+    discSiblings(disc, member) {
+        const folder = member.name.slice(0, member.name.lastIndexOf("/") + 1);
+        const stem = volumeStem(member.name);
+        return disc.members.filter((other) => other !== member && other.name.startsWith(folder) && !other.name.slice(folder.length).includes("/") && volumeStem(other.name) === stem);
+    }
+
+    async openFile(file, siblings) {
+        const data = new Uint8Array(await file.arrayBuffer());
+        const item = { name: file.name, directory: "", depth: 0, container: null, size: data.length, read: async () => data, siblings: () => siblings };
+        this.tree.write(safeName(file.name), data, { storedName: file.name });
+        await this.expand(item, data);
+    }
+
+    get pending() {
+        return this.queue.length;
+    }
+
+    files() {
+        return this.tree.list();
+    }
+
+    async step() {
+        const item = this.queue.shift();
+        if (!item) return false;
+        if (item.sniff && item.size > READ_ON_OPEN_SIZE && !worthReading(item.name, await item.sniff(SNIFF_SIZE))) return true;
+        const data = item.data ?? await item.read();
+        item.data = null;
+        await this.expand(item, data);
+        return true;
+    }
+
+    async expand(item, data) {
+        const path = joinPath(item.directory, safeName(item.name));
+        const siblings = await Promise.all(item.siblings().map(async (sibling) => ({ name: sibling.name.split("/").pop(), data: await sibling.read() })));
+        const { members, method } = item.depth > MAX_DEPTH ? { members: null, method: null } : membersOf(item.name, data, siblings);
+        if (!members) {
+            if (data.length <= READ_ON_OPEN_SIZE) this.tree.write(path, data, { container: item.container, storedName: item.name, size: data.length });
+            return;
+        }
+        this.expanded++;
+        const folder = joinPath(item.directory, safeName(item.name) + ".d");
+        const entry = { container: folder, method, members: members.length, parent: item.container, name: item.name, data: null, size: data.length, read: item.read };
+        this.log.push(entry);
+        if (item.depth > 0) this.tree.remove(path);
+        this.remember(item, members);
+        const memberReader = (name) => ({ name, read: () => this.memberData(item, name) });
+        for (const member of members) {
+            const { read } = memberReader(member.name);
+            this.tree.write(joinPath(folder, safeName(member.name)), member.data.length <= KEEP_IN_MEMORY_SIZE ? member.data : null, { container: entry, storedName: member.name, size: member.data.length, read });
+            if (!worthReading(member.name, member.data.subarray(0, SNIFF_SIZE))) continue;
+            const stem = volumeStem(member.name);
+            const siblings = () => members.filter((other) => other !== member && volumeStem(other.name) === stem).map((other) => memberReader(other.name));
+            this.queue.push({ name: member.name, directory: folder, depth: item.depth + 1, container: entry, size: member.data.length, data: member.data, read, siblings });
+        }
+    }
+
+    remember(item, members) {
+        this.cache.delete(item);
+        this.cache.set(item, new Map(members.map((member) => [member.name, member.data])));
+        while (this.cache.size > CACHED_CONTAINERS) this.cache.delete(this.cache.keys().next().value);
+    }
+
+    async memberData(item, name) {
+        if (!this.cache.has(item)) {
+            const siblings = await Promise.all(item.siblings().map(async (sibling) => ({ name: sibling.name.split("/").pop(), data: await sibling.read() })));
+            this.remember(item, membersOf(item.name, await item.read(), siblings).members ?? []);
+        }
+        return this.cache.get(item).get(name) ?? new Uint8Array(0);
+    }
 }
