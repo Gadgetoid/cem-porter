@@ -1,5 +1,6 @@
 import { latin1Decode, u32 } from "../pe/pe.js";
 
+export const FILE_SELF_REGISTER = 0x10000000;
 export const PROGRAM_FILES = "\\Program Files";
 export const START_MENU = "\\Windows\\Programs";
 export const WINDOWS = "\\Windows";
@@ -65,10 +66,10 @@ export class Plan {
         }
     }
 
-    copy(source, destination, shared = false) {
+    copy(source, destination, shared = false, selfRegister = false) {
         this.mkdir(destination.slice(0, destination.lastIndexOf("\\")));
         if (this.operations.some((operation) => operation.kind === "file" && operation.path.toLowerCase() === destination.toLowerCase())) return;
-        this.operations.push({ kind: "file", source, path: destination, shared });
+        this.operations.push({ kind: "file", source, path: destination, shared, selfRegister });
     }
 
     shortcut(link, target) {
@@ -135,7 +136,7 @@ export function planFromCabSetup(setup, members, { title, installFolder } = {}) 
         }
         const destination = `${directoryPath(entry.directory)}\\${entry.name}`;
         destinations[identifier] = destination;
-        plan.copy(member, destination, destination.toLowerCase().startsWith("\\windows\\"));
+        plan.copy(member, destination, destination.toLowerCase().startsWith("\\windows\\"), Boolean(entry.flags & FILE_SELF_REGISTER));
     }
     for (const key of setup.keys) {
         const hive = setup.hives[key.hive];

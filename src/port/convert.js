@@ -9,7 +9,7 @@ import { selfInstaller } from "./selfinstall.js";
 import { reduceColourBitmaps } from "../pe/bitmaps.js";
 import { findTrapCalls, patchSh3TrapCalls, redirectTrapCalls } from "./traps.js";
 import { embedModulePath } from "./modulepath.js";
-import { WINDOWS, safeFolderName } from "./installplan.js";
+import { WINDOWS, safeFolderName, FILE_SELF_REGISTER } from "./installplan.js";
 
 export const DEVICES = {
     "velo-ce1": { label: "Philips Velo 1 (MIPS R3910)", cpu: "mips", ce: 1, fourKbPages: true, exports: "velo1" },
@@ -328,7 +328,8 @@ export function buildCab(plan, ported, settings) {
     if (ported.setupDlls.length) cab.setupDll = ported.setupDlls[0].data;
     for (const operation of plan.operations) {
         if (operation.kind === "file" && ported.files.has(operation)) {
-            identifiers.set(operation.path.toLowerCase(), cab.addFile(cab.setup.wholeDirectory(cabDirectory(operation.path)), operation.path.split("\\").pop(), ported.files.get(operation)));
+            const flags = operation.selfRegister ? FILE_SELF_REGISTER : 0;
+            identifiers.set(operation.path.toLowerCase(), cab.addFile(cab.setup.wholeDirectory(cabDirectory(operation.path)), operation.path.split("\\").pop(), ported.files.get(operation), flags));
         }
     }
     for (const operation of plan.operations) {
