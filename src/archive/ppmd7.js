@@ -66,6 +66,55 @@ export class RarRangeDecoder {
     }
 }
 
+export class SevenZipRangeDecoder {
+    constructor(readByte) {
+        this.readByte = readByte;
+        this.range = 0;
+        this.code = 0;
+    }
+
+    init() {
+        this.range = 0xffffffff;
+        this.code = 0;
+        if (this.readByte() !== 0) return false;
+        for (let index = 0; index < 4; index++) this.code = ((this.code << 8) | this.readByte()) >>> 0;
+        return this.code < 0xffffffff;
+    }
+
+    getThreshold(total) {
+        this.range = Math.floor(this.range / total) >>> 0;
+        return Math.floor(this.code / this.range);
+    }
+
+    decode(start, size) {
+        this.code = (this.code - Math.imul(start, this.range)) >>> 0;
+        this.range = Math.imul(this.range, size) >>> 0;
+        this.normalize();
+    }
+
+    decodeBit(size0) {
+        const bound = Math.imul(this.range >>> (INT_BITS + PERIOD_BITS), size0) >>> 0;
+        let symbol;
+        if (this.code < bound) {
+            this.range = bound;
+            symbol = 0;
+        } else {
+            this.code = (this.code - bound) >>> 0;
+            this.range = (this.range - bound) >>> 0;
+            symbol = 1;
+        }
+        this.normalize();
+        return symbol;
+    }
+
+    normalize() {
+        while (this.range < TOP_VALUE) {
+            this.code = ((this.code << 8) | this.readByte()) >>> 0;
+            this.range = (this.range << 8) >>> 0;
+        }
+    }
+}
+
 export class Ppmd7 {
     constructor() {
         this.indx2Units = new Uint8Array(NUM_INDEXES);

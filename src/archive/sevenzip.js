@@ -1,5 +1,7 @@
+import { bzip2Decode } from "./bzip2.js";
 import { inflateRaw } from "./inflate.js";
 import { bcj2Decode, bcjArmDecode, bcjX86Decode, deltaDecode, lzma2Decode, lzmaDecode } from "./lzma.js";
+import { Ppmd7, SevenZipRangeDecoder } from "./ppmd7.js";
 import { u32 } from "../pe/pe.js";
 
 export const SEVEN_ZIP_SIGNATURE = [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c];
@@ -230,6 +232,25 @@ function readFiles(reader) {
     return files;
 }
 
+function ppmdDecode(properties, input, size) {
+    if (properties.length < 5) throw new Error("bad 7z PPMd properties");
+    const order = properties[0];
+    const memorySize = u32(properties, 1);
+    let position = 0;
+    const range = new SevenZipRangeDecoder(() => (position < input.length ? input[position++] : 0));
+    if (!range.init()) throw new Error("bad 7z PPMd stream");
+    const model = new Ppmd7();
+    model.alloc(memorySize);
+    model.init(order);
+    const output = new Uint8Array(size);
+    for (let index = 0; index < size; index++) {
+        const symbol = model.decodeSymbol(range);
+        if (symbol < 0) throw new Error("7z PPMd data is truncated");
+        output[index] = symbol;
+    }
+    return output;
+}
+
 function runCoder(coder, inputs, size) {
     const name = METHOD_NAMES[coder.id] ?? `method ${coder.id}`;
     const input = inputs[0];
@@ -248,6 +269,10 @@ function runCoder(coder, inputs, size) {
             return bcjArmDecode(Uint8Array.from(input));
         case "03":
             return deltaDecode(Uint8Array.from(input), (coder.properties[0] ?? 0) + 1);
+        case "040202":
+            return bzip2Decode(input, size);
+        case "030401":
+            return ppmdDecode(coder.properties, input, size);
         case "040108": {
             const { output, error } = inflateRaw(input, { maxOutput: size });
             if (error) throw new Error(`Deflate: ${error}`);
