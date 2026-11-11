@@ -219,7 +219,9 @@ button:disabled { color: var(--disabled); text-shadow: 1px 1px var(--highlight);
 
 :is(button, select, [role="button"], #view):focus-visible { outline: 1px dotted var(--text); outline-offset: -4px; }
 
-select, input[type="text"], input[type="number"] {
+select, input[type="text"], input[type="number"], input[type="search"] {
+    appearance: none;
+    -webkit-appearance: none;
     height: 21px;
     border: 0;
     border-radius: 0;
@@ -231,6 +233,42 @@ select, input[type="text"], input[type="number"] {
 }
 
 :is(select, input):disabled { color: var(--disabled); background: var(--face); }
+
+input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; }
+
+select {
+    padding-right: 22px;
+    background: var(--window) url("drop-down.svg") no-repeat right 2px top 2px / 16px 17px;
+}
+
+select:disabled { background: var(--face) url("drop-down-disabled.svg") no-repeat right 2px top 2px / 16px 17px; }
+
+select:active:not(:disabled) { background-image: url("drop-down-pressed.svg"); }
+
+@supports (appearance: base-select) {
+    select, ::picker(select) { appearance: base-select; }
+
+    select { display: inline-flex; align-items: center; block-size: 21px; padding-block: 0; }
+
+    select::picker-icon { display: none; }
+
+    select > button { all: unset; }
+
+    ::picker(select) {
+        border: 1px solid var(--dark-shadow);
+        border-radius: 0;
+        padding: 0;
+        background: var(--window);
+        box-shadow: none;
+        font: 11px var(--font);
+    }
+
+    option { padding: 1px 4px; min-height: 0; white-space: pre; }
+
+    option::checkmark { display: none; }
+
+    option:is(:hover, :focus-visible, :checked) { background: var(--selection); color: var(--selection-text); outline: none; }
+}
 
 label { display: inline-flex; align-items: center; gap: 5px; }
 
