@@ -9,6 +9,7 @@ const END_POSITION_MODEL_INDEX = 14;
 const FULL_DISTANCES = 128;
 const ALIGN_BITS = 4;
 const MATCH_MIN_LENGTH = 2;
+const MATCH_MAX_LENGTH = 273;
 
 class RangeDecoder {
     constructor(data, start, end) {
@@ -139,6 +140,12 @@ export class LzmaDecoder {
         this.reps = [0, 0, 0, 0];
     }
 
+    reserve() {
+        const grown = new Uint8Array(this.output.length * 2);
+        grown.set(this.output);
+        this.output = grown;
+    }
+
     resetDictionary() {
         this.dictionaryStart = this.position;
     }
@@ -187,6 +194,7 @@ export class LzmaDecoder {
         const range = new RangeDecoder(data, start, end);
         const positionMask = (1 << this.pb) - 1;
         while (this.position < outputEnd) {
+            if (outputEnd === Infinity && this.position + MATCH_MAX_LENGTH > this.output.length) this.reserve();
             const positionState = (this.position - this.dictionaryStart) & positionMask;
             const state = this.state;
             if (!range.bit(this.isMatch, (state << 4) + positionState)) {
@@ -242,6 +250,14 @@ export function lzmaDecode(properties, data, size) {
     decoder.resetState();
     decoder.decode(data, 0, data.length, size);
     return output;
+}
+
+export function lzmaDecodeUnsized(data, start, end, sizeHint = (end - start) * 4) {
+    const decoder = new LzmaDecoder(new Uint8Array(Math.max(sizeHint, MATCH_MAX_LENGTH * 2)));
+    decoder.setProperties(data[start]);
+    decoder.resetState();
+    decoder.decode(data, start + 5, end, Infinity);
+    return decoder.output.subarray(0, decoder.position);
 }
 
 export function lzma2Decode(data, size) {
