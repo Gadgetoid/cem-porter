@@ -100,7 +100,8 @@ https://gadgetoid.github.io/cem-porter/compat.html (`compat.html`) checks a prog
 
 - Opens anything CEM Porter unpacks; pick a binary from the package
 - Each device gets a result and a result per check: CPU, CE version, functions, DLLs, direct kernel calls, page size and size
-- Runs as is, CEM Porter patches it (renumbered or supplied functions, CE version, kernel calls, 4 KB pages, the AYGSHELL shim), might be made to work (a few functions missing, a runtime to install, a newer CE version) or won't work (another CPU, many missing functions, too big for RAM)
+- Runs as is, CEM Porter patches it (renumbered or supplied functions, CE version, kernel calls, 4 KB pages, the AYGSHELL shim, installing to a storage card), might be made to work (a few functions missing, a runtime to install, a newer CE version, too big for RAM but fine on a storage card) or won't work (another CPU, many missing functions, too big)
+- Size limits: files in RAM are 4 MB at most on CE 1.0 and 2.0, 16 MB on CE 2.1x and 32 MB on CE 3.0 to 5.x; CE 1.0 can't run programs from a card, and before CE 6.0 no program can be bigger than the 32 MB a process gets
 - Ordinal imports are named from the nearest older ROM with the same CPU
 - DLLs in the same package count as present
 - Devices are grouped by OS and CE version, and can be filtered by CPU, result and name

@@ -8,7 +8,8 @@ import { CE1_RENAMES } from "./ce1.js";
 export const STATUS_ORDER = ["runs", "patch", "amber", "red"];
 export const STATUS_LABELS = { runs: "Runs as is", patch: "CEM Porter patches it", amber: "Might be made to work", red: "Won't work" };
 
-const MAX_RAM_PROGRAM_SIZE = 4 * 1024 * 1024;
+const MEGABYTE = 1024 * 1024;
+const PROCESS_SLOT_SIZE = 32 * MEGABYTE;
 const FEW_MISSING = 8;
 const FOUR_KB_PAGE_DEVICES = /^philips_(velo|nino)/;
 const MIPS16 = 0x266;
@@ -99,9 +100,22 @@ function sizeText(size) {
     return size < 1048576 ? `${Math.ceil(size / 1024)} KB` : `${(size / 1048576).toFixed(1)} MB`;
 }
 
+function ramFileLimit(device) {
+    if (device.ce < 2.1) return 4 * MEGABYTE;
+    if (device.ce < 3) return 16 * MEGABYTE;
+    return 32 * MEGABYTE;
+}
+
 function sizeCheck(binary, device) {
-    if (device.ce < 3 && binary.size > MAX_RAM_PROGRAM_SIZE) return check("size", "Size", "red", sizeText(binary.size), ["Too big to load from RAM on CE 1.0 and 2.x (4 MB at most)."]);
-    return check("size", "Size", "runs", sizeText(binary.size));
+    const size = sizeText(binary.size);
+    if (device.ce >= 6) return check("size", "Size", "runs", size);
+    if (binary.size > PROCESS_SLOT_SIZE) return check("size", "Size", "red", size, [`Bigger than the 32 MB each process gets before CE 6.0, wherever it's stored.`]);
+    const limit = ramFileLimit(device);
+    if (binary.size <= limit) return check("size", "Size", "runs", size);
+    const inRam = `${device.ceLabel} holds files of ${limit / MEGABYTE} MB at most in RAM.`;
+    if (device.ce < 2) return check("size", "Size", "red", size, [`${inRam} CE 1.0 can't run it from a storage card either.`]);
+    if (porterTarget(device)) return check("size", "Size", "patch", size, [`${inRam} CEM Porter's Install to Storage Card puts it on a card.`]);
+    return check("size", "Size", "amber", size, [`${inRam} It has to be installed to a storage card.`]);
 }
 
 function kernelCheck(binary, device) {

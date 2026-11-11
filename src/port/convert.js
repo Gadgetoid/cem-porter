@@ -24,7 +24,9 @@ export const DEVICES = {
 const MACHINES = { mips: MACHINE_MIPS, sh3: MACHINE_SH3 };
 const CAB_PROCESSORS = { mips: ARCHITECTURE_MIPS, sh3: ARCHITECTURE_SH3, SH4: ARCHITECTURE_SH4, ARM: ARCHITECTURE_STRONGARM };
 const COMPAT_DLL = "CE1COMPAT.DLL";
-const MAX_PROGRAM_SIZE = 4 * 1024 * 1024;
+const MAX_RAM_FILE_SIZE = 4 * 1024 * 1024;
+const PROCESS_SLOT_SIZE = 32 * 1024 * 1024;
+const ON_CARD = /^(\\Storage Card|%CARD%)\\/i;
 const SUPPORT_TITLES = { [CRT_DLL]: "C runtime for programs built with later CE 2.x SDKs", [SHIM_DLL]: "CE 1.01 functions for CE 1.0", [COMPAT_DLL]: "CE 2.0 functions for CE 1.0" };
 
 export function deviceSettings(device, assets) {
@@ -69,7 +71,9 @@ export function portBinary(name, input, settings, destination = null) {
         return result;
     }
     const size = Math.max(input.length, parsed.imageSize);
-    if (size > MAX_PROGRAM_SIZE) result.fatal.push(`${megabytes(size)}, too big to load from RAM (${megabytes(MAX_PROGRAM_SIZE)} at most)`);
+    if (size > PROCESS_SLOT_SIZE) result.fatal.push(`${megabytes(size)}, bigger than the ${megabytes(PROCESS_SLOT_SIZE)} a process gets`);
+    else if (size > MAX_RAM_FILE_SIZE && settings.ce === 1) result.fatal.push(`${megabytes(size)}, too big for CE 1.0 (${megabytes(MAX_RAM_FILE_SIZE)} at most)`);
+    else if (size > MAX_RAM_FILE_SIZE && !ON_CARD.test(destination ?? "")) result.fatal.push(`${megabytes(size)}, too big for CE 2.0's RAM (${megabytes(MAX_RAM_FILE_SIZE)} at most); install it to a storage card`);
     let data = input;
     if (settings.cpu === "mips" && settings.fourKbPages && parsed.sectionAlignment < 0x1000) {
         try {
