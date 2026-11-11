@@ -1,6 +1,7 @@
 import { latin1Decode } from "../pe/pe.js";
 
 const utf16 = new TextDecoder("utf-16le");
+const INIT_SCRIPTS = ["initobj.dat", "initflashfiles.dat"];
 const INITOBJ_LINE = /^\s*(?:root|Directory\s*\(\s*"([^"]*)"\s*\))\s*:-\s*(Directory|File|Permanent)\s*\(\s*"([^"]*)"\s*(?:,\s*"([^"]*)"\s*)?\)/i;
 
 export const TYPE_NAMES = {
@@ -100,14 +101,14 @@ export function buildTree(regions) {
         const node = { kind: item.kind, name: uniqueName(windows, item.name), parent: windows, item };
         windows.children.push(node);
     }
-    const initobj = regions.flatMap((region) => region.files).find((file) => file.name.toLowerCase() === "initobj.dat");
     const notes = [];
-    if (initobj) {
+    const scripts = regions.flatMap((region) => region.files).filter((file) => INIT_SCRIPTS.includes(file.name.toLowerCase()));
+    for (const script of scripts) {
         let text = "";
         try {
-            text = decodeText(initobj.region.fileData(initobj));
+            text = decodeText(script.region.fileData(script));
         } catch (error) {
-            notes.push(`initobj.dat couldn't be read: ${error.message}`);
+            notes.push(`${script.name} couldn't be read: ${error.message}`);
         }
         for (const line of text.split(/\r?\n/)) {
             const match = INITOBJ_LINE.exec(line);

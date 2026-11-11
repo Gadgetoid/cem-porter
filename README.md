@@ -82,7 +82,7 @@ https://gadgetoid.github.io/cem-porter/explorer.html (`explorer.html`) browses a
 - Regions chained together (CE 4.2's kernel and XIP regions share a ROM extensions block) are shown as one ROM, and so are OSes split across regions with no chain (Compaq iPAQ h3600 and h3100 `.nbf`, whose 32-byte header is skipped)
 - Windows Mobile 5 and 6 IMGFS partitions: modules and files, compressed with LZX or XPRESS, stored in order or behind the flash translation map
 - Modules are rebuilt as PE files; data directories pointing at sections romimage stripped are cleared
-- Folders and shortcut copies come from the ROM's `initobj.dat`; shortcuts show their target's icon
+- Folders and shortcut copies come from the ROM's `initobj.dat`, or `initflashfiles.dat` on Windows Mobile; shortcuts show their target's icon
 - Icons and version information are read from each module's resources; an Icons tab shows every icon image a program or DLL holds
 - Each file's Properties shows its SHA-256
 - Previews: bitmaps (including 2 bpp `.2bp` files), text, HTML rendered with its images from the same ROM or package (no scripts, links within the page only), sounds, TrueType fonts and collections, bitmap fonts (`.fnt`, and `.fon` files including CE 1.01's paged ones), buzzer tunes (`.buz`) with playback, and registry files (REGEDIT4 scripts, CE 1.x RGDB hives and binary registry backups such as the BE-300's `Safe.reg`) as a key tree
