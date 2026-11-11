@@ -1,5 +1,5 @@
 import { MACHINE_MIPS, MACHINE_SH3, MACHINE_NAMES, isPe, parsePe, u32 } from "../pe/pe.js";
-import { realign } from "./realign.js";
+import { realign, recreateRelocatable, verifyRealign } from "./realign.js";
 import { redirect, shim, SHIM_DLL, RENAMES, SHIMMED } from "./shim.js";
 import { CE1_RENAMES, coredllOrdinalNames, markCe1, moveImports, ordinalsToNames, renameImports } from "./ce1.js";
 import { CRT_DLL, portToCe2 } from "./port.js";
@@ -77,10 +77,22 @@ export function portBinary(name, input, settings, destination = null) {
     let data = input;
     if (settings.cpu === "mips" && settings.fourKbPages && parsed.sectionAlignment < 0x1000) {
         try {
-            const moved = realign(data);
+            let source = data;
+            let recreated = false;
+            if (parsed.relocsStripped || !parsed.hasReloc) {
+                const relocatable = recreateRelocatable(data);
+                if (!relocatable) throw new Error("relocations are stripped and couldn't be recreated");
+                source = relocatable;
+                recreated = true;
+            }
+            const moved = realign(source);
             if (moved) {
+                if (recreated) {
+                    const check = verifyRealign(source, moved);
+                    if (check.bad || check.changedOutside) throw new Error("recreated relocations failed verification");
+                }
                 data = moved;
-                result.notes.push("sections moved to 4 KB pages");
+                result.notes.push(recreated ? "relocations recreated and sections moved to 4 KB pages" : "sections moved to 4 KB pages");
             }
         } catch (error) {
             result.problems.push(`can't move sections to 4 KB pages: ${error.message}`);

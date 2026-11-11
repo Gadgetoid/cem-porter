@@ -1,4 +1,4 @@
-import { u16, u32, setU32, cString, align } from "../pe/pe.js";
+import { u16, u32, setU16, setU32, cString, align, MACHINE_MIPS } from "../pe/pe.js";
 
 export const PAGE = 0x1000;
 
@@ -480,4 +480,120 @@ export function tryRealign(data, parsedPe) {
         return { ok: false, message: `realign verification: ${bad} bad relocations, ${changedOutside} unexpected word changes` };
     }
     return { ok: true, message: `realign.py verified (${relocations} relocations)` };
+}
+
+function inImageTest(image) {
+    const base = image.imageBase >>> 0;
+    const end = (base + u32(image.data, image.optional + 56)) >>> 0;
+    return (address) => address >= base && address < end;
+}
+
+export function recreateMipsRelocations(image) {
+    const inImage = inImageTest(image);
+    const relocations = [];
+    for (const section of image.sections) {
+        if (section.name !== ".text") continue;
+        const high = new Map();
+        for (let rva = section.oldVa; rva + 4 <= section.oldVa + section.rawSize; rva += 4) {
+            const word = image.read32(rva) >>> 0;
+            const opcode = word >>> 26;
+            if (opcode === 2 || opcode === 3) {
+                const target = (((image.imageBase + rva + 4) & 0xf0000000) | ((word & 0x3ffffff) << 2)) >>> 0;
+                if (inImage(target)) relocations.push({ kind: REL_JMPADDR, site: rva, parameter: null });
+                continue;
+            }
+            if (opcode === 0x0f) {
+                high.set((word >>> 16) & 31, { site: rva, immediate: word & 0xffff });
+                continue;
+            }
+            const base = (word >>> 21) & 31;
+            const destination = (word >>> 16) & 31;
+            const low = word & 0xffff;
+            const loadStore = opcode >= 0x20 && opcode <= 0x2e;
+            const coprocessor = opcode === 0x31 || opcode === 0x35 || opcode === 0x39 || opcode === 0x3d;
+            const immediateAdd = opcode === 8 || opcode === 9 || opcode === 0x0d;
+            if ((loadStore || coprocessor || immediateAdd) && high.has(base)) {
+                const pair = high.get(base);
+                const address = ((pair.immediate << 16) + sign16(low)) >>> 0;
+                if (inImage(address)) {
+                    relocations.push({ kind: REL_HIGHADJ, site: pair.site, parameter: low });
+                    relocations.push({ kind: REL_LOW, site: rva, parameter: null });
+                    high.delete(base);
+                }
+            }
+            if (opcode === 0) {
+                const funct = word & 0x3f;
+                const result = (word >>> 11) & 31;
+                const accumulate = (funct === 0x20 || funct === 0x21 || funct === 0x2c || funct === 0x2d) && (result === base || result === destination);
+                if (!accumulate) high.delete(result);
+            } else if (opcode === 8 || opcode === 9) {
+                if (destination !== base) high.delete(destination);
+            } else {
+                high.delete(destination);
+            }
+        }
+    }
+    for (const section of image.sections) {
+        if (section.name === ".reloc" || section.name === ".rsrc") continue;
+        const start = section.oldVa;
+        const end = section.oldVa + section.rawSize;
+        if (section.name === ".text") {
+            let runStart = null;
+            const flush = (from, to) => {
+                if (to - from < 8) return;
+                for (let rva = from; rva < to; rva += 4) relocations.push({ kind: REL_HIGHLOW, site: rva, parameter: null });
+            };
+            for (let rva = start; rva + 4 <= end; rva += 4) {
+                if (inImage(image.read32(rva) >>> 0)) {
+                    if (runStart === null) runStart = rva;
+                } else if (runStart !== null) {
+                    flush(runStart, rva);
+                    runStart = null;
+                }
+            }
+            if (runStart !== null) flush(runStart, end);
+        } else {
+            for (let rva = start; rva + 4 <= end; rva += 4) {
+                if (inImage(image.read32(rva) >>> 0)) relocations.push({ kind: REL_HIGHLOW, site: rva, parameter: null });
+            }
+        }
+    }
+    return relocations;
+}
+
+export function recreateRelocatable(data) {
+    const image = new RealignImage(data);
+    if (u16(data, image.pe + 4) !== MACHINE_MIPS) return null;
+    const relocations = recreateMipsRelocations(image);
+    if (!relocations.length) return null;
+    const encoded = encodeRelocations(relocations);
+    const optional = image.optional;
+    const optionalSize = u16(data, image.pe + 20);
+    const sectionCount = u16(data, image.pe + 6);
+    const sectionAlignment = u32(data, optional + 32);
+    const fileAlignment = u32(data, optional + 36);
+    const sectionTable = optional + optionalSize;
+    let imageEnd = 0;
+    for (let index = 0; index < sectionCount; index++) {
+        const header = sectionTable + 40 * index;
+        imageEnd = Math.max(imageEnd, u32(data, header + 12) + u32(data, header + 8));
+    }
+    const relocVa = align(imageEnd, sectionAlignment);
+    const relocPointer = align(data.length, fileAlignment);
+    const output = new Uint8Array(relocPointer + align(encoded.length, fileAlignment));
+    output.set(data);
+    output.set(encoded, relocPointer);
+    setU16(output, image.pe + 6, sectionCount + 1);
+    setU16(output, image.pe + 22, u16(output, image.pe + 22) & ~1);
+    setU32(output, optional + 56, align(relocVa + encoded.length, sectionAlignment));
+    setU32(output, optional + 96 + 5 * 8, relocVa);
+    setU32(output, optional + 96 + 5 * 8 + 4, encoded.length);
+    const newHeader = sectionTable + sectionCount * 40;
+    new TextEncoder().encodeInto(".reloc", output.subarray(newHeader, newHeader + 8));
+    setU32(output, newHeader + 8, encoded.length);
+    setU32(output, newHeader + 12, relocVa);
+    setU32(output, newHeader + 16, align(encoded.length, fileAlignment));
+    setU32(output, newHeader + 20, relocPointer);
+    setU32(output, newHeader + 36, 0x42000040);
+    return output;
 }
