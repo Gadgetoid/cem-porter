@@ -99,6 +99,14 @@ int compat_SetROP2(HDC dc, int mode) {
     return R2_COPYPEN;
 }
 
+HPALETTE compat_SelectPalette(HDC dc, HPALETTE palette, BOOL force_background) {
+    return 0;
+}
+
+UINT compat_RealizePalette(HDC dc) {
+    return 0;
+}
+
 BOOL compat_PlaySoundW(LPCWSTR sound, HMODULE module, DWORD flags) {
     UINT basic = (UINT)(flags & 0x1F);
     if (!sound) return sndPlaySoundW(0, basic);

@@ -12,6 +12,8 @@ CharUpperW
 CreateMutexW
 ReleaseMutex
 SetROP2
+SelectPalette
+RealizePalette
 PlaySoundW
 GetTempPathW
 RegisterWindowMessageW
