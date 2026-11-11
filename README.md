@@ -16,7 +16,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - CASIO `.cpk` (`CASIO.$&%-Z`), the per-512-byte-block format the BE-300 and BE-500 store installed programs in: stored blocks, run-length blocks, and dictionary blocks of 1 to 8 bits
 - CASIO `.cbea` installer packages, named by the platform they target (`Casio Jx740 CE3.00`); members stored as `.cpk` are expanded on the way out
 - zip, LZH (`-lh0-`, `-lh5-` to `-lh7-`)
-- MS CAB: stored, MSZIP and LZX (not Quantum)
+- MS CAB: stored, MSZIP, Quantum and LZX
 - InstallShield 5 and 6 cabinets (`data1.cab`, with `data1.hdr` and further volumes when present)
 - Installer VISE for Windows (`setup.exe`): the files it installs, not its own runtime
 - InstallShield `setup.exe` file streams (InstallShield X era), decoded where obfuscated, and the older `setup.exe` that lists its disk files by name, path, version and size

@@ -1,5 +1,6 @@
 import { inflateSync } from "../../vendor/fflate.js";
 import { decompressLzx } from "./lzx.js";
+import { decompressQuantum } from "./quantum.js";
 import { u16, u32 } from "../pe/pe.js";
 
 const HEADER_SIZE = 36;
@@ -145,8 +146,7 @@ function slideWindow(history, block) {
 
 function readFolder(data, header, folder) {
     const method = folder.compression & 0x000f;
-    if (method === COMPRESSION_QUANTUM) throw new Error("Quantum compression isn't supported");
-    if (method !== COMPRESSION_NONE && method !== COMPRESSION_MSZIP && method !== COMPRESSION_LZX) throw new Error(`Unknown compression type ${method}`);
+    if (method !== COMPRESSION_NONE && method !== COMPRESSION_MSZIP && method !== COMPRESSION_QUANTUM && method !== COMPRESSION_LZX) throw new Error(`Unknown compression type ${method}`);
     const blocks = [];
     let total = 0;
     let history = new Uint8Array(0);
@@ -159,6 +159,11 @@ function readFolder(data, header, folder) {
         const start = position + 8 + header.dataReserve;
         ensureAvailable(data, start, compressedSize);
         const compressed = data.subarray(start, start + compressedSize);
+        position = start + compressedSize;
+        if (method === COMPRESSION_QUANTUM) {
+            blocks.push({ data: compressed, size: uncompressedSize });
+            continue;
+        }
         let block;
         if (method === COMPRESSION_LZX) {
             block = compressed;
@@ -171,8 +176,8 @@ function readFolder(data, header, folder) {
         }
         blocks.push(block);
         total += block.length;
-        position = start + compressedSize;
     }
+    if (method === COMPRESSION_QUANTUM) return decompressQuantum(blocks, (folder.compression >>> 8) & 0x1f);
     if (method === COMPRESSION_LZX) return decompressLzx(concatenate(blocks, total), (folder.compression >>> 8) & 0x1f, uncompressedTotal);
     return concatenate(blocks, total);
 }
