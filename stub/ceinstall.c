@@ -14,6 +14,7 @@
 #define MAX_SETUP_DLLS 8
 #define FILE_SHARED 1
 #define FILE_MODULE_PATH 2
+#define FILE_SELF_REGISTER 4
 #define PATH_MARKER_LENGTH 8
 #define PATH_LENGTH 260
 #define MARKER_VALUE L"CEPorter"
@@ -228,6 +229,7 @@ static void run_program(const WCHAR *program, const WCHAR *arguments) {
     }
 }
 
+typedef HRESULT (*com_register_function)(void);
 typedef int (*install_init_function)(HWND, BOOL, BOOL, LPCWSTR);
 typedef int (*install_exit_function)(HWND, LPCWSTR, WORD, WORD, WORD, WORD, WORD);
 typedef int (*uninstall_init_function)(HWND, LPCWSTR);
@@ -341,6 +343,25 @@ static void free_setup_dlls(int remove_files) {
 
 static void remove_installed(void);
 
+static void self_register(int unregister) {
+    for (DWORD index = 0; index < header->operation_count; index++) {
+        const operation *op = operation_at(index);
+        if (op->kind != OP_FILE || !(op->values[3] & FILE_SELF_REGISTER)) continue;
+        HMODULE library = LoadLibraryW(text_at(op->values[0]));
+        if (!library) {
+            if (!unregister) note_failure(L"Could not load", text_at(op->values[0]));
+            continue;
+        }
+        com_register_function entry = (com_register_function)GetProcAddressW(library, unregister ? L"DllUnregisterServer" : L"DllRegisterServer");
+        if (entry) {
+            if (entry() != 0 && !unregister) note_failure(L"Could not register", text_at(op->values[0]));
+        } else if (!unregister) {
+            note_failure(L"No DllRegisterServer in", text_at(op->values[0]));
+        }
+        FreeLibrary(library);
+    }
+}
+
 static int install(int previously_installed) {
     const operation *run = 0;
     load_setup_dlls(1);
@@ -380,6 +401,7 @@ static int install(int previously_installed) {
             break;
         }
     }
+    self_register(0);
     HKEY key = open_key((DWORD)HKEY_LOCAL_MACHINE, marker_key);
     if (key) {
         DWORD one = 1;
@@ -421,6 +443,7 @@ static void finish_removal(void) {
 }
 
 static void remove_installed(void) {
+    self_register(1);
     for (DWORD count = header->operation_count; count > 0; count--) {
         const operation *op = operation_at(count - 1);
         switch (op->kind) {

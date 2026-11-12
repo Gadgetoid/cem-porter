@@ -5,6 +5,7 @@ export const ROOTS = { HKCR: 0x80000000, HKCU: 0x80000001, HKLM: 0x80000002, HKU
 const KINDS = { mkdir: 1, file: 2, shortcut: 3, regsz: 4, regmulti: 5, run: 6, regdword: 8, regkey: 9, regbinary: 11, setupdll: 12 };
 const FILE_SHARED = 1;
 const FILE_MODULE_PATH = 2;
+const FILE_SELF_REGISTER = 4;
 const MARKER = [0x43, 0x45, 0x50, 0x4b, 0x43, 0x45, 0x4c, 0x4f];
 const SECTION_NAME = ".cepk";
 const SECTION_CHARACTERISTICS = 0x40000040;
@@ -78,7 +79,7 @@ function operationValues(writer, operation) {
         case "mkdir":
             return [writer.string(operation.path), 0, 0, 0];
         case "file":
-            return [writer.string(operation.path), writer.bytes(operation.data), operation.data.length, (operation.shared ? FILE_SHARED : 0) | (operation.modulePath ? FILE_MODULE_PATH : 0)];
+            return [writer.string(operation.path), writer.bytes(operation.data), operation.data.length, (operation.shared ? FILE_SHARED : 0) | (operation.modulePath ? FILE_MODULE_PATH : 0) | (operation.selfRegister ? FILE_SELF_REGISTER : 0)];
         case "shortcut":
             return [writer.string(operation.link), writer.string(operation.target), 0, 0];
         case "regkey":

@@ -354,7 +354,7 @@ export function buildSelfInstaller(plan, ported, settings, assets) {
     for (const operation of plan.operations) {
         if (/^(regsz|regdword)$/.test(operation.kind) && /^Software\\Apps\\/i.test(operation.key) && /^(Instl|InstlDir)$/i.test(operation.name)) continue;
         if (operation.kind === "file") {
-            if (ported.files.has(operation)) operations.push({ kind: "file", path: operation.path, data: ported.files.get(operation), shared: operation.shared, modulePath: ported.modulePaths.has(operation) });
+            if (ported.files.has(operation)) operations.push({ kind: "file", path: operation.path, data: ported.files.get(operation), shared: operation.shared, modulePath: ported.modulePaths.has(operation), selfRegister: operation.selfRegister });
         } else if (operation.kind === "regmulti") {
             operations.push({ ...operation, values: operation.value });
         } else {
