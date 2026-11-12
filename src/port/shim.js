@@ -1,4 +1,4 @@
-import { Image, align, u32, setU16, setU32 } from "../pe/pe.js";
+import { Image, align, rvaToOffset, u32, setU16, setU32 } from "../pe/pe.js";
 
 export const SHIM_DLL = "VELOSHIM.DLL";
 
@@ -150,9 +150,25 @@ export function shim(data) {
     return { data: patched, changes };
 }
 
+function neutralizeOriginals(image, descriptors, redirects) {
+    const slots = new Set(redirects.map(([, iatRva]) => iatRva));
+    for (const descriptor of descriptors) {
+        const firstThunk = descriptor[4];
+        const lookup = descriptor[0] || firstThunk;
+        for (let index = 0; ; index++) {
+            const specOffset = rvaToOffset(image.sections, lookup + 4 * index);
+            if (specOffset === null) break;
+            const spec = u32(image.data, specOffset);
+            if (!spec) break;
+            if (slots.has(firstThunk + 4 * index) && !(spec & 0x80000000)) setU32(image.data, specOffset, 0x80000001);
+        }
+    }
+}
+
 export function redirect(data, dll, redirects) {
     if (!redirects.length) return null;
     const image = new Image(data);
     const descriptors = readDescriptors(image);
+    neutralizeOriginals(image, descriptors, redirects);
     return new ImportSection(image, descriptors.length + redirects.length).finish(descriptors, dll, redirects);
 }
