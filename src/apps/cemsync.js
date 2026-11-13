@@ -288,6 +288,7 @@ async function start(target, attach) {
         if (!state.target.serial) setStatus("Connecting...");
         await link.connect();
         state.link = link;
+        if (new URLSearchParams(location.search).has("trace")) globalThis.ceLink = link;
         promptForPackage();
         renderPackages();
         setConnected(true);

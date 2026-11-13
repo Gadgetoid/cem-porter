@@ -1,6 +1,6 @@
 import { RndisLink, RNDIS_TARGETS } from "./rndis.js";
 import { NetStack, parseIp } from "./netstack.js";
-import { Reader, Writer, sleep, words } from "./wire.js";
+import { Reader, Writer, decodeUtf16, utf16, sleep, words } from "./wire.js";
 
 const DEVICE_IP = "169.254.2.1";
 const HOST_IP = "169.254.2.2";
@@ -17,12 +17,28 @@ const RAPI = {
     readFile: 0x17,
     writeFile: 0x18,
     closeHandle: 0x19,
+    regOpenKey: 0x2f,
+    regCreateKey: 0x31,
+    regCloseKey: 0x32,
+    regQueryValue: 0x37,
+    regSetValue: 0x38,
     createDirectory: 0x28,
     createProcess: 0x2a,
     deleteFile: 0x2d,
     getSystemInfo: 0x3d,
     getVersionEx: 0x43,
 };
+
+export const HKEY = {
+    HKCR: 0x80000000,
+    HKCU: 0x80000001,
+    HKLM: 0x80000002,
+    HKU: 0x80000003,
+};
+
+const REG_SZ = 1;
+const REG_DWORD = 4;
+const REG_DATA_MAX = 4096;
 
 const FAF_ATTRIBUTES = 0x01;
 const FAF_SIZE_LOW = 0x20;
@@ -44,6 +60,26 @@ const PROCESSORS = {
     10003: "SH3", 10004: "SH4",
     2577: "ARM", 1824: "ARM 720", 2080: "ARM 820", 2336: "ARM 920", 70001: "ARM 7TDMI",
 };
+
+export function scanWide(bytes, minLen = 4) {
+    const runs = [];
+    let current = "";
+    for (let offset = 0; offset + 1 < bytes.length; offset += 2) {
+        const code = bytes[offset] | (bytes[offset + 1] << 8);
+        if (code >= 0x20 && code <= 0x7e) {
+            current += String.fromCharCode(code);
+        } else {
+            if (current.length >= minLen) runs.push(current);
+            current = "";
+        }
+    }
+    if (current.length >= minLen) runs.push(current);
+    return [...new Set(runs)].sort((a, b) => b.length - a.length);
+}
+
+export function hex(bytes) {
+    return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join(" ");
+}
 
 export function parseDeviceInfo(bytes) {
     const reader = new Reader(bytes);
@@ -350,6 +386,75 @@ export class ActiveSyncLink {
     async createDirectory(path) {
         const reply = await this.call(RAPI.createDirectory, (writer) => writer.string(path));
         return { ret: reply.u32(), err: reply.lastError };
+    }
+
+    async openRegKey(root, subKey, create = false) {
+        const command = create ? RAPI.regCreateKey : RAPI.regOpenKey;
+        const reply = await this.call(command, (writer) => {
+            writer.u32(root).string(subKey);
+            if (create) writer.string("");
+            return writer;
+        });
+        const status = reply.u32();
+        const key = reply.u32();
+        if (status !== 0 || !key) {
+            throw new Error(`could not ${create ? "create" : "open"} registry key ${subKey} (status ${status})`);
+        }
+        return key;
+    }
+
+    closeRegKey(key) {
+        return this.call(RAPI.regCloseKey, (writer) => writer.u32(key));
+    }
+
+    async readRegValue(root, subKey, name) {
+        const key = await this.openRegKey(root, subKey);
+        try {
+            const reply = await this.call(RAPI.regQueryValue, (writer) => writer
+                .u32(key).string(name).u32(0).u32(REG_DATA_MAX));
+            const status = reply.u32();
+            if (status !== 0) {
+                return { found: false, status, type: 0, size: 0, data: new Uint8Array(0), value: "" };
+            }
+            const type = reply.u32();
+            const size = reply.u32();
+            const data = reply.take(Math.min(size, reply.bytes.length - reply.position)).slice();
+            const value = type === REG_SZ ? decodeUtf16(data) : "";
+            return { found: true, status, type, size, data, value };
+        } finally {
+            await this.closeRegKey(key);
+        }
+    }
+
+    readRegString(root, subKey, name) {
+        return this.readRegValue(root, subKey, name).then((result) => result.value);
+    }
+
+    async setRegValue(key, name, type, data) {
+        const reply = await this.call(RAPI.regSetValue, (writer) => writer
+            .u32(key).string(name).u32(type).u32(data.length).bytes(data));
+        const status = reply.u32();
+        if (status !== 0) throw new Error(`could not set registry value ${name} (status ${status})`);
+    }
+
+    async writeRegString(root, subKey, name, text) {
+        const key = await this.openRegKey(root, subKey, true);
+        try {
+            await this.setRegValue(key, name, REG_SZ, utf16(text));
+        } finally {
+            await this.closeRegKey(key);
+        }
+    }
+
+    async writeRegDword(root, subKey, name, value) {
+        const key = await this.openRegKey(root, subKey, true);
+        try {
+            const data = new Uint8Array(4);
+            new DataView(data.buffer).setUint32(0, value >>> 0, true);
+            await this.setRegValue(key, name, REG_DWORD, data);
+        } finally {
+            await this.closeRegKey(key);
+        }
     }
 
     async execute(application, commandLine = "") {
