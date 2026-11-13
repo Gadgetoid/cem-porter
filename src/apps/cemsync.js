@@ -36,7 +36,7 @@ const TARGETS = [
     },
     {
         id: "wm5",
-        name: "Dell Axim X51v",
+        name: "Windows Mobile 5 and 6 devices",
         link: "ActiveSync over USB",
         filters: RNDIS_TARGETS,
         createLink: () => new ActiveSyncLink(),
