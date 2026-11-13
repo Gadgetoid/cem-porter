@@ -103,20 +103,35 @@ const elements = Object.fromEntries([
     "connect", "disconnect", "drop", "drop-title", "drop-hint", "file-input", "status", "size",
     "browser", "browser-title", "browser-path", "browser-list", "browser-up", "browser-close",
     "browser-refresh", "browser-upload", "browser-download", "browser-delete", "browser-status",
+    "browser-mkdir", "browser-stop", "browser-new-folder", "browser-folder-name", "browser-folder-cancel",
+    "browser-progress",
 ].map((id) => [id, document.getElementById(id)]));
 
-const state = { link: null, target: null, device: null, file: null, packages: [], connecting: false };
+const state = { link: null, target: null, device: null, file: null, packages: [], connecting: false, transfers: 0 };
 
 function setStatus(text) {
     elements.status.textContent = text;
 }
 
+const LOG_LINES = 2000;
+const pendingLog = [];
+
 function log(text) {
+    pendingLog.push(`${(performance.now() / 1000).toFixed(2)} ${text}`);
+    if (pendingLog.length === 1) requestAnimationFrame(flushLog);
+}
+
+function flushLog() {
     const panel = elements.log;
     const following = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 8;
-    const line = document.createElement("div");
-    line.textContent = `${(performance.now() / 1000).toFixed(2)} ${text}`;
-    panel.appendChild(line);
+    const fragment = document.createDocumentFragment();
+    for (const text of pendingLog.splice(0).slice(-LOG_LINES)) {
+        const line = document.createElement("div");
+        line.textContent = text;
+        fragment.appendChild(line);
+    }
+    panel.appendChild(fragment);
+    while (panel.childElementCount > LOG_LINES) panel.firstElementChild.remove();
     if (following) panel.scrollTop = panel.scrollHeight;
 }
 
@@ -425,6 +440,7 @@ async function backup() {
     const link = state.link;
     const { base, total } = state.target.nand;
     const BATCH = 32;
+    state.transfers++;
     try {
         elements["tool-backup"].disabled = true;
         const handle = await link.nandOpen();
@@ -450,12 +466,14 @@ async function backup() {
         setStatus(error.message);
         log(`error: ${error.message}`);
     } finally {
+        state.transfers--;
         elements["tool-backup"].disabled = false;
     }
 }
 
 async function install() {
     if (!state.link || !state.file) return;
+    state.transfers++;
     try {
         elements.install.disabled = true;
         setStatus("Staging package...");
@@ -471,12 +489,13 @@ async function install() {
         setStatus(error.message);
         log(`error: ${error.message}`);
     } finally {
+        state.transfers--;
         setConnected(!!state.link);
     }
 }
 
 const listingCache = new Map();
-let browser = { path: "\\", selected: null };
+let browser = { path: "\\", selected: null, transfer: null };
 
 function browserStatus(text) {
     elements["browser-status"].textContent = text || "\u00a0";
@@ -544,8 +563,8 @@ function renderListing(entries) {
                 return;
             }
             browser.selected = entry;
-            elements["browser-download"].disabled = false;
-            elements["browser-delete"].disabled = false;
+            elements["browser-download"].disabled = Boolean(browser.transfer);
+            elements["browser-delete"].disabled = Boolean(browser.transfer);
             for (const other of body.children) other.setAttribute("aria-selected", String(other === row));
         });
         row.addEventListener("keydown", (event) => {
@@ -590,26 +609,72 @@ function join(base, name) {
     return `${base.replace(/\\+$/, "")}\\${name}`;
 }
 
+function setTransferring(transferring) {
+    for (const id of ["browser-upload", "browser-mkdir"]) elements[id].disabled = transferring;
+    for (const id of ["browser-download", "browser-delete"]) elements[id].disabled = transferring || !browser.selected;
+    elements["browser-stop"].hidden = !transferring;
+    elements["browser-stop"].disabled = false;
+    elements["browser-progress"].hidden = !transferring;
+    elements["browser-progress"].value = 0;
+}
+
+function beginTransfer(verb) {
+    const now = performance.now();
+    browser.transfer = { verb, stopped: false, sampleTime: now, sampleDone: 0, rate: 0 };
+    state.transfers++;
+    setTransferring(true);
+}
+
+function endTransfer() {
+    browser.transfer = null;
+    state.transfers--;
+    setTransferring(false);
+}
+
+function transferProgress(done, total) {
+    const transfer = browser.transfer;
+    if (transfer.stopped) throw new Error("Stopped");
+    const now = performance.now();
+    if (now - transfer.sampleTime >= 1000) {
+        transfer.rate = ((done - transfer.sampleDone) * 1000) / (now - transfer.sampleTime);
+        transfer.sampleTime = now;
+        transfer.sampleDone = done;
+    }
+    const rate = transfer.rate ? `, ${formatSize(Math.round(transfer.rate))}/s` : "";
+    browserStatus(`${transfer.verb} ${formatSize(done)}${total ? ` of ${formatSize(total)}` : ""}${rate}`);
+    if (total) elements["browser-progress"].value = (done / total) * 100;
+}
+
+function stopTransfer() {
+    if (!browser.transfer) return;
+    browser.transfer.stopped = true;
+    elements["browser-stop"].disabled = true;
+    browserStatus("Stopping...");
+}
+
 async function uploadHere() {
     const [file] = await pickFile();
     if (!file) return;
     const path = join(browser.path, file.name);
+    beginTransfer("Sending");
     try {
-        elements["browser-upload"].disabled = true;
         const bytes = new Uint8Array(await file.arrayBuffer());
-        await state.link.sendFile(path, bytes, (sent, total) => {
-            browserStatus(`Sending ${formatSize(sent)} of ${formatSize(total)}`);
-            setProgress((sent / total) * 100);
-        });
+        await state.link.sendFile(path, bytes, transferProgress);
         browserStatus(`Sent ${file.name}`);
         log(`uploaded ${path}`);
+    } catch (error) {
+        if (browser.transfer.stopped) {
+            await state.link.deleteFile(path).catch(() => undefined);
+            browserStatus(`Stopped; removed the partial ${file.name}`);
+            log(`upload of ${path} stopped`);
+        } else {
+            browserStatus(error.message);
+            log(`error: ${error.message}`);
+        }
+    } finally {
+        endTransfer();
         listingCache.delete(browser.path);
         showListing();
-    } catch (error) {
-        browserStatus(error.message);
-        log(`error: ${error.message}`);
-    } finally {
-        elements["browser-upload"].disabled = false;
     }
 }
 
@@ -617,20 +682,54 @@ async function downloadSelected() {
     if (!browser.selected) return;
     const entry = browser.selected;
     const path = join(browser.path, entry.name);
+    beginTransfer("Reading");
     try {
-        elements["browser-download"].disabled = true;
-        const bytes = await state.link.receiveFile(path, entry.size, (got, total) => {
-            browserStatus(`Reading ${formatSize(got)}${total ? ` of ${formatSize(total)}` : ""}`);
-            if (total) setProgress((got / total) * 100);
-        });
+        const bytes = await state.link.receiveFile(path, entry.size, transferProgress);
         saveBytes(bytes, entry.name);
         browserStatus(`Saved ${entry.name}`);
         log(`downloaded ${path} (${bytes.length} bytes)`);
     } catch (error) {
+        if (browser.transfer.stopped) {
+            browserStatus(`Stopped reading ${entry.name}`);
+            log(`download of ${path} stopped`);
+        } else {
+            browserStatus(error.message);
+            log(`error: ${error.message}`);
+        }
+    } finally {
+        endTransfer();
+    }
+}
+
+function showNewFolder(show) {
+    elements["browser-new-folder"].hidden = !show;
+    elements["browser-folder-name"].value = "";
+    if (show) elements["browser-folder-name"].focus();
+}
+
+async function createFolder(event) {
+    event.preventDefault();
+    const name = elements["browser-folder-name"].value.trim();
+    if (!name) return;
+    if (/[\\/:*?"<>|]/.test(name)) {
+        browserStatus("Folder names can't contain \\ / : * ? \" < > |");
+        return;
+    }
+    const path = join(browser.path, name);
+    showNewFolder(false);
+    try {
+        const reply = await state.link.createDirectory(path);
+        if (!reply.ret) {
+            browserStatus(`could not create ${name} (err ${reply.err})`);
+            return;
+        }
+        log(`created ${path}`);
+        listingCache.delete(browser.path);
+        await showListing();
+        browserStatus(`Created ${name}`);
+    } catch (error) {
         browserStatus(error.message);
         log(`error: ${error.message}`);
-    } finally {
-        elements["browser-download"].disabled = false;
     }
 }
 
@@ -679,7 +778,8 @@ elements.connect.addEventListener("click", connect);
 function connectRemembered(device) {
     const target = targetFor(device);
     if (!target || !target.autoConnect || state.link || state.connecting) return;
-    log(`${target.name} found`);
+    const id = [device.vendorId, device.productId].map((value) => value.toString(16).padStart(4, "0")).join(":");
+    log(`${target.name} found: ${device.manufacturerName || "?"} ${device.productName || "?"} (${id})`);
     start(target, (link) => { link.device = device; }).catch((error) => {
         setStatus(error.message);
         log(`error: ${error.message}`);
@@ -703,6 +803,17 @@ elements["browser-refresh"].addEventListener("click", () => showListing({ refres
 elements["browser-upload"].addEventListener("click", uploadHere);
 elements["browser-download"].addEventListener("click", downloadSelected);
 elements["browser-delete"].addEventListener("click", deleteSelected);
+elements["browser-stop"].addEventListener("click", stopTransfer);
+
+window.addEventListener("beforeunload", (event) => {
+    if (state.transfers) event.preventDefault();
+});
+window.addEventListener("pagehide", () => {
+    if (state.link && state.link.stack) state.link.stack.closeAll();
+});
+elements["browser-mkdir"].addEventListener("click", () => showNewFolder(elements["browser-new-folder"].hidden));
+elements["browser-folder-cancel"].addEventListener("click", () => showNewFolder(false));
+elements["browser-new-folder"].addEventListener("submit", createFolder);
 elements["browser-up"].addEventListener("click", () => {
     const cut = browser.path.replace(/\\+$/, "").lastIndexOf("\\");
     browser.path = cut > 0 ? browser.path.slice(0, cut) : "\\";

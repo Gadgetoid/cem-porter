@@ -13,9 +13,16 @@
 
 #browser { top: 60px; width: min(460px, calc(100% - 32px)); }
 
-#browser-path { padding: 3px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browser-look-in { display: flex; gap: 4px; align-items: stretch; }
+#browser-path { flex: 1; min-width: 0; padding: 3px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#browser-up { min-width: 0; width: 26px; padding: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 16px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 4h5l1.5 2H15v8H1z" fill="%23ffd54a" stroke="%23000" stroke-width="1"/><path d="M8 13V8M5.5 10.5L8 8l2.5 2.5" fill="none" stroke="%23000" stroke-width="1.5"/></svg>'); }
+#browser-refresh { min-width: 0; width: 26px; padding: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 16px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5" fill="none" stroke="%23000" stroke-width="1.5"/><path d="M12.5 1.5v4h-4" fill="none" stroke="%23000" stroke-width="1.5"/></svg>'); }
+#browser-up:disabled { opacity: 0.4; }
 
 #browser .list { height: 260px; max-height: none; }
+#browser-new-folder { display: flex; gap: 6px; margin-top: 6px; }
+#browser-new-folder input { flex: 1; min-width: 0; }
+#browser-progress { width: 100%; margin-top: 6px; }
 
 #browser td:is(.folder, .file) { padding-left: 22px; background-repeat: no-repeat; background-position: 3px center; background-size: 14px 14px; }
 
@@ -116,7 +123,11 @@
     </header>
     <fieldset>
         <legend>Look in</legend>
-        <div class="sunken" id="browser-path">\</div>
+        <div id="browser-look-in">
+            <div class="sunken" id="browser-path">\</div>
+            <button type="button" id="browser-up" aria-label="Up One Level" title="Up One Level"></button>
+            <button type="button" id="browser-refresh" aria-label="Refresh" title="Refresh"></button>
+        </div>
         <div class="list">
             <table>
                 <thead><tr><th>Name</th><th class="size">Size</th></tr></thead>
@@ -124,12 +135,18 @@
             </table>
         </div>
         <div class="actions">
-            <button type="button" id="browser-up">Up One Level</button>
-            <button type="button" id="browser-refresh">Refresh</button>
             <button type="button" id="browser-upload">Upload File Here...</button>
             <button type="button" id="browser-download" disabled>Download</button>
             <button type="button" id="browser-delete" disabled>Delete</button>
+            <button type="button" id="browser-mkdir">New Folder...</button>
+            <button type="button" id="browser-stop" hidden>Stop</button>
         </div>
+        <form id="browser-new-folder" hidden>
+            <input type="text" id="browser-folder-name" spellcheck="false" aria-label="New folder name" required>
+            <button type="submit">Create</button>
+            <button type="button" id="browser-folder-cancel">Cancel</button>
+        </form>
+        <progress id="browser-progress" max="100" value="0" aria-label="Transfer progress" hidden></progress>
     </fieldset>
     <footer><output id="browser-status">&nbsp;</output></footer>
 </dialog>
