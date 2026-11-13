@@ -396,31 +396,34 @@ export class BeLink {
 
 
         let sent = 0;
-        while (sent < bytes.length) {
-            const slice = bytes.subarray(sent, Math.min(sent + this.chunkSize, bytes.length));
-            let written;
-            try {
-                written = await this.call(CMD.writeFile,
-                    joinBytes([u32be(handle), u32be(slice.length), slice]));
-            } catch (error) {
-                if (this.chunkSize > 128 && /no reply/.test(error.message)) {
-                    this.chunkSize = Math.floor(this.chunkSize / 2);
-                    this.log(`write stalled, dropping chunk to ${this.chunkSize} and retrying`);
-                    continue;
+        try {
+            while (sent < bytes.length) {
+                const slice = bytes.subarray(sent, Math.min(sent + this.chunkSize, bytes.length));
+                let written;
+                try {
+                    written = await this.call(CMD.writeFile,
+                        joinBytes([u32be(handle), u32be(slice.length), slice]));
+                } catch (error) {
+                    if (this.chunkSize > 128 && /no reply/.test(error.message)) {
+                        this.chunkSize = Math.floor(this.chunkSize / 2);
+                        this.log(`write stalled, dropping chunk to ${this.chunkSize} and retrying`);
+                        continue;
+                    }
+                    throw error;
                 }
-                throw error;
+                if (!written.ret) throw new Error(`write failed at offset ${sent} (err ${written.err})`);
+                const view = new DataView(written.data.buffer, written.data.byteOffset, written.data.byteLength);
+                const count = written.data.length >= 4 ? view.getUint32(0, false) : slice.length;
+                if (!count) throw new Error(`device wrote nothing at offset ${sent}`);
+                if (count !== slice.length) {
+                    this.log(`short write at ${sent}: asked ${slice.length}, wrote ${count}`);
+                }
+                sent += count;
+                if (onProgress) onProgress(sent, bytes.length);
             }
-            if (!written.ret) throw new Error(`write failed at offset ${sent} (err ${written.err})`);
-            const view = new DataView(written.data.buffer, written.data.byteOffset, written.data.byteLength);
-            const count = written.data.length >= 4 ? view.getUint32(0, false) : slice.length;
-            if (!count) throw new Error(`device wrote nothing at offset ${sent}`);
-            if (count !== slice.length) {
-                this.log(`short write at ${sent}: asked ${slice.length}, wrote ${count}`);
-            }
-            sent += count;
-            if (onProgress) onProgress(sent, bytes.length);
+        } finally {
+            await this.call(CMD.closeHandle, u32be(handle));
         }
-        await this.call(CMD.closeHandle, u32be(handle));
         if (sent !== bytes.length) {
             throw new Error(`only ${sent} of ${bytes.length} bytes reached ${path}`);
         }
