@@ -19,6 +19,7 @@ const OID_GEN_CURRENT_PACKET_FILTER = 0x0001010e;
 const PACKET_FILTER = 0x0000002d;
 const PACKET_HEADER = 44;
 const MAX_TRANSFER = 0x4000;
+const RECEIVE_SIZE = 0x10000;
 
 export const RNDIS_TARGETS = [
     { vendorId: 0x413c, productId: 0x4011 },
@@ -35,7 +36,6 @@ export class RndisLink {
         this.onLog = null;
         this.onClose = null;
         this.mac = null;
-        this.maxTransfer = 8192;
         this.keepAlive = null;
         this.lastSent = 0;
     }
@@ -52,7 +52,6 @@ export class RndisLink {
         try {
             const init = await this.command(MSG_INITIALIZE, [1, 0, MAX_TRANSFER]);
             if (init.getUint32(12, true) !== 0) throw new Error("RNDIS initialise failed");
-            this.maxTransfer = init.getUint32(36, true) || this.maxTransfer;
         } catch {
             this.log("device already initialised, reusing its session");
         }
@@ -160,7 +159,7 @@ export class RndisLink {
         while (this.running) {
             let result;
             try {
-                result = await this.device.transferIn(EP_IN, this.maxTransfer);
+                result = await this.device.transferIn(EP_IN, RECEIVE_SIZE);
             } catch (error) {
                 if (this.running) {
                     this.log(`link lost: ${error.message}`);

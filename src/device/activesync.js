@@ -52,7 +52,7 @@ const OPEN_EXISTING = 3;
 const FILE_ATTRIBUTE_NORMAL = 0x80;
 const INVALID_HANDLE = 0xffffffff;
 
-const CHUNK = 16384;
+const CHUNK = 65536;
 
 const PROCESSORS = {
     386: "x86", 486: "x86", 586: "x86",
@@ -116,6 +116,7 @@ export class ActiveSyncLink {
         this.queue = Promise.resolve();
         this.onLog = null;
         this.chunkSize = CHUNK;
+        this.trace = false;
     }
 
     log(text) {
@@ -166,6 +167,7 @@ export class ActiveSyncLink {
         this.log("RNDIS up");
         this.stack = new NetStack(this.rndis, { ip: HOST_IP });
         this.stack.onLog = (text) => this.log(text);
+        this.stack.trace = this.trace;
         this.stack.listen(CONTROL_PORT, (socket) => {
             this.connections.push(socket);
             if (this.connectionWaiter) this.connectionWaiter();

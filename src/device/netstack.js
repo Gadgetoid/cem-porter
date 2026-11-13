@@ -74,6 +74,7 @@ export class TcpSocket {
         this.readers = [];
         this.retransmitTimer = null;
         this.retransmits = 0;
+        this.duplicateAcks = 0;
         this.finSent = false;
         this.remoteClosed = false;
         this.onData = null;
@@ -102,9 +103,15 @@ export class TcpSocket {
     flush() {
         while (this.outgoing.length) {
             const inFlight = (this.sendNext - this.sendUnacked) >>> 0;
-            const next = this.outgoing[0];
-            if (inFlight + next.length > Math.max(this.remoteWindow, MSS)) break;
-            this.outgoing.shift();
+            const room = inFlight ? this.remoteWindow - inFlight : Math.max(this.remoteWindow, 1);
+            let next = this.outgoing[0];
+            if (next.length > room) {
+                if (inFlight) break;
+                this.outgoing[0] = next.subarray(room);
+                next = next.subarray(0, room);
+            } else {
+                this.outgoing.shift();
+            }
             this.unacked.push({ sequence: this.sendNext, payload: next, flags: TCP_ACK | TCP_PSH });
             this.segment(TCP_ACK | TCP_PSH, next);
             this.sendNext = (this.sendNext + next.length) >>> 0;
@@ -132,10 +139,18 @@ export class TcpSocket {
         }, RETRANSMIT_MS * Math.min(8, 1 << Math.min(this.retransmits, 3)));
     }
 
-    acknowledge(ack) {
-        if (!seqAfter(ack, this.sendUnacked)) return;
+    acknowledge(ack, duplicate = false) {
+        if (!seqAfter(ack, this.sendUnacked)) {
+            if (duplicate && ack === this.sendUnacked && this.unacked.length && ++this.duplicateAcks === 3) {
+                const first = this.unacked[0];
+                this.segment(first.flags, first.payload, first.sequence);
+            }
+            this.flush();
+            return;
+        }
         this.sendUnacked = ack;
         this.retransmits = 0;
+        this.duplicateAcks = 0;
         this.unacked = this.unacked.filter((entry) =>
             seqAfter((entry.sequence + entry.payload.length + (entry.flags & TCP_FIN ? 1 : 0)) >>> 0, ack));
         if (this.retransmitTimer) {
@@ -522,15 +537,15 @@ export class NetStack {
         });
     }
 
-    traceSegment(direction, localPort, remotePort, flags, sequence, ack, length) {
+    traceSegment(direction, localPort, remotePort, flags, sequence, ack, length, window) {
         if (!this.trace) return;
         const names = [[TCP_SYN, "SYN"], [TCP_ACK, "ACK"], [TCP_FIN, "FIN"], [TCP_RST, "RST"], [TCP_PSH, "PSH"]]
             .filter(([bit]) => flags & bit).map(([, name]) => name).join(",");
-        this.log(`tcp ${direction} ${localPort}${direction === "out" ? ">" : "<"}${remotePort} ${names} seq ${sequence >>> 0} ack ${ack >>> 0} len ${length}`);
+        this.log(`${performance.now().toFixed(1)} tcp ${direction} ${localPort}${direction === "out" ? ">" : "<"}${remotePort} ${names} seq ${sequence >>> 0} ack ${ack >>> 0} len ${length} win ${window}`);
     }
 
     sendTcp(socket, flags, sequence, payload) {
-        this.traceSegment("out", socket.localPort, socket.remotePort, flags, sequence, flags & TCP_ACK ? socket.receiveNext : 0, payload.length);
+        this.traceSegment("out", socket.localPort, socket.remotePort, flags, sequence, flags & TCP_ACK ? socket.receiveNext : 0, payload.length, WINDOW);
         const options = flags & TCP_SYN ? [2, 4, MSS >>> 8, MSS & 0xff] : [];
         const headerLength = 20 + options.length;
         const segment = new Uint8Array(headerLength + payload.length);
@@ -566,7 +581,7 @@ export class NetStack {
         const flags = segment[13];
         const window = view.getUint16(14);
         const payload = segment.slice(headerLength);
-        this.traceSegment("in", destinationPort, sourcePort, flags, sequence, ack, payload.length);
+        this.traceSegment("in", destinationPort, sourcePort, flags, sequence, ack, payload.length, window);
         const key = `${destinationPort}:${ipToString(source)}:${sourcePort}`;
         let socket = this.sockets.get(key);
 
@@ -595,6 +610,7 @@ export class NetStack {
             socket.finish(new Error("connection reset"));
             return;
         }
+        const windowChanged = socket.remoteWindow !== window;
         socket.remoteWindow = window;
 
         if (socket.state === "syn-sent") {
@@ -609,7 +625,7 @@ export class NetStack {
             return;
         }
 
-        if (flags & TCP_ACK) socket.acknowledge(ack);
+        if (flags & TCP_ACK) socket.acknowledge(ack, !payload.length && !windowChanged && !(flags & (TCP_SYN | TCP_FIN)));
 
         if (socket.state === "syn-received" && (flags & TCP_ACK) && !seqAfter(socket.sendNext, socket.sendUnacked)) {
             socket.state = "established";
