@@ -289,12 +289,33 @@ export class NetStack {
 
     receiveFrame(frame) {
         if (frame.length < 14) return;
+        if (this.trace) this.traceFrame(frame);
         const destination = frame.subarray(0, 6);
         if (!sameBytes(destination, this.mac) && !(destination[0] & 1)) return;
         const etherType = (frame[12] << 8) | frame[13];
         const payload = frame.subarray(14);
         if (etherType === ETHERTYPE_ARP) this.receiveArp(payload);
         else if (etherType === ETHERTYPE_IPV4) this.receiveIp(payload, frame.subarray(6, 12));
+    }
+
+    traceFrame(frame) {
+        const mac = (bytes) => [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join(":");
+        const etherType = (frame[12] << 8) | frame[13];
+        const payload = frame.subarray(14);
+        let detail = `type 0x${etherType.toString(16).padStart(4, "0")} len ${payload.length}`;
+        if (etherType === ETHERTYPE_ARP && payload.length >= 28) {
+            const operation = (payload[6] << 8) | payload[7];
+            detail = `arp ${operation === 1 ? "who-has" : "reply"} ${ipToString(payload.subarray(24, 28))} from ${ipToString(payload.subarray(14, 18))}`;
+        } else if (etherType === ETHERTYPE_IPV4 && payload.length >= 20) {
+            const protocol = payload[9];
+            if (protocol === PROTOCOL_TCP) return;
+            const headerLength = (payload[0] & 15) * 4;
+            const ports = protocol === PROTOCOL_UDP && payload.length >= headerLength + 4
+                ? ` udp ${(payload[headerLength] << 8) | payload[headerLength + 1]}>${(payload[headerLength + 2] << 8) | payload[headerLength + 3]}`
+                : ` proto ${protocol}`;
+            detail = `ip ${ipToString(payload.subarray(12, 16))}>${ipToString(payload.subarray(16, 20))}${ports}`;
+        }
+        this.log(`${performance.now().toFixed(1)} frame in ${mac(frame.subarray(6, 12))}>${mac(frame.subarray(0, 6))} ${detail}`);
     }
 
     receiveArp(packet) {

@@ -7,8 +7,8 @@ const HOST_IP = "169.254.2.2";
 const CONTROL_PORT = 990;
 const TRIGGER_PORT = 5679;
 const TRIGGER = 0x7f;
-const REUSE_WAIT_MS = 4000;
 const ADDRESS_WAIT_MS = 20000;
+const STALE_SESSION = "the device is still in its last session; unplug it and plug it back in";
 const NO_NETWORK = "the device did not answer on the USB network; unplug it and plug it back in";
 
 const RAPI = {
@@ -132,18 +132,20 @@ export class ActiveSyncLink {
         if (!this.device) throw new Error("no device chosen");
         await this.device.open();
         this.log("USB device opened");
-        const reused = Boolean(this.device.configuration);
-        await this.openNetwork();
-        if (!await this.addressAnswers(reused ? REUSE_WAIT_MS : ADDRESS_WAIT_MS)) {
-            if (!reused) throw new Error(NO_NETWORK);
-            this.log("the earlier session's network isn't answering; resetting the device");
-            this.rndis.stop();
-            await this.device.reset();
-            this.log("USB reset done");
-            await sleep(1000);
+        try {
             await this.openNetwork();
-            if (!await this.addressAnswers(ADDRESS_WAIT_MS)) throw new Error(NO_NETWORK);
+        } catch (error) {
+            this.log(`the link failed to start: ${error.message}`);
+            const interfaces = (this.device.configuration || this.device.configurations[0]).interfaces.map((entry) => {
+                const alternate = entry.alternates[0];
+                const endpoints = alternate.endpoints.map((endpoint) => `${endpoint.type} ${endpoint.direction} ${endpoint.endpointNumber}`).join(", ");
+                return `${entry.interfaceNumber}: ${[alternate.interfaceClass, alternate.interfaceSubclass, alternate.interfaceProtocol].map((code) => code.toString(16).padStart(2, "0")).join("/")} [${endpoints}]`;
+            });
+            this.log(`USB interfaces: ${interfaces.join("; ")}`);
+            throw new Error(`${error.message}; unplug the device and plug it back in`);
         }
+        if (this.rndis.stale) throw new Error(STALE_SESSION);
+        if (!await this.addressAnswers(ADDRESS_WAIT_MS)) throw new Error(NO_NETWORK);
         this.log("device network up; asking it to connect");
         this.control = await this.trigger();
         this.log("device connected");
@@ -181,7 +183,7 @@ export class ActiveSyncLink {
                 await this.stack.resolve(parseIp(DEVICE_IP));
                 return true;
             } catch {
-                this.log("waiting for the device's network to come up");
+                this.log(`waiting for the device's network to come up (${this.rndis.pendingSends} USB sends pending)`);
             }
         }
         return false;
@@ -252,7 +254,7 @@ export class ActiveSyncLink {
 
     async close() {
         for (const socket of [this.rapi, this.control]) {
-            if (socket) socket.close();
+            if (socket) socket.abort();
         }
         this.rapi = null;
         this.control = null;

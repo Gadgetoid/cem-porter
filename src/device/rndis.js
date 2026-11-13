@@ -21,6 +21,16 @@ const PACKET_HEADER = 44;
 const MAX_TRANSFER = 0x4000;
 const RECEIVE_SIZE = 0x10000;
 
+const COMMAND_TIMEOUT_MS = 3000;
+
+function withTimeout(promise, milliseconds, message) {
+    let timer;
+    const timeout = new Promise((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), milliseconds);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export const RNDIS_TARGETS = [
     { vendorId: 0x413c, productId: 0x4011 },
     { classCode: 0xef, subclassCode: 0x01, protocolCode: 0x01 },
@@ -38,6 +48,8 @@ export class RndisLink {
         this.mac = null;
         this.keepAlive = null;
         this.lastSent = 0;
+        this.stale = false;
+        this.pendingSends = 0;
     }
 
     log(text) {
@@ -49,11 +61,13 @@ export class RndisLink {
         if (!this.device.configuration) await this.device.selectConfiguration(1);
         await this.device.claimInterface(0);
         await this.device.claimInterface(1);
+        this.stale = false;
         try {
             const init = await this.command(MSG_INITIALIZE, [1, 0, MAX_TRANSFER]);
             if (init.getUint32(12, true) !== 0) throw new Error("RNDIS initialise failed");
         } catch {
-            this.log("device already initialised, reusing its session");
+            this.stale = true;
+            this.log("the device ignored RNDIS initialise");
         }
         this.mac = (await this.query(OID_802_3_PERMANENT_ADDRESS, 48)).slice(0, 6);
         await this.set(OID_GEN_CURRENT_PACKET_FILTER, [PACKET_FILTER]);
@@ -99,30 +113,33 @@ export class RndisLink {
     }
 
     command(type, words) {
-        const run = this.control.then(async () => {
-            await this.sendControl(type, words);
-            for (let attempt = 0; attempt < 100; attempt++) {
-                const result = await this.device.controlTransferIn({
-                    requestType: "class",
-                    recipient: "interface",
-                    request: GET_ENCAPSULATED_RESPONSE,
-                    value: 0,
-                    index: 0,
-                }, 1025);
-                const view = result.data;
-                if (view && view.byteLength >= 12) {
-                    const replyType = view.getUint32(0, true);
-                    if (replyType === ((type | COMPLETION) >>> 0)) return view;
-                    if (replyType === MSG_KEEPALIVE) await this.answerKeepAlive(view.getUint32(8, true));
-                    if (replyType === MSG_INDICATE_STATUS) this.log(`RNDIS status 0x${view.getUint32(8, true).toString(16)}`);
-                    continue;
-                }
-                await new Promise((resolve) => setTimeout(resolve, 10));
-            }
-            throw new Error(`no RNDIS reply to message 0x${type.toString(16)}`);
-        });
+        const run = this.control.then(() => withTimeout(this.exchange(type, words), COMMAND_TIMEOUT_MS,
+            `no RNDIS reply to message 0x${type.toString(16)}`));
         this.control = run.catch(() => undefined);
         return run;
+    }
+
+    async exchange(type, words) {
+        await this.sendControl(type, words);
+        for (let attempt = 0; attempt < 100; attempt++) {
+            const result = await this.device.controlTransferIn({
+                requestType: "class",
+                recipient: "interface",
+                request: GET_ENCAPSULATED_RESPONSE,
+                value: 0,
+                index: 0,
+            }, 1025);
+            const view = result.data;
+            if (view && view.byteLength >= 12) {
+                const replyType = view.getUint32(0, true);
+                if (replyType === ((type | COMPLETION) >>> 0)) return view;
+                if (replyType === MSG_KEEPALIVE) await this.answerKeepAlive(view.getUint32(8, true));
+                if (replyType === MSG_INDICATE_STATUS) this.log(`RNDIS status 0x${view.getUint32(8, true).toString(16)}`);
+                continue;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        throw new Error(`no RNDIS reply to message 0x${type.toString(16)}`);
     }
 
     async answerKeepAlive(id) {
@@ -205,6 +222,11 @@ export class RndisLink {
         view.setUint32(12, frame.length, true);
         bytes.set(frame, PACKET_HEADER);
         this.lastSent = Date.now();
-        await this.device.transferOut(EP_OUT, bytes);
+        this.pendingSends++;
+        try {
+            await this.device.transferOut(EP_OUT, bytes);
+        } finally {
+            this.pendingSends--;
+        }
     }
 }
