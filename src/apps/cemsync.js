@@ -107,7 +107,7 @@ const elements = Object.fromEntries([
     "connect", "disconnect", "drop", "drop-title", "drop-hint", "file-input", "status", "size",
     "browser", "browser-title", "browser-path", "browser-list", "browser-up", "browser-close",
     "browser-refresh", "browser-upload", "browser-download", "browser-delete", "browser-status",
-    "browser-mkdir", "browser-stop", "browser-new-folder", "browser-folder-name", "browser-folder-cancel",
+    "browser-upload-folder", "browser-mkdir", "browser-stop", "browser-new-folder", "browser-folder-name", "browser-folder-cancel",
     "browser-progress",
 ].map((id) => [id, document.getElementById(id)]));
 
@@ -505,7 +505,7 @@ async function install() {
 }
 
 const listingCache = new Map();
-let browser = { path: "\\", selected: null, transfer: null };
+let browser = { path: "\\", entries: [], selection: [], anchor: null, transfer: null };
 
 function browserStatus(text) {
     elements["browser-status"].textContent = text || "\u00a0";
@@ -521,7 +521,9 @@ async function showListing({ refresh = false } = {}) {
     const path = browser.path || "\\";
     elements["browser-path"].textContent = path;
     elements["browser-up"].disabled = path === "\\";
-    browser.selected = null;
+    browser.entries = [];
+    browser.selection = [];
+    browser.anchor = null;
     elements["browser-download"].disabled = true;
     elements["browser-delete"].disabled = true;
 
@@ -545,9 +547,48 @@ async function showListing({ refresh = false } = {}) {
     browserStatus(`${dirs} folder${dirs === 1 ? "" : "s"}, ${files} file${files === 1 ? "" : "s"}`);
 }
 
+function updateSelection() {
+    const rows = elements["browser-list"].children;
+    browser.entries.forEach((entry, index) => {
+        if (rows[index]) rows[index].setAttribute("aria-selected", String(browser.selection.includes(entry)));
+    });
+    const none = !browser.selection.length || Boolean(browser.transfer);
+    elements["browser-download"].disabled = none;
+    elements["browser-delete"].disabled = none;
+    const count = browser.selection.length;
+    if (count > 1) {
+        const size = browser.selection.reduce((sum, entry) => sum + entry.size, 0);
+        browserStatus(`${count} files selected (${formatSize(size)})`);
+    }
+}
+
+function selectEntry(entry, index, event) {
+    const modified = event.ctrlKey || event.metaKey;
+    if (entry.directory) {
+        if (modified || event.shiftKey) return;
+        browser.path = join(browser.path, entry.name);
+        showListing();
+        return;
+    }
+    if (modified) {
+        browser.selection = browser.selection.includes(entry)
+            ? browser.selection.filter((other) => other !== entry)
+            : [...browser.selection, entry];
+        browser.anchor = index;
+    } else if (event.shiftKey && browser.anchor !== null) {
+        const [from, to] = [Math.min(browser.anchor, index), Math.max(browser.anchor, index)];
+        browser.selection = browser.entries.slice(from, to + 1).filter((other) => !other.directory);
+    } else {
+        browser.selection = [entry];
+        browser.anchor = index;
+    }
+    updateSelection();
+}
+
 function renderListing(entries) {
     const body = elements["browser-list"];
     body.innerHTML = "";
+    browser.entries = entries || [];
     if (entries === null) {
         body.appendChild(emptyRow("Reading..."));
         return;
@@ -556,7 +597,7 @@ function renderListing(entries) {
         body.appendChild(emptyRow("Empty"));
         return;
     }
-    for (const entry of entries) {
+    for (const [index, entry] of entries.entries()) {
         const row = document.createElement("tr");
         row.tabIndex = 0;
         const name = document.createElement("td");
@@ -566,39 +607,39 @@ function renderListing(entries) {
         size.className = "size";
         size.textContent = entry.directory ? "" : formatSize(entry.size);
         row.append(name, size);
-        row.addEventListener("click", () => {
-            if (entry.directory) {
-                browser.path = join(browser.path, entry.name);
-                showListing();
-                return;
-            }
-            browser.selected = entry;
-            elements["browser-download"].disabled = Boolean(browser.transfer);
-            elements["browser-delete"].disabled = Boolean(browser.transfer);
-            for (const other of body.children) other.setAttribute("aria-selected", String(other === row));
-        });
+        row.addEventListener("click", (event) => selectEntry(entry, index, event));
         row.addEventListener("keydown", (event) => {
-            if (event.key === "Enter") { event.preventDefault(); row.click(); }
+            if (event.key === "Enter") {
+                event.preventDefault();
+                selectEntry(entry, index, event);
+            }
         });
         body.appendChild(row);
     }
 }
 
 async function deleteSelected() {
-    if (!browser.selected) return;
-    const entry = browser.selected;
-    const path = join(browser.path, entry.name);
+    const entries = [...browser.selection];
+    if (!entries.length) return;
+    const failed = [];
+    let deleted = 0;
     try {
         elements["browser-delete"].disabled = true;
-        const reply = await state.link.deleteFile(path);
-        if (!reply.ret) {
-            browserStatus(`could not delete ${entry.name} (err ${reply.err})`);
-        } else {
-            browserStatus(`Deleted ${entry.name}`);
-            log(`deleted ${path}`);
+        for (const entry of entries) {
+            const path = join(browser.path, entry.name);
+            if (entries.length > 1) browserStatus(`Deleting ${entry.name}`);
+            const reply = await state.link.deleteFile(path);
+            if (!reply.ret) {
+                failed.push(`${entry.name} (err ${reply.err})`);
+            } else {
+                deleted++;
+                log(`deleted ${path}`);
+            }
         }
         listingCache.delete(browser.path);
-        showListing();
+        await showListing();
+        if (failed.length) browserStatus(`could not delete ${failed.join(", ")}`);
+        else browserStatus(entries.length === 1 ? `Deleted ${entries[0].name}` : `Deleted ${deleted} files`);
     } catch (error) {
         browserStatus(error.message);
         log(`error: ${error.message}`);
@@ -620,8 +661,8 @@ function join(base, name) {
 }
 
 function setTransferring(transferring) {
-    for (const id of ["browser-upload", "browser-mkdir"]) elements[id].disabled = transferring;
-    for (const id of ["browser-download", "browser-delete"]) elements[id].disabled = transferring || !browser.selected;
+    for (const id of ["browser-upload", "browser-upload-folder", "browser-mkdir"]) elements[id].disabled = transferring;
+    for (const id of ["browser-download", "browser-delete"]) elements[id].disabled = transferring || !browser.selection.length;
     elements["browser-stop"].hidden = !transferring;
     elements["browser-stop"].disabled = false;
     elements["browser-progress"].hidden = !transferring;
@@ -662,49 +703,98 @@ function stopTransfer() {
     browserStatus("Stopping...");
 }
 
-async function uploadHere() {
-    const [file] = await pickFile();
-    if (!file) return;
-    const path = join(browser.path, file.name);
+const ERROR_ALREADY_EXISTS = 183;
+
+async function uploadFiles(files) {
+    if (!files.length) return;
+    const base = browser.path;
+    const items = files.map((file) => {
+        const parts = (file.webkitRelativePath || file.name).split("/").filter(Boolean);
+        return { file, parts, path: parts.reduce((path, part) => join(path, part), base) };
+    });
+    const folders = [...new Set(items.flatMap(({ parts }) =>
+        parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).reduce((path, part) => join(path, part), base))))];
+    const total = items.reduce((sum, { file }) => sum + file.size, 0);
+    let sentBefore = 0;
+    let sentFiles = 0;
+    let current = null;
     beginTransfer("Sending");
     try {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        await state.link.sendFile(path, bytes, transferProgress);
-        browserStatus(`Sent ${file.name}`);
-        log(`uploaded ${path}`);
+        for (const folder of folders) {
+            if (browser.transfer.stopped) throw new Error("Stopped");
+            browserStatus(`Creating ${folder}`);
+            const reply = await state.link.createDirectory(folder);
+            if (!reply.ret && reply.err !== ERROR_ALREADY_EXISTS) throw new Error(`could not create ${folder} (err ${reply.err})`);
+            listingCache.delete(folder);
+        }
+        for (const [index, item] of items.entries()) {
+            if (browser.transfer.stopped) throw new Error("Stopped");
+            current = item;
+            browser.transfer.verb = items.length > 1 ? `Sending ${index + 1} of ${items.length},` : "Sending";
+            const bytes = new Uint8Array(await item.file.arrayBuffer());
+            await state.link.sendFile(item.path, bytes, (sent) => transferProgress(sentBefore + sent, total));
+            sentBefore += item.file.size;
+            sentFiles++;
+            current = null;
+            log(`uploaded ${item.path}`);
+        }
+        browserStatus(items.length === 1 ? `Sent ${items[0].file.name}` : `Sent ${items.length} files (${formatSize(total)})`);
     } catch (error) {
         if (browser.transfer.stopped) {
-            await state.link.deleteFile(path).catch(() => undefined);
-            browserStatus(`Stopped; removed the partial ${file.name}`);
-            log(`upload of ${path} stopped`);
+            if (current) await state.link.deleteFile(current.path).catch(() => undefined);
+            const partial = current ? `; removed the partial ${current.file.name}` : "";
+            browserStatus(`Stopped after ${sentFiles} of ${items.length} file${items.length === 1 ? "" : "s"}${partial}`);
+            log(`upload stopped after ${sentFiles} of ${items.length} files`);
         } else {
-            browserStatus(error.message);
-            log(`error: ${error.message}`);
+            const where = current ? ` (${current.file.name}, ${sentFiles} of ${items.length} sent)` : "";
+            browserStatus(`${error.message}${where}`);
+            log(`error: ${error.message}${where}`);
         }
     } finally {
         endTransfer();
-        listingCache.delete(browser.path);
+        listingCache.delete(base);
         showListing();
     }
 }
 
+async function uploadHere() {
+    await uploadFiles(await pickFile({ multiple: true }));
+}
+
+async function uploadFolderHere() {
+    await uploadFiles(await pickFile({ directory: true }));
+}
+
 async function downloadSelected() {
-    if (!browser.selected) return;
-    const entry = browser.selected;
-    const path = join(browser.path, entry.name);
+    const entries = [...browser.selection];
+    if (!entries.length) return;
+    const total = entries.reduce((sum, entry) => sum + entry.size, 0);
+    let readBefore = 0;
+    let saved = 0;
+    let current = null;
     beginTransfer("Reading");
     try {
-        const bytes = await state.link.receiveFile(path, entry.size, transferProgress);
-        saveBytes(bytes, entry.name);
-        browserStatus(`Saved ${entry.name}`);
-        log(`downloaded ${path} (${bytes.length} bytes)`);
+        for (const [index, entry] of entries.entries()) {
+            if (browser.transfer.stopped) throw new Error("Stopped");
+            current = entry;
+            const path = join(browser.path, entry.name);
+            browser.transfer.verb = entries.length > 1 ? `Reading ${index + 1} of ${entries.length},` : "Reading";
+            const bytes = await state.link.receiveFile(path, entry.size, (read) => transferProgress(readBefore + read, total));
+            saveBytes(bytes, entry.name);
+            readBefore += entry.size;
+            saved++;
+            current = null;
+            log(`downloaded ${path} (${bytes.length} bytes)`);
+        }
+        browserStatus(entries.length === 1 ? `Saved ${entries[0].name}` : `Saved ${saved} files (${formatSize(total)})`);
     } catch (error) {
         if (browser.transfer.stopped) {
-            browserStatus(`Stopped reading ${entry.name}`);
-            log(`download of ${path} stopped`);
+            browserStatus(`Stopped after saving ${saved} of ${entries.length} file${entries.length === 1 ? "" : "s"}`);
+            log(`download stopped after ${saved} of ${entries.length} files`);
         } else {
-            browserStatus(error.message);
-            log(`error: ${error.message}`);
+            const where = current ? ` (${current.name}, ${saved} of ${entries.length} saved)` : "";
+            browserStatus(`${error.message}${where}`);
+            log(`error: ${error.message}${where}`);
         }
     } finally {
         endTransfer();
@@ -1115,11 +1205,14 @@ function renderRegistry(listing) {
     }
 }
 
-function pickFile() {
+function pickFile({ multiple = false, directory = false } = {}) {
     return new Promise((resolve) => {
         const input = document.createElement("input");
         input.type = "file";
+        input.multiple = multiple;
+        input.webkitdirectory = directory;
         input.addEventListener("change", () => resolve([...input.files]), { once: true });
+        input.addEventListener("cancel", () => resolve([]), { once: true });
         input.click();
     });
 }
@@ -1183,6 +1276,8 @@ elements["tools-button"].addEventListener("click", () => showTools(elements["too
 elements["browser-close"].addEventListener("click", () => elements.browser.close());
 elements["browser-refresh"].addEventListener("click", () => showListing({ refresh: true }));
 elements["browser-upload"].addEventListener("click", uploadHere);
+elements["browser-upload-folder"].addEventListener("click", uploadFolderHere);
+elements["browser-upload-folder"].hidden = !("webkitdirectory" in HTMLInputElement.prototype);
 elements["browser-download"].addEventListener("click", downloadSelected);
 elements["browser-delete"].addEventListener("click", deleteSelected);
 elements["browser-stop"].addEventListener("click", stopTransfer);

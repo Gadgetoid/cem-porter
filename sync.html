@@ -30,6 +30,7 @@
 #registry-value-data { margin: 6px 0 0; padding: 4px 6px; max-height: 320px; overflow: auto; font: 12px var(--mono); white-space: pre; }
 #registry-confirm { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 #registry-confirm span { flex: 1 1 200px; }
+#browser-list { user-select: none; }
 #browser-new-folder { display: flex; gap: 6px; margin-top: 6px; }
 #browser-new-folder input { flex: 1; min-width: 0; }
 #browser-progress { width: 100%; margin-top: 6px; }
@@ -150,7 +151,8 @@
             </table>
         </div>
         <div class="actions">
-            <button type="button" id="browser-upload">Upload File Here...</button>
+            <button type="button" id="browser-upload">Upload Files...</button>
+            <button type="button" id="browser-upload-folder">Upload Folder...</button>
             <button type="button" id="browser-download" disabled>Download</button>
             <button type="button" id="browser-delete" disabled>Delete</button>
             <button type="button" id="browser-mkdir">New Folder...</button>
@@ -221,7 +223,7 @@
         <ul>
             <li>Connect the cradle, press <strong>Connect</strong>, and choose the device when the browser asks.</li>
             <li>The BE-300 answers with its Unit ID and the names of its system and user disks; Windows Mobile devices with their name, model, OS version and processor.</li>
-            <li><strong>Files</strong> browses the device, and sends, saves and deletes files.</li>
+            <li><strong>Files</strong> browses the device, and sends, saves and deletes files. Upload several files at once, or a whole folder; its subfolders are created on the device. Ctrl or Cmd-click and Shift-click select several files to download or delete; downloads save one file at a time.</li>
             <li><strong>Registry Editor</strong> browses a Windows Mobile device's registry, one key at a time. Each entry is a round trip to the device, so large keys take a few seconds. Double-click a value to see all of it, copy it, export a key and everything under it as a <code>.reg</code> file, or import one. Imports skip deletions.</li>
             <li>Importing writes straight to the device's registry: existing values are overwritten, there's no undo, and a bad value can stop the device booting until it's hard reset. Export the keys first, and try a new file on a throwaway key before anything that matters.</li>
             <li>Drop an installer, archive or CD image to find the packages the device takes: <code>.cbea</code> for the BE-300, CE <code>.cab</code> for the others. Packages built for another CPU are listed but not installed. Install sends the package and starts the device's own installer; follow its prompts there.</li>
