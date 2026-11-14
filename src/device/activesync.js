@@ -18,8 +18,11 @@ const RAPI = {
     writeFile: 0x18,
     closeHandle: 0x19,
     regOpenKey: 0x2f,
+    regEnumKey: 0x30,
     regCreateKey: 0x31,
     regCloseKey: 0x32,
+    regEnumValue: 0x34,
+    regQueryInfoKey: 0x36,
     regQueryValue: 0x37,
     regSetValue: 0x38,
     createDirectory: 0x28,
@@ -39,6 +42,8 @@ export const HKEY = {
 const REG_SZ = 1;
 const REG_DWORD = 4;
 const REG_DATA_MAX = 4096;
+const REG_NAME_MAX = 256;
+const ERROR_NO_MORE_ITEMS = 259;
 
 const FAF_ATTRIBUTES = 0x01;
 const FAF_SIZE_LOW = 0x20;
@@ -427,6 +432,61 @@ export class ActiveSyncLink {
             return { found: true, status, type, size, data, value };
         } finally {
             await this.closeRegKey(key);
+        }
+    }
+
+    async regKeyInfo(key) {
+        const reply = await this.call(RAPI.regQueryInfoKey, (writer) => writer.u32(key).u32(0).u32(0));
+        const status = reply.u32();
+        if (status !== 0) throw new Error(`could not read registry key info (status ${status})`);
+        reply.u32();
+        return {
+            subKeys: reply.u32(),
+            maxSubKeyLength: reply.u32(),
+            maxClassLength: reply.u32(),
+            values: reply.u32(),
+            maxValueNameLength: reply.u32(),
+            maxValueLength: reply.u32(),
+        };
+    }
+
+    async listRegKey(root, subKey = "", onProgress = null) {
+        const key = subKey ? await this.openRegKey(root, subKey) : root;
+        const readString = (reply) => decodeUtf16(reply.take(reply.u32() * 2));
+        try {
+            const info = await this.regKeyInfo(key);
+            const keys = [];
+            const values = [];
+            const total = info.subKeys + info.values;
+            const progress = () => {
+                if (onProgress) onProgress(keys.length + values.length, total);
+            };
+            for (let index = 0; index < info.subKeys; index++) {
+                const reply = await this.call(RAPI.regEnumKey, (writer) => writer
+                    .u32(key).u32(index).u32(REG_NAME_MAX).u32(0).u32(0));
+                const status = reply.u32();
+                if (status === ERROR_NO_MORE_ITEMS) break;
+                if (status !== 0) throw new Error(`could not list subkey ${index} of ${subKey || "the root"} (status ${status})`);
+                keys.push(readString(reply));
+                progress();
+            }
+            const dataSize = Math.max(info.maxValueLength, 4);
+            for (let index = 0; index < info.values; index++) {
+                const reply = await this.call(RAPI.regEnumValue, (writer) => writer
+                    .u32(key).u32(index).u32(REG_NAME_MAX).u32(dataSize));
+                const status = reply.u32();
+                if (status === ERROR_NO_MORE_ITEMS) break;
+                if (status !== 0) throw new Error(`could not list value ${index} of ${subKey || "the root"} (status ${status})`);
+                const name = readString(reply);
+                const type = reply.u32();
+                const size = reply.u32();
+                const data = reply.take(Math.min(size, reply.bytes.length - reply.position)).slice();
+                values.push({ name, type, size, data });
+                progress();
+            }
+            return { keys, values };
+        } finally {
+            if (subKey) await this.closeRegKey(key);
         }
     }
 
