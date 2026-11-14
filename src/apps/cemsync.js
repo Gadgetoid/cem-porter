@@ -1,10 +1,11 @@
 import { BeLink, isSupported, NAND_BASE, NAND_TOTAL, SECTOR } from "../device/belink.js";
-import { ActiveSyncLink } from "../device/activesync.js";
+import { ActiveSyncLink, HKEY } from "../device/activesync.js";
 import { RNDIS_TARGETS } from "../device/rndis.js";
 import { PcLinkLink, PC_LINK_TARGETS } from "../device/pclink.js";
 import { PACKAGE_KINDS, compatibility, findPackages, recognise } from "../device/packages.js";
 import { unpackFiles, fileData } from "../archive/unpack.js";
 import { saveBytes, setupDesktop } from "../ui/desktop.js";
+import { formatValue, readRegistryFile, REGISTRY_TYPES, registryText } from "../rom/regfile.js";
 
 function describePcLink(info) {
     return [
@@ -51,7 +52,7 @@ const TARGETS = [
         packages: ["cab"],
         architectures: [2577],
         autoConnect: true,
-        can: { install: true, send: true, backup: false, reset: false },
+        can: { install: true, send: true, backup: false, reset: false, registry: true },
     },
     {
         id: "jornada",
@@ -99,7 +100,10 @@ const elements = Object.fromEntries([
     "drop", "drop-title", "drop-hint", "file-input",
     "info", "members", "install", "progress", "log", "log-panel",
     "connect-panel", "device-panel", "package-panel", "device-legend", "supported",
-    "tools-button", "tools-menu", "tool-files", "tool-backup", "tool-reset", "tool-log",
+    "tools-button", "tools-menu", "tool-files", "tool-registry", "tool-backup", "tool-reset", "tool-log",
+    "registry", "registry-path", "registry-up", "registry-refresh", "registry-close", "registry-list", "registry-status",
+    "registry-value", "registry-value-title", "registry-value-type", "registry-value-data", "registry-value-close",
+    "registry-copy", "registry-export", "registry-import", "registry-stop", "registry-confirm", "registry-confirm-text", "registry-confirm-cancel",
     "connect", "disconnect", "drop", "drop-title", "drop-hint", "file-input", "status", "size",
     "browser", "browser-title", "browser-path", "browser-list", "browser-up", "browser-close",
     "browser-refresh", "browser-upload", "browser-download", "browser-delete", "browser-status",
@@ -148,6 +152,7 @@ function setConnected(connected) {
     elements["tool-backup"].disabled = !connected || !can.backup;
     elements["tool-reset"].disabled = !connected || !can.reset;
     elements["tool-files"].disabled = !connected || !can.send;
+    elements["tool-registry"].disabled = !connected || !can.registry;
     elements["package-panel"].hidden = connected && !can.install;
     elements.install.disabled = !connected || !can.install || !state.file
         || !!compatibility(state.target, state.file, state.device);
@@ -336,6 +341,11 @@ async function start(target, attach) {
 }
 
 async function disconnect() {
+    elements["registry-value"].close();
+    elements.registry.close();
+    registryCache.clear();
+    registry.root = null;
+    registry.path = "";
     if (state.link) await state.link.close();
     state.link = null;
     state.target = null;
@@ -595,11 +605,11 @@ async function deleteSelected() {
     }
 }
 
-function emptyRow(text) {
+function emptyRow(text, columns = 2) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.className = "empty";
-    cell.colSpan = 2;
+    cell.colSpan = columns;
     cell.textContent = text;
     row.appendChild(cell);
     return row;
@@ -733,6 +743,378 @@ async function createFolder(event) {
     }
 }
 
+const REG_ROOTS = [
+    ["HKEY_CLASSES_ROOT", HKEY.HKCR],
+    ["HKEY_CURRENT_USER", HKEY.HKCU],
+    ["HKEY_LOCAL_MACHINE", HKEY.HKLM],
+    ["HKEY_USERS", HKEY.HKU],
+];
+
+const registryCache = new Map();
+const registry = { root: null, path: "", loading: 0, task: null, pending: null, selected: null };
+
+function registryStatus(text) {
+    elements["registry-status"].textContent = text || "\u00a0";
+}
+
+function registryRootName(root = registry.root) {
+    return REG_ROOTS.find(([, handle]) => handle === root)[0];
+}
+
+function registryRootHandle(name) {
+    const entry = REG_ROOTS.find(([rootName]) => rootName === name);
+    return entry ? entry[1] : null;
+}
+
+function registryCacheKey(root, path) {
+    return path ? `${registryRootName(root)}\\${path}` : registryRootName(root);
+}
+
+function registryLocation() {
+    return registry.root === null ? "My Device" : registryCacheKey(registry.root, registry.path);
+}
+
+async function loadRegistryListing(root, path, onProgress = null) {
+    const cacheKey = registryCacheKey(root, path);
+    let listing = registryCache.get(cacheKey);
+    if (listing) return listing;
+    listing = await state.link.listRegKey(root, path, onProgress);
+    listing.keys.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    listing.values.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    registryCache.set(cacheKey, listing);
+    return listing;
+}
+
+function formatRegValue(value) {
+    return formatValue(value) + (value.data.length < value.size ? " ..." : "");
+}
+
+function registryValueText(value) {
+    const { type, data } = value;
+    const text = new TextDecoder("utf-16le").decode(data.subarray(0, data.length & ~1));
+    if (type === 1 || type === 2 || type === 6) return text.replace(/\0[\s\S]*$/, "");
+    if (type === 7) return text.replace(/\0+$/, "").split("\0").join("\n");
+    if ((type === 4 || type === 5) && data.length >= 4) {
+        const number = new DataView(data.buffer, data.byteOffset, 4).getUint32(0, type === 4);
+        return `0x${number.toString(16).padStart(8, "0")}`;
+    }
+    return [...data].map((byte) => byte.toString(16).padStart(2, "0")).join(" ");
+}
+
+function hexDump(data) {
+    const lines = [];
+    for (let offset = 0; offset < data.length; offset += 16) {
+        const row = data.subarray(offset, offset + 16);
+        const bytes = [...row].map((byte) => byte.toString(16).padStart(2, "0"));
+        const hex = `${bytes.slice(0, 8).join(" ")}  ${bytes.slice(8).join(" ")}`.padEnd(48);
+        const ascii = [...row].map((byte) => (byte >= 0x20 && byte < 0x7f ? String.fromCharCode(byte) : ".")).join("");
+        lines.push(`${offset.toString(16).padStart(8, "0")}  ${hex}  ${ascii}`);
+    }
+    return lines.join("\n");
+}
+
+function showRegistryValue(value) {
+    const textual = [1, 2, 6, 7].includes(value.type);
+    const type = REGISTRY_TYPES[value.type] ?? `Type ${value.type}`;
+    const cut = value.data.length < value.size ? `, ${value.data.length} read` : "";
+    elements["registry-value-title"].textContent = value.name || "(Default)";
+    elements["registry-value-type"].textContent = `${type}, ${value.size} byte${value.size === 1 ? "" : "s"}${cut}`;
+    elements["registry-value-data"].textContent = textual ? registryValueText(value) : hexDump(value.data) || "(empty)";
+    elements["registry-value"].show();
+}
+
+async function copyRegistryValue() {
+    const value = registry.selected;
+    if (!value) return;
+    const name = value.name || "(Default)";
+    try {
+        await navigator.clipboard.writeText(registryValueText(value));
+        registryStatus(`Copied ${name}${value.data.length < value.size ? " (cut short by the device)" : ""}`);
+    } catch (error) {
+        registryStatus(`Couldn't copy ${name}: ${error.message}`);
+    }
+}
+
+function openRegistry() {
+    elements.registry.show();
+    showRegistryKey();
+}
+
+function enterRegistryKey(name) {
+    if (registry.task) return;
+    if (registry.root === null) {
+        registry.root = REG_ROOTS.find(([rootName]) => rootName === name)[1];
+        registry.path = "";
+    } else {
+        registry.path = registry.path ? `${registry.path}\\${name}` : name;
+    }
+    showRegistryKey();
+}
+
+function registryUp() {
+    if (registry.root === null || registry.task) return;
+    if (!registry.path) {
+        registry.root = null;
+    } else {
+        const cut = registry.path.lastIndexOf("\\");
+        registry.path = cut > 0 ? registry.path.slice(0, cut) : "";
+    }
+    showRegistryKey();
+}
+
+async function showRegistryKey({ refresh = false } = {}) {
+    const location = registryLocation();
+    elements["registry-path"].textContent = location;
+    elements["registry-up"].disabled = registry.root === null || Boolean(registry.task);
+    elements["registry-export"].disabled = registry.root === null || Boolean(registry.task);
+
+    if (registry.root === null) {
+        renderRegistry({ keys: REG_ROOTS.map(([name]) => name), values: [] });
+        registryStatus(`${REG_ROOTS.length} keys`);
+        return;
+    }
+
+    const loading = ++registry.loading;
+    if (refresh) registryCache.delete(location);
+    let listing = registryCache.get(location);
+    if (!listing) {
+        renderRegistry(null);
+        registryStatus("Reading...");
+        try {
+            listing = await loadRegistryListing(registry.root, registry.path, (done, total) => {
+                if (loading === registry.loading) registryStatus(`Reading ${done} of ${total}...`);
+            });
+        } catch (error) {
+            if (loading !== registry.loading) return;
+            renderRegistry({ keys: [], values: [] });
+            registryStatus(error.message);
+            log(`error: ${error.message}`);
+            return;
+        }
+    }
+    if (loading !== registry.loading) return;
+    renderRegistry(listing);
+    const keys = listing.keys.length;
+    const values = listing.values.length;
+    registryStatus(`${keys} key${keys === 1 ? "" : "s"}, ${values} value${values === 1 ? "" : "s"}`);
+}
+
+function setRegistryTask(task) {
+    registry.task = task;
+    state.transfers += task ? 1 : -1;
+    elements["registry-up"].disabled = Boolean(task) || registry.root === null;
+    elements["registry-export"].disabled = Boolean(task) || registry.root === null;
+    elements["registry-refresh"].disabled = Boolean(task);
+    elements["registry-import"].disabled = Boolean(task);
+    elements["registry-stop"].hidden = !task;
+    elements["registry-stop"].disabled = false;
+}
+
+function stopRegistryTask() {
+    if (!registry.task) return;
+    registry.task.stopped = true;
+    elements["registry-stop"].disabled = true;
+    registryStatus("Stopping...");
+}
+
+function registryKeyNode(name, parent) {
+    return { name, className: "", parent, keys: [], values: [] };
+}
+
+async function exportRegistryKey() {
+    if (registry.root === null || registry.task) return;
+    const root = registry.root;
+    const parts = registry.path ? registry.path.split("\\") : [];
+    let parent = null;
+    for (const name of [registryRootName(root), ...parts.slice(0, -1)]) parent = registryKeyNode(name, parent);
+    const target = parts.length ? registryKeyNode(parts.at(-1), parent) : parent;
+    const task = { stopped: false };
+    let keysRead = 0;
+    let valuesRead = 0;
+    let truncated = 0;
+
+    const readTree = async (node, path) => {
+        if (task.stopped) throw new Error("Stopped");
+        keysRead++;
+        registryStatus(`Reading key ${keysRead}: ${registryCacheKey(root, path)}`);
+        const listing = await loadRegistryListing(root, path);
+        node.values = listing.values;
+        valuesRead += listing.values.length;
+        truncated += listing.values.filter((value) => value.data.length < value.size).length;
+        for (const name of listing.keys) {
+            const child = registryKeyNode(name, node);
+            node.keys.push(child);
+            await readTree(child, path ? `${path}\\${name}` : name);
+        }
+    };
+
+    setRegistryTask(task);
+    try {
+        await readTree(target, registry.path);
+        saveBytes(new TextEncoder().encode(registryText([target])), `${target.name}.reg`);
+        const note = truncated ? `; ${truncated} value${truncated === 1 ? " was" : "s were"} cut short by the device` : "";
+        registryStatus(`Saved ${target.name}.reg: ${keysRead} key${keysRead === 1 ? "" : "s"}, ${valuesRead} value${valuesRead === 1 ? "" : "s"}${note}`);
+        log(`exported ${registryCacheKey(root, registry.path)} (${keysRead} keys, ${valuesRead} values)`);
+    } catch (error) {
+        registryStatus(task.stopped ? "Export stopped" : error.message);
+        if (!task.stopped) log(`error: ${error.message}`);
+    } finally {
+        setRegistryTask(null);
+    }
+}
+
+function showRegistryConfirm(text) {
+    elements["registry-confirm-text"].textContent = text || "";
+    elements["registry-confirm"].hidden = !text;
+}
+
+async function chooseRegistryImport() {
+    if (registry.task) return;
+    const [file] = await pickFile();
+    if (!file) return;
+    let parsed = null;
+    try {
+        parsed = readRegistryFile(new Uint8Array(await file.arrayBuffer()));
+    } catch {
+        parsed = null;
+    }
+    if (!parsed || !parsed.roots.length) {
+        registry.pending = null;
+        showRegistryConfirm("");
+        registryStatus(`${file.name} isn't a registry file this can read`);
+        return;
+    }
+    let keys = 0;
+    let values = 0;
+    const count = (node, isRoot) => {
+        if (!isRoot && (node.values.length || !node.keys.length)) keys++;
+        values += node.values.length;
+        node.keys.forEach((child) => count(child, false));
+    };
+    parsed.roots.forEach((root) => count(root, true));
+    const notes = [
+        parsed.deleted ? `${parsed.deleted} deletion${parsed.deleted === 1 ? "" : "s"} will be skipped` : "",
+        parsed.damaged ? "some lines couldn't be read" : "",
+    ].filter(Boolean);
+    registry.pending = { name: file.name, roots: parsed.roots, deleted: parsed.deleted || 0 };
+    showRegistryConfirm(`Write ${keys} key${keys === 1 ? "" : "s"} and ${values} value${values === 1 ? "" : "s"} from ${file.name} to the device?${notes.length ? ` (${notes.join("; ")})` : ""} Existing values are overwritten and this can't be undone; a bad value can stop the device booting. Export the keys first if you might want them back.`);
+    registryStatus(parsed.format);
+}
+
+async function importRegistry(event) {
+    event.preventDefault();
+    const pending = registry.pending;
+    registry.pending = null;
+    showRegistryConfirm("");
+    if (!pending || registry.task) return;
+    const task = { stopped: false };
+    let keysWritten = 0;
+    let valuesWritten = 0;
+
+    const writeKey = async (node, root, path) => {
+        if (task.stopped) throw new Error("Stopped");
+        const create = path && (node.values.length || !node.keys.length);
+        if (create || (!path && node.values.length)) {
+            const handle = create ? await state.link.openRegKey(root, path, true) : root;
+            if (create) keysWritten++;
+            try {
+                for (const value of node.values) {
+                    if (task.stopped) throw new Error("Stopped");
+                    registryStatus(`Writing ${registryCacheKey(root, path)}\\${value.name || "(Default)"}`);
+                    await state.link.setRegValue(handle, value.name, value.type, value.data);
+                    valuesWritten++;
+                }
+            } finally {
+                if (create) await state.link.closeRegKey(handle);
+            }
+        }
+        for (const child of node.keys) await writeKey(child, root, path ? `${path}\\${child.name}` : child.name);
+    };
+
+    setRegistryTask(task);
+    try {
+        for (const rootNode of pending.roots) {
+            const root = registryRootHandle(rootNode.name);
+            if (root !== null) await writeKey(rootNode, root, "");
+        }
+        const skipped = pending.deleted ? `; skipped ${pending.deleted} deletion${pending.deleted === 1 ? "" : "s"}` : "";
+        registryStatus(`Imported ${pending.name}: ${valuesWritten} value${valuesWritten === 1 ? "" : "s"} in ${keysWritten} key${keysWritten === 1 ? "" : "s"}${skipped}`);
+        log(`imported ${pending.name} (${keysWritten} keys, ${valuesWritten} values)`);
+    } catch (error) {
+        const done = `after ${valuesWritten} value${valuesWritten === 1 ? "" : "s"}`;
+        registryStatus(task.stopped ? `Import stopped ${done}` : `${error.message} (${done})`);
+        if (!task.stopped) log(`error: ${error.message}`);
+    } finally {
+        setRegistryTask(null);
+        registryCache.clear();
+        const status = elements["registry-status"].textContent;
+        await showRegistryKey();
+        registryStatus(status);
+    }
+}
+
+function registryRow(cells) {
+    const row = document.createElement("tr");
+    row.tabIndex = 0;
+    for (const [text, className] of cells) {
+        const cell = document.createElement("td");
+        if (className) cell.className = className;
+        cell.textContent = text;
+        cell.title = text;
+        row.appendChild(cell);
+    }
+    return row;
+}
+
+function renderRegistry(listing) {
+    const body = elements["registry-list"];
+    body.innerHTML = "";
+    registry.selected = null;
+    elements["registry-copy"].disabled = true;
+    if (listing === null) {
+        body.appendChild(emptyRow("Reading...", 3));
+        return;
+    }
+    if (!listing.keys.length && !listing.values.length) {
+        body.appendChild(emptyRow("Empty", 3));
+        return;
+    }
+    for (const name of listing.keys) {
+        const row = registryRow([[name, "folder"], ["", ""], ["", ""]]);
+        row.addEventListener("click", () => enterRegistryKey(name));
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") { event.preventDefault(); row.click(); }
+        });
+        body.appendChild(row);
+    }
+    for (const value of listing.values) {
+        const textual = [1, 2, 6, 7].includes(value.type);
+        const row = registryRow([
+            [value.name || "(Default)", textual ? "string" : "binary"],
+            [REGISTRY_TYPES[value.type] ?? `Type ${value.type}`, ""],
+            [formatRegValue(value), ""],
+        ]);
+        row.addEventListener("click", () => {
+            registry.selected = value;
+            elements["registry-copy"].disabled = false;
+            for (const other of body.children) other.setAttribute("aria-selected", String(other === row));
+        });
+        row.addEventListener("dblclick", () => showRegistryValue(value));
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                row.click();
+                showRegistryValue(value);
+            } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+                event.preventDefault();
+                row.click();
+                copyRegistryValue();
+            }
+        });
+        body.appendChild(row);
+    }
+}
+
 function pickFile() {
     return new Promise((resolve) => {
         const input = document.createElement("input");
@@ -820,6 +1202,21 @@ elements["browser-up"].addEventListener("click", () => {
     showListing();
 });
 elements["tool-files"].addEventListener("click", () => { showTools(false); openBrowser(); });
+elements["tool-registry"].addEventListener("click", () => { showTools(false); openRegistry(); });
+elements["registry-close"].addEventListener("click", () => elements.registry.close());
+elements["registry-up"].addEventListener("click", registryUp);
+elements["registry-refresh"].addEventListener("click", () => showRegistryKey({ refresh: true }));
+elements["registry-copy"].addEventListener("click", copyRegistryValue);
+elements["registry-value-close"].addEventListener("click", () => elements["registry-value"].close());
+elements["registry-export"].addEventListener("click", exportRegistryKey);
+elements["registry-import"].addEventListener("click", chooseRegistryImport);
+elements["registry-stop"].addEventListener("click", stopRegistryTask);
+elements["registry-confirm"].addEventListener("submit", importRegistry);
+elements["registry-confirm-cancel"].addEventListener("click", () => {
+    registry.pending = null;
+    showRegistryConfirm("");
+    registryStatus("Import cancelled");
+});
 elements["tool-backup"].addEventListener("click", () => { showTools(false); backup(); });
 elements["tool-reset"].addEventListener("click", () => { showTools(false); softReset(); });
 elements["tool-log"].addEventListener("click", () => {

@@ -12,23 +12,37 @@
 #serial-baud { width: auto; }
 
 #browser { top: 60px; width: min(460px, calc(100% - 32px)); }
+#registry { top: 80px; width: min(620px, calc(100% - 32px)); }
 
-#browser-look-in { display: flex; gap: 4px; align-items: stretch; }
-#browser-path { flex: 1; min-width: 0; padding: 3px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#browser-up { min-width: 0; width: 26px; padding: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 16px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 4h5l1.5 2H15v8H1z" fill="%23ffd54a" stroke="%23000" stroke-width="1"/><path d="M8 13V8M5.5 10.5L8 8l2.5 2.5" fill="none" stroke="%23000" stroke-width="1.5"/></svg>'); }
-#browser-refresh { min-width: 0; width: 26px; padding: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 16px; background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5" fill="none" stroke="%23000" stroke-width="1.5"/><path d="M12.5 1.5v4h-4" fill="none" stroke="%23000" stroke-width="1.5"/></svg>'); }
-#browser-up:disabled { opacity: 0.4; }
+.look-in { display: flex; gap: 4px; align-items: stretch; }
+.look-in .sunken { flex: 1; min-width: 0; padding: 3px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-button { min-width: 0; width: 26px; padding: 0; background-repeat: no-repeat; background-position: center; background-size: 16px 16px; }
+.icon-button:disabled { opacity: 0.4; }
+.icon-up { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 4h5l1.5 2H15v8H1z" fill="%23ffd54a" stroke="%23000" stroke-width="1"/><path d="M8 13V8M5.5 10.5L8 8l2.5 2.5" fill="none" stroke="%23000" stroke-width="1.5"/></svg>'); }
+.icon-refresh { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.5" fill="none" stroke="%23000" stroke-width="1.5"/><path d="M12.5 1.5v4h-4" fill="none" stroke="%23000" stroke-width="1.5"/></svg>'); }
 
-#browser .list { height: 260px; max-height: none; }
+:is(#browser, #registry) .list { height: 260px; max-height: none; }
+#registry table { table-layout: fixed; width: 100%; }
+#registry th:nth-child(1) { width: 34%; }
+#registry th:nth-child(2) { width: 22%; }
+#registry td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#registry-value { top: 120px; width: min(600px, calc(100% - 32px)); }
+#registry-value-data { margin: 6px 0 0; padding: 4px 6px; max-height: 320px; overflow: auto; font: 12px var(--mono); white-space: pre; }
+#registry-confirm { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+#registry-confirm span { flex: 1 1 200px; }
 #browser-new-folder { display: flex; gap: 6px; margin-top: 6px; }
 #browser-new-folder input { flex: 1; min-width: 0; }
 #browser-progress { width: 100%; margin-top: 6px; }
 
-#browser td:is(.folder, .file) { padding-left: 22px; background-repeat: no-repeat; background-position: 3px center; background-size: 14px 14px; }
+:is(#browser, #registry) td:is(.folder, .file, .string, .binary) { padding-left: 22px; background-repeat: no-repeat; background-position: 3px center; background-size: 14px 14px; }
 
-#browser td.folder { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 3h5l1.5 2H15v8H1z" fill="%23ffd54a" stroke="%23000" stroke-width="1"/></svg>'); }
+:is(#browser, #registry) td.folder { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 3h5l1.5 2H15v8H1z" fill="%23ffd54a" stroke="%23000" stroke-width="1"/></svg>'); }
 
 #browser td.file { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M3.5 1.5h6L13 5v9.5H3.5z" fill="%23fff" stroke="%23000" stroke-width="1"/><path d="M9.5 1.5V5H13" fill="none" stroke="%23000" stroke-width="1"/></svg>'); }
+
+#registry td.string { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="0.5" y="2.5" width="15" height="11" fill="%23fff" stroke="%23000"/><text x="8" y="11.5" font-family="sans-serif" font-size="8" font-weight="bold" text-anchor="middle" fill="%23c00">ab</text></svg>'); }
+
+#registry td.binary { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect x="0.5" y="2.5" width="15" height="11" fill="%23fff" stroke="%23000"/><text x="8" y="11.5" font-family="sans-serif" font-size="7" font-weight="bold" text-anchor="middle" fill="%2300c">011</text></svg>'); }
 </style>
 </head>
 <body>
@@ -43,6 +57,7 @@
             <div id="tools-menu" role="menu" aria-label="Tools" hidden>
                 <ul>
                     <li><button type="button" role="menuitem" id="tool-files" disabled><u>F</u>ile Manager...</button></li>
+                    <li><button type="button" role="menuitem" id="tool-registry" disabled>Re<u>g</u>istry Editor...</button></li>
                     <li><button type="button" role="menuitem" id="tool-backup" disabled><u>B</u>ack Up Flash...</button></li>
                     <li role="separator"></li>
                     <li><button type="button" role="menuitem" id="tool-reset" disabled><u>R</u>eset Device</button></li>
@@ -123,10 +138,10 @@
     </header>
     <fieldset>
         <legend>Look in</legend>
-        <div id="browser-look-in">
+        <div class="look-in">
             <div class="sunken" id="browser-path">\</div>
-            <button type="button" id="browser-up" aria-label="Up One Level" title="Up One Level"></button>
-            <button type="button" id="browser-refresh" aria-label="Refresh" title="Refresh"></button>
+            <button type="button" class="icon-button icon-up" id="browser-up" aria-label="Up One Level" title="Up One Level"></button>
+            <button type="button" class="icon-button icon-refresh" id="browser-refresh" aria-label="Refresh" title="Refresh"></button>
         </div>
         <div class="list">
             <table>
@@ -150,6 +165,48 @@
     </fieldset>
     <footer><output id="browser-status">&nbsp;</output></footer>
 </dialog>
+<dialog id="registry" aria-labelledby="registry-title">
+    <header>
+        <h2 id="registry-title">Registry Editor</h2>
+        <button id="registry-close" type="button" aria-label="Close">X</button>
+    </header>
+    <fieldset>
+        <legend>Key</legend>
+        <div class="look-in">
+            <div class="sunken" id="registry-path">My Device</div>
+            <button type="button" class="icon-button icon-up" id="registry-up" aria-label="Up One Level" title="Up One Level"></button>
+            <button type="button" class="icon-button icon-refresh" id="registry-refresh" aria-label="Refresh" title="Refresh"></button>
+        </div>
+        <div class="list">
+            <table>
+                <thead><tr><th>Name</th><th>Type</th><th>Data</th></tr></thead>
+                <tbody id="registry-list"></tbody>
+            </table>
+        </div>
+        <div class="actions">
+            <button type="button" id="registry-copy" disabled>Copy Value</button>
+            <button type="button" id="registry-export" disabled>Export Key...</button>
+            <button type="button" id="registry-import">Import .reg...</button>
+            <button type="button" id="registry-stop" hidden>Stop</button>
+        </div>
+        <form id="registry-confirm" hidden>
+            <span id="registry-confirm-text"></span>
+            <button type="submit">Import</button>
+            <button type="button" id="registry-confirm-cancel">Cancel</button>
+        </form>
+    </fieldset>
+    <footer><output id="registry-status">&nbsp;</output></footer>
+</dialog>
+<dialog id="registry-value" aria-labelledby="registry-value-title">
+    <header>
+        <h2 id="registry-value-title">Value</h2>
+        <button id="registry-value-close" type="button" aria-label="Close">X</button>
+    </header>
+    <fieldset>
+        <legend id="registry-value-type">Data</legend>
+        <pre class="sunken" id="registry-value-data"></pre>
+    </fieldset>
+</dialog>
 <dialog id="notes" aria-labelledby="notes-title">
     <header>
         <h2 id="notes-title">Readme - Pocket Word</h2>
@@ -165,6 +222,8 @@
             <li>Connect the cradle, press <strong>Connect</strong>, and choose the device when the browser asks.</li>
             <li>The BE-300 answers with its Unit ID and the names of its system and user disks; Windows Mobile devices with their name, model, OS version and processor.</li>
             <li><strong>Files</strong> browses the device, and sends, saves and deletes files.</li>
+            <li><strong>Registry Editor</strong> browses a Windows Mobile device's registry, one key at a time. Each entry is a round trip to the device, so large keys take a few seconds. Double-click a value to see all of it, copy it, export a key and everything under it as a <code>.reg</code> file, or import one. Imports skip deletions.</li>
+            <li>Importing writes straight to the device's registry: existing values are overwritten, there's no undo, and a bad value can stop the device booting until it's hard reset. Export the keys first, and try a new file on a throwaway key before anything that matters.</li>
             <li>Drop an installer, archive or CD image to find the packages the device takes: <code>.cbea</code> for the BE-300, CE <code>.cab</code> for the others. Packages built for another CPU are listed but not installed. Install sends the package and starts the device's own installer; follow its prompts there.</li>
             <li>BE-300: <strong>Back up flash</strong> reads all 16 MB, the OS partitions included, and saves it.</li>
         </ul>
