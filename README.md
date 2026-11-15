@@ -25,6 +25,7 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - Windows Installer `.msi` and `.mst` streams, including Windows CE CABs InstallShield stores as binary streams
 - 7z: LZMA, LZMA2, PPMd, BZip2, Deflate and Copy, with BCJ, BCJ2, ARM and Delta filters (not encrypted archives)
 - CD images: ISO 9660 with Joliet names (`.iso`), and raw 2352-byte sector images (`.bin`, `.mdf`) in Mode 1 or Mode 2 Form 1. Opened discs stay on disk: programs, archives and files up to 1 MB are read and unpacked, anything else only when a build installs it, or it's viewed or saved
+- Self-extractors that keep their files as resources, plain or zlib-compressed (Aspyr's Call of Duty 2 demo, IonFx's GeoRally), named from the resource name table when there is one
 - Installers with any of these embedded, recursively
 
 ### Finds builds

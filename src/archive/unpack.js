@@ -12,6 +12,7 @@ import { isCompoundFile, readCompoundStreams } from "./msi.js";
 import { findNsis, readNsis } from "./nsis.js";
 import { findRar, isRar, readRar } from "./rar.js";
 import { isPe, readSections, u16, u32 } from "../pe/pe.js";
+import { readResources } from "../pe/resources.js";
 import { extractSevenZip, isSevenZip } from "./sevenzip.js";
 import { isVise, readVise } from "./vise.js";
 import { findBytes, hasEndRecordNearEnd, readLocalEntries, readZip, readZipLeniently, tryDecodeCp932 } from "./zip.js";
@@ -20,6 +21,9 @@ export const MAX_DEPTH = 6;
 
 const MACHINE_X86 = 0x14c;
 const EMBEDDED_SEARCH_MINIMUM_SIZE = 16384;
+const RT_RCDATA = 10;
+const RT_LAST_STANDARD = 24;
+const RESOURCE_NAME_MAXIMUM = 260;
 const ZIP_LOCAL_SIGNATURE = [0x50, 0x4b, 0x03, 0x04];
 const CAB_SIGNATURE = [0x4d, 0x53, 0x43, 0x46, 0, 0, 0, 0];
 const SZDD_SIGNATURE = [0x53, 0x5a, 0x44, 0x44, 0x88, 0xf0, 0x27, 0x33];
@@ -370,6 +374,55 @@ function findEmbeddedLzh(data, start) {
     return null;
 }
 
+function isZlib(data) {
+    return data.length > 2 && (data[0] & 0x0f) === 8 && data[0] >> 4 <= 7 && ((data[0] << 8) | data[1]) % 31 === 0;
+}
+
+function resourcePayload(data) {
+    if (!isZlib(data)) return data;
+    const result = inflateRaw(data, { start: 2 });
+    return result.finished && !result.error ? result.output : data;
+}
+
+function payloadExtension(data) {
+    if (isPe(data)) return ".exe";
+    if (startsWith(data, CAB_SIGNATURE.slice(0, 4))) return ".cab";
+    if (startsWith(data, ZIP_LOCAL_SIGNATURE)) return ".zip";
+    return ".bin";
+}
+
+function resourceFileNames(resources) {
+    const names = new Map();
+    for (const resource of resources) {
+        if (resource.data.length > RESOURCE_NAME_MAXIMUM || typeof resource.name !== "number") continue;
+        const end = resource.data.indexOf(0);
+        const text = String.fromCharCode(...resource.data.subarray(0, end < 0 ? resource.data.length : end));
+        if (/^[\w .~-]+\.\w{1,4}$/.test(text)) names.set(`${resource.type}:${resource.name}`, text);
+    }
+    return names;
+}
+
+function readResourcePayloads(data) {
+    let resources;
+    try {
+        resources = readResources(data);
+    } catch {
+        return [];
+    }
+    const custom = resources.filter(({ type }) => typeof type === "string" || type === RT_RCDATA || type > RT_LAST_STANDARD);
+    const names = resourceFileNames(custom);
+    const members = [];
+    let stored = 0;
+    for (const resource of custom) {
+        const payload = resourcePayload(resource.data);
+        if (payload.length < 16 || !worthReading("", payload)) continue;
+        const named = [...names].find(([key]) => key !== `${resource.type}:${resource.name}` && key.endsWith(`:${resource.name}`));
+        members.push({ name: named ? named[1] : `resource_${resource.type}_${resource.name}${payloadExtension(payload)}`, data: payload });
+        stored += resource.data.length;
+    }
+    return stored * 2 >= data.length ? members : [];
+}
+
 export function findEmbedded(data, start, overlay = true) {
     const zipOffset = findBytes(data, ZIP_LOCAL_SIGNATURE, start);
     if (zipOffset >= 0) {
@@ -526,6 +579,10 @@ export function membersOf(name, data, siblings = []) {
         const start = overlayStart(data);
         const embedded = findEmbedded(data, start < data.length ? start : 0, start < data.length);
         if (embedded.members.length) return embedded;
+        if (start >= data.length) {
+            const members = readResourcePayloads(data);
+            if (members.length) return { members, method: "files in PE resources" };
+        }
     }
     return { members: null, method: null };
 }
