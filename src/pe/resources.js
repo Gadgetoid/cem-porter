@@ -1,4 +1,4 @@
-import { align, Image, setU16, setU32, u16, u32 } from "./pe.js";
+import { align, Image, makeHeaderRoom, setU16, setU32, u16, u32 } from "./pe.js";
 import { appendSection } from "../port/traps.js";
 
 const RESOURCE_DIRECTORY = 2;
@@ -139,32 +139,6 @@ function writeSection(input, image, section, contents) {
 
 function isLast(image, section, length) {
     return image.sections.every((other) => other === section || other.virtualAddress < section.virtualAddress && other.rawOffset + other.rawSize <= section.rawOffset) && section.rawOffset + section.rawSize >= length;
-}
-
-function makeHeaderRoom(input) {
-    const image = new Image(input);
-    const tableEnd = image.sectionTable + 40 * (image.sectionCount + 1);
-    const rawOffsets = image.sections.map((section) => section.rawOffset).filter(Boolean);
-    const firstRaw = Math.min(...rawOffsets);
-    if (tableEnd <= image.headersSize && tableEnd <= firstRaw) return input;
-    const headersSize = align(tableEnd, image.fileAlignment);
-    const firstRva = Math.min(...image.sections.map((section) => section.virtualAddress));
-    if (headersSize > firstRva) throw new Error("no room for another section header");
-    const shift = Math.max(0, headersSize - firstRaw);
-    const output = new Uint8Array(input.length + shift);
-    output.set(input.subarray(0, firstRaw));
-    output.set(input.subarray(firstRaw), firstRaw + shift);
-    for (const section of image.sections) if (section.rawOffset) setU32(output, section.entry + 20, section.rawOffset + shift);
-    setU32(output, image.optional + 60, headersSize);
-    const [debugRva, debugSize] = image.directory(6);
-    if (debugRva && shift) {
-        const debug = new Image(output).offset(debugRva);
-        for (let entry = debug; entry + 28 <= debug + debugSize; entry += 28) {
-            const pointer = u32(output, entry + 24);
-            if (pointer >= firstRaw) setU32(output, entry + 24, pointer + shift);
-        }
-    }
-    return output;
 }
 
 export function replaceResources(input, entries) {

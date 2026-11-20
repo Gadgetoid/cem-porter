@@ -1,4 +1,4 @@
-import { Image, align, setU16, setU32, u32 } from "../pe/pe.js";
+import { Image, align, makeHeaderRoom, setU16, setU32, u32 } from "../pe/pe.js";
 import { redirect } from "./shim.js";
 
 const SECTION_NAME = ".ceptrap";
@@ -39,11 +39,10 @@ export function findTrapCalls(data) {
     return sites;
 }
 
-export function appendSection(data, contents, virtualAddress, name = SECTION_NAME, characteristics = SECTION_CHARACTERISTICS) {
+export function appendSection(input, contents, virtualAddress, name = SECTION_NAME, characteristics = SECTION_CHARACTERISTICS) {
+    const data = makeHeaderRoom(input);
     const image = new Image(data);
     const tableEnd = image.sectionTable + 40 * image.sectionCount;
-    const rawOffsets = image.sections.map((section) => section.rawOffset).filter(Boolean);
-    if (tableEnd + 40 > image.headersSize || tableEnd + 40 > Math.min(...rawOffsets)) throw new Error("no room for another section header");
     const rawOffset = align(data.length, image.fileAlignment);
     const rawSize = align(contents.length, image.fileAlignment);
     const output = new Uint8Array(rawOffset + rawSize);

@@ -1,4 +1,4 @@
-import { u16, u32, setU16, setU32, cString, align, MACHINE_MIPS } from "../pe/pe.js";
+import { u16, u32, setU16, setU32, cString, align, makeHeaderRoom, MACHINE_MIPS } from "../pe/pe.js";
 
 export const PAGE = 0x1000;
 
@@ -561,11 +561,13 @@ export function recreateMipsRelocations(image) {
     return relocations;
 }
 
-export function recreateRelocatable(data) {
-    const image = new RealignImage(data);
-    if (u16(data, image.pe + 4) !== MACHINE_MIPS) return null;
-    const relocations = recreateMipsRelocations(image);
+export function recreateRelocatable(input) {
+    const original = new RealignImage(input);
+    if (u16(input, original.pe + 4) !== MACHINE_MIPS) return null;
+    const relocations = recreateMipsRelocations(original);
     if (!relocations.length) return null;
+    const data = makeHeaderRoom(input);
+    const image = new RealignImage(data);
     const encoded = encodeRelocations(relocations);
     const optional = image.optional;
     const optionalSize = u16(data, image.pe + 20);

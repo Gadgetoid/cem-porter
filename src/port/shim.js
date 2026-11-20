@@ -1,4 +1,4 @@
-import { Image, align, rvaToOffset, u32, setU16, setU32 } from "../pe/pe.js";
+import { Image, align, makeHeaderRoom, rvaToOffset, u32, setU16, setU32 } from "../pe/pe.js";
 
 export const SHIM_DLL = "VELOSHIM.DLL";
 
@@ -63,7 +63,7 @@ export class ImportSection {
     }
 
     finish(descriptors, dll, redirects) {
-        const image = this.image;
+        const image = new Image(makeHeaderRoom(this.image.data));
         const newDescriptors = [];
         const lookupArea = [];
         if (redirects.length) {
@@ -86,11 +86,6 @@ export class ImportSection {
         lookupArea.forEach((value, index) => setU32(contents, this.descriptorArea + this.strings.length + 4 * index, value));
 
         const tableEnd = image.sectionTable + 40 * image.sectionCount;
-        const rawOffsets = image.sections.map((section) => section.rawOffset).filter((rawOffset) => rawOffset);
-        if (!rawOffsets.length) throw new Error("no section with raw data");
-        if (tableEnd + 40 > image.headersSize || tableEnd + 40 > Math.min(...rawOffsets)) {
-            throw new Error("no room for another section header");
-        }
         const rawOffset = align(image.data.length, image.fileAlignment);
         const rawSize = align(contents.length, image.fileAlignment);
         const output = new Uint8Array(rawOffset + rawSize);

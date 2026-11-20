@@ -166,3 +166,30 @@ export class Image {
         return [u32(this.data, this.optional + 96 + 8 * index), u32(this.data, this.optional + 100 + 8 * index)];
     }
 }
+
+export function makeHeaderRoom(input) {
+    const image = new Image(input);
+    const tableEnd = image.sectionTable + 40 * (image.sectionCount + 1);
+    const rawOffsets = image.sections.map((section) => section.rawOffset).filter(Boolean);
+    if (!rawOffsets.length) throw new Error("no section with raw data");
+    const firstRaw = Math.min(...rawOffsets);
+    if (tableEnd <= image.headersSize && tableEnd <= firstRaw) return input;
+    const headersSize = align(tableEnd, image.fileAlignment);
+    const firstRva = Math.min(...image.sections.map((section) => section.virtualAddress));
+    if (headersSize > firstRva) throw new Error("no room for another section header");
+    const shift = Math.max(0, headersSize - firstRaw);
+    const output = new Uint8Array(input.length + shift);
+    output.set(input.subarray(0, firstRaw));
+    output.set(input.subarray(firstRaw), firstRaw + shift);
+    for (const section of image.sections) if (section.rawOffset) setU32(output, section.entry + 20, section.rawOffset + shift);
+    setU32(output, image.optional + 60, headersSize);
+    const [debugRva, debugSize] = image.directory(6);
+    if (debugRva && shift) {
+        const debug = new Image(output).offset(debugRva);
+        for (let entry = debug; entry + 28 <= debug + debugSize; entry += 28) {
+            const pointer = u32(output, entry + 24);
+            if (pointer >= firstRaw) setU32(output, entry + 24, pointer + shift);
+        }
+    }
+    return output;
+}
