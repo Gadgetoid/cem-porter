@@ -3,6 +3,7 @@ import { unpackFiles } from "../archive/unpack.js";
 import { findBuilds, loadPlanSources } from "../port/analyze.js";
 import { buildCab, buildSelfInstaller } from "../port/convert.js";
 import { aygshellUsers, buildCbea, cbeaWarnings } from "../device/cbeabuild.js";
+import { needsMips16Loader } from "../port/mips16.js";
 import { fetchBytes } from "../port/assets.js";
 import { safeFolderName } from "../port/installplan.js";
 import { saveBytes, setupDesktop } from "../ui/desktop.js";
@@ -64,7 +65,14 @@ function cbeaOutput(build, files, base, notes) {
     const shimmed = aygshellUsers(plan, dataFor).length > 0;
     let loading = null;
     const sources = () => (loading ??= loadPlanSources(plan, files).then((loaded) => unported(plan, loaded).ported));
-    const make = async () => buildCbea(plan, await sources(), { aygshell: shimmed ? await readBytes("data/mips/AYGSHELL.DLL") : null });
+    const make = async () => {
+        const ported = await sources();
+        const loaded = [...ported.files.values()].some((data) => needsMips16Loader(data));
+        return buildCbea(plan, ported, {
+            aygshell: shimmed ? await readBytes("data/mips/AYGSHELL.DLL") : null,
+            mips16Loader: loaded ? await readBytes("data/mips/MIPS16LD.DLL") : null,
+        });
+    };
     return [output(`${base}.BE-300.cbea`, make, null, "BE-300")];
 }
 

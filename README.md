@@ -71,6 +71,18 @@ Served from GitHub Pages; no build step. Open `index.html` through any static se
 - Setup DLLs go in the CAB for wceload, or are run by the self-installer (`Install_Init`, `Install_Exit`, `Uninstall_Init`, `Uninstall_Exit`), which binds their imports itself since CE 1.0's loader leaves Microsoft-linked DLLs unbound
 - "Install to Storage Card/PC Card" puts everything outside `\Windows` on the card. DLLs stay in `\Windows`, the only place CE 1.0 and 2.0 load them from. The self-installer finds the card at run time; CABs use `\Storage Card`
 
+### Casio BE-300 (.cbea)
+
+CAB Maker's BE-300 output, for MIPS programs:
+
+- One package per program: the launcher lists one entry per package (`HKLM\SOFTWARE\MENU`)
+- `\Windows` is RAM and a reset clears it, so the AYGSHELL shim and any DLLs the CAB puts in `\Windows` go in the install folder; the loader finds DLLs beside the program
+- MIPS16 programs (machine 0x266) are marked as plain MIPS: the BE-300's loader only accepts 0x166, though the CPU runs MIPS16
+- MIPS16 DLLs with MIPS16 jump relocations (type 9), which the BE-300 kernel skips, are replaced by `data/mips/MIPS16LD.DLL` with the DLL's exports; the real DLL is installed beside it as `<name>.m16` and loaded, relocated and linked by the stand-in (`stub/mips16ld.c`)
+- `InstallDir` is written under the app's `Software\Apps` key, as wceload would, pointing at `\Program Disk\<folder>`
+- Registry names containing spaces are quoted
+- Reported for hand work: files still going to `\Windows`, `\Windows\` paths inside programs, dialog controls the BE-300 may lack, full-screen programs, and packages with more than one program
+
 Programs that need Microsoft runtimes (MFC 2.11, Visual Basic) need them installed separately.
 
 ## ROM Explorer

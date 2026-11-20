@@ -1,10 +1,12 @@
 import { writeCbea, PLACE_ALTERNATIVE } from "./cbeawrite.js";
 import { parsePe } from "../pe/pe.js";
+import { be300Findings, prepareBe300Files } from "./be300.js";
 
 const ROOTS = { HKLM: "HKEY_LOCAL_MACHINE", HKCU: "HKEY_CURRENT_USER", HKCR: "HKEY_CLASSES_ROOT", HKU: "HKEY_USERS" };
 const PROGRAM_FILES = "\\Program Files";
 const UNLOAD_FOLDER = "Storage Card\\Program Files";
-const AYGSHELL_PATH = "\\Windows\\aygshell.dll";
+const AYGSHELL_PATH = "%INSTALL_DIR%\\aygshell.dll";
+const PROGRAM_DISK = "\\Program Disk";
 
 function leaf(path) {
     return path.slice(path.lastIndexOf("\\") + 1);
@@ -24,6 +26,10 @@ function latin1(text) {
 
 function lines(...rows) {
     return latin1(rows.flat().join("\r\n") + "\r\n");
+}
+
+function field(text) {
+    return / /.test(text) ? `"${text}"` : text;
 }
 
 function isBookkeeping(operation) {
@@ -66,14 +72,15 @@ export function aygshellUsers(plan, dataFor = () => null) {
 export function cbeaWarnings(plan, dataFor = () => null) {
     const warnings = [];
     const shellUsers = aygshellUsers(plan, dataFor);
-    if (shellUsers.length) warnings.push(`${shellUsers.join(", ")} use${shellUsers.length === 1 ? "s" : ""} AYGSHELL.DLL; the package adds CEM Porter's shim to \\Windows`);
+    if (shellUsers.length) warnings.push(`${shellUsers.join(", ")} use${shellUsers.length === 1 ? "s" : ""} AYGSHELL.DLL; the package adds CEM Porter's shim to the install folder, since \\Windows is RAM on the BE-300 and is cleared by a reset`);
     const unsupported = plan.operations.filter((operation) => operation.kind === "regmulti" || operation.kind === "regbinary");
     if (unsupported.length) warnings.push(`${unsupported.length} multi-string or binary registry value${unsupported.length === 1 ? "" : "s"} left out of the .cbea`);
     if (plan.setupDlls?.length) warnings.push("CoInstall doesn't run setup DLLs; the .cbea installs without it");
+    warnings.push(...be300Findings(plan, dataFor));
     return warnings;
 }
 
-export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE, aygshell = null } = {}) {
+export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE, aygshell = null, mips16Loader = null } = {}) {
     const files = installedFiles(plan, ported);
     const program = mainProgram(plan, files);
     if (!program) throw new Error("no program to install");
@@ -101,7 +108,8 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE, aygsh
         return candidate;
     };
 
-    const copies = files.map((file) => ({ file, member: memberName(file.path) }));
+    const prepared = prepareBe300Files(files.map((file) => ({ path: file.path, data: ported.files.get(file) })), installDir, mips16Loader).entries;
+    const copies = prepared.map((file) => ({ file, member: memberName(file.path) }));
     const shim = aygshell ? { path: AYGSHELL_PATH, member: memberName(AYGSHELL_PATH), data: aygshell } : null;
     const folders = new Set();
     for (const operation of plan.operations) {
@@ -123,7 +131,12 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE, aygsh
         if ((operation.kind !== "regsz" && operation.kind !== "regdword") || isBookkeeping(operation)) continue;
         const root = ROOTS[operation.root] || operation.root;
         const value = operation.kind === "regdword" ? `${operation.value >>> 0}` : `"${operation.value}"`;
-        registry.push(`${root}, ${operation.key}, ${operation.name}, ${operation.kind === "regdword" ? "REG_DWORD" : "REG_SZ"}, FLG_ADDREG_REPLACEONLY, ${value}`);
+        registry.push(`${root}, ${field(operation.key)}, ${field(operation.name)}, ${operation.kind === "regdword" ? "REG_DWORD" : "REG_SZ"}, FLG_ADDREG_REPLACEONLY, ${value}`);
+    }
+    const appsKeys = new Set(plan.operations.filter((operation) => operation.kind === "regsz" && isBookkeeping(operation) && /^InstlDir$/i.test(operation.name)).map((operation) => `${ROOTS[operation.root] || operation.root}|${operation.key}`));
+    for (const appsKey of appsKeys) {
+        const [root, key] = appsKey.split("|");
+        registry.push(`${root}, ${field(key)}, InstallDir, REG_SZ, FLG_ADDREG_REPLACEONLY, "${PROGRAM_DISK}\\${leaf(installDir)}"`);
     }
 
     const install = lines(
@@ -177,7 +190,7 @@ export function buildCbea(plan, ported, { destination = PLACE_ALTERNATIVE, aygsh
             { name: "Install.inf", data: install },
             { name: uninstallName, data: uninstall },
             { name: `${programBase}.txt`, data: menu },
-            ...copies.map(({ file, member }) => ({ name: member, data: ported.files.get(file) })),
+            ...copies.map(({ file, member }) => ({ name: member, data: file.data })),
             ...(shim ? [{ name: shim.member, data: shim.data }] : []),
         ],
     });
