@@ -10,7 +10,7 @@ cmake --build "$here/build/mips" > /dev/null
 cp "$here/build/mips/ceinstall.exe" "$here/build/mips/CE1COMPAT.DLL" "$root/data/mips/"
 cmake -S "$here" -B "$here/build/mips-ce2" -DCMAKE_TOOLCHAIN_FILE="$toolchain/cmake/velo-ce.cmake" -DVELO_CE_VERSION=2 > /dev/null
 cmake --build "$here/build/mips-ce2" > /dev/null
-cp "$here/build/mips-ce2/AYGSHELL.DLL" "$root/data/mips/"
+cp "$here/build/mips-ce2/AYGSHELL.DLL" "$here/build/mips-ce2/MIPS16LD.DLL" "$root/data/mips/"
 cmake -S "$here" -B "$here/build/sh3" -DCMAKE_TOOLCHAIN_FILE="$toolchain/cmake/velo-ce.cmake" -DVELO_CE_VERSION=1 -DVELO_ARCH=sh3 -DVELO_LLVM_ROOT="$sh3_llvm" > /dev/null
 cmake --build "$here/build/sh3" > /dev/null
 cp "$here/build/sh3/ceinstall.exe" "$here/build/sh3/CE1COMPAT.DLL" "$root/data/sh3/"
