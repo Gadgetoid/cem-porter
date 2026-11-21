@@ -768,6 +768,21 @@ async function uploadFolderHere() {
 async function downloadSelected() {
     const entries = [...browser.selection];
     if (!entries.length) return;
+    let folder = null;
+    if (entries.length > 1 && "showDirectoryPicker" in window) {
+        try {
+            folder = await window.showDirectoryPicker({ id: "download", mode: "readwrite", startIn: "downloads" });
+        } catch (error) {
+            if (error.name === "AbortError") return;
+            throw error;
+        }
+    }
+    const save = async (bytes, name) => {
+        if (!folder) return saveBytes(bytes, name);
+        const writable = await (await folder.getFileHandle(name, { create: true })).createWritable();
+        await writable.write(bytes);
+        await writable.close();
+    };
     const total = entries.reduce((sum, entry) => sum + entry.size, 0);
     let readBefore = 0;
     let saved = 0;
@@ -780,13 +795,13 @@ async function downloadSelected() {
             const path = join(browser.path, entry.name);
             browser.transfer.verb = entries.length > 1 ? `Reading ${index + 1} of ${entries.length},` : "Reading";
             const bytes = await state.link.receiveFile(path, entry.size, (read) => transferProgress(readBefore + read, total));
-            saveBytes(bytes, entry.name);
+            await save(bytes, entry.name);
             readBefore += entry.size;
             saved++;
             current = null;
             log(`downloaded ${path} (${bytes.length} bytes)`);
         }
-        browserStatus(entries.length === 1 ? `Saved ${entries[0].name}` : `Saved ${saved} files (${formatSize(total)})`);
+        browserStatus(entries.length === 1 ? `Saved ${entries[0].name}` : `Saved ${saved} files (${formatSize(total)})${folder ? ` to ${folder.name}` : ""}`);
     } catch (error) {
         if (browser.transfer.stopped) {
             browserStatus(`Stopped after saving ${saved} of ${entries.length} file${entries.length === 1 ? "" : "s"}`);
