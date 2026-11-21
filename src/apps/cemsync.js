@@ -344,6 +344,7 @@ async function disconnect() {
     elements["registry-value"].close();
     elements.registry.close();
     registryCache.clear();
+    listingCache.clear();
     registry.root = null;
     registry.path = "";
     if (state.link) await state.link.close();
