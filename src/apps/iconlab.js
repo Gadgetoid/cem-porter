@@ -1,5 +1,6 @@
 import { unpack } from "../archive/unpack.js";
 import { isPe } from "../pe/pe.js";
+import { isNe, readNeResources } from "../pe/ne.js";
 import { decodeDib } from "../pe/romres.js";
 import { readResources, replaceResources } from "../pe/resources.js";
 import { DEPTHS, defaultLanguage, encodeIconImage, iconGroups, isPng, nextGroupName, putIconGroup, readIco, removeIconGroup, writeIco } from "../pe/iconcodec.js";
@@ -56,15 +57,23 @@ function decodeStored(image) {
     return { width: image.width, height: image.height, bits: image.bits, data: image.data, rgba: bitmap?.rgba ?? null };
 }
 
-function peFiles(name, data) {
-    if (isPe(data)) return [{ name: baseName(name), data }];
+function isProgram(data) {
+    return isPe(data) || isNe(data);
+}
+
+function programResources(data) {
+    return isPe(data) ? readResources(data) : readNeResources(data);
+}
+
+function peFiles(name, data, accept = isPe) {
+    if (accept(data)) return [{ name: baseName(name), data }];
     let files = [];
     try {
         files = unpack(name, data).files;
     } catch {
         return [];
     }
-    return files.filter((file) => PE_EXTENSIONS.has(extensionOf(file.path)) && isPe(file.data)).map((file) => ({ name: file.path, data: file.data }));
+    return files.filter((file) => PE_EXTENSIONS.has(extensionOf(file.path)) && accept(file.data)).map((file) => ({ name: file.path, data: file.data }));
 }
 
 function groupLabel(group, index) {
@@ -175,13 +184,13 @@ async function loadSource(name, data) {
     const extension = extensionOf(name);
     let groups = [];
     try {
-        if (extension === "ico" || readIco(data)?.length && !isPe(data)) {
+        if (extension === "ico" || readIco(data)?.length && !isProgram(data)) {
             groups = [{ label: baseName(name), images: await decodeIconImages(readIco(data) ?? []) }];
-        } else if (IMAGE_TYPES[extension] || !peFiles(name, data).length) {
+        } else if (IMAGE_TYPES[extension] || !peFiles(name, data, isProgram).length) {
             groups = [{ label: baseName(name), images: [await decodePicture(data, IMAGE_TYPES[extension] ?? "")] }];
         } else {
-            for (const file of peFiles(name, data)) {
-                iconGroups(readResources(file.data)).forEach((group, index) => groups.push({ label: `${baseName(file.name)}: ${groupLabel(group, index)}`, images: group.images.map(decodeStored) }));
+            for (const file of peFiles(name, data, isProgram)) {
+                iconGroups(programResources(file.data)).forEach((group, index) => groups.push({ label: `${baseName(file.name)}: ${groupLabel(group, index)}`, images: group.images.map(decodeStored) }));
             }
         }
     } catch (error) {
