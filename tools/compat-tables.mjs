@@ -11,8 +11,11 @@ import { isSec, secImages } from "./sec.mjs";
 
 const LIBRARY = /\.(dll|cpl|drv|ocx)$/i;
 const MAX_ROM_SIZE = 512 * 1024 * 1024;
-const [bundlesDirectory, outputDirectory = join(import.meta.dirname, "../data/compat")] = process.argv.slice(2);
-if (!bundlesDirectory) throw new Error("usage: node tools/compat-tables.mjs <cerf-bundles directory> [output directory]");
+const options = process.argv.slice(2);
+const outputIndex = options.indexOf("--out");
+const outputDirectory = outputIndex < 0 ? join(import.meta.dirname, "../data/compat") : options.splice(outputIndex, 2)[1];
+const bundlesDirectories = options;
+if (!bundlesDirectories.length) throw new Error("usage: node tools/compat-tables.mjs <cerf-bundles directory or bundle>... [--out <output directory>]");
 
 const NAME_WORDS = { hp: "HP", ipaq: "iPAQ", nec: "NEC", ibm: "IBM", lxe: "LXE", hmi: "HMI", omap: "OMAP", evm: "EVM", smdk: "SMDK", devemu: "Device Emulator", mobilepro: "MobilePro", workpad: "WorkPad", simpad: "SIMpad", smartbook: "SmartBook", zune: "Zune", sync: "SYNC" };
 const UPPER_WORDS = /^(ce|hpc|ppc|wm|sp|xp|qvga|vga|wvga|wqvga|xaml|expl|wwe|mips|sl4|mk\d+)\d*/;
@@ -170,18 +173,22 @@ function readDevice(bundleDirectory) {
     return { device, tables };
 }
 
-if (bundlesDirectory === "--one") {
-    writeFileSync(process.argv[4], JSON.stringify(readDevice(outputDirectory)));
+if (bundlesDirectories[0] === "--one") {
+    writeFileSync(bundlesDirectories[2], JSON.stringify(readDevice(bundlesDirectories[1])));
     process.exit(0);
+}
+
+function bundleDirectories(directory) {
+    if (existsSync(join(directory, "cerf.json"))) return [directory];
+    return readdirSync(directory).sort().map((name) => join(directory, name)).filter((bundleDirectory) => existsSync(join(bundleDirectory, "cerf.json")));
 }
 
 const devices = [];
 const tables = new Map();
 const scratch = mkdtempSync(join(tmpdir(), "compat-tables-"));
 const resultPath = join(scratch, "device.json");
-for (const name of readdirSync(bundlesDirectory).sort()) {
-    const bundleDirectory = join(bundlesDirectory, name);
-    if (!existsSync(join(bundleDirectory, "cerf.json"))) continue;
+for (const bundleDirectory of bundlesDirectories.flatMap(bundleDirectories)) {
+    const name = basename(bundleDirectory);
     rmSync(resultPath, { force: true });
     const child = spawnSync(process.execPath, ["--max-old-space-size=6000", import.meta.filename, "--one", bundleDirectory, resultPath], { stdio: "ignore" });
     let result;

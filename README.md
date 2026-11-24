@@ -120,7 +120,7 @@ https://gadgetoid.github.io/cem-porter/compat.html (`compat.html`) checks a prog
 - Ordinal imports are named from the nearest older ROM with the same CPU
 - DLLs in the same package count as present
 - Devices are grouped by OS and CE version, and can be filtered by CPU, result and name
-- Export tables come from the CERF bundle ROMs (`tools/compat-tables.mjs`, written to `data/compat`). The Ford SYNC 2 image is read from disk by the tool, since it's too large to load whole
+- Export tables come from the CERF bundle ROMs and the Medion MDPNA 100's BINFS partition, read from its NAND (`tools/compat-tables.mjs`, written to `data/compat`). Other ROMs can be added as a folder holding a CERF-style `cerf.json` and `rom/`. The Ford SYNC 2 image is read from disk by the tool, since it's too large to load whole
 
 ## State Explorer
 
