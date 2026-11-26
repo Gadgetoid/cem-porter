@@ -66,6 +66,17 @@ const TARGETS = [
         can: { install: true, send: true, backup: false, reset: false },
     },
     {
+        id: "medion",
+        name: "Medion MDPNA 100",
+        link: "ActiveSync over USB serial",
+        filters: [{ vendorId: 0x045e, productId: 0x0438 }],
+        createLink: () => new PcLinkLink(),
+        describe: describePcLink,
+        installRoot: "\\My Documents",
+        packages: ["cab"],
+        can: { install: true, send: true, backup: false, reset: false },
+    },
+    {
         id: "serial",
         name: "Windows CE 1.0 to 3.0 devices",
         link: "PC Link over a serial cable",
